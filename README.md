@@ -219,6 +219,179 @@ The reminder email includes enough context that the salesperson can act without 
 
 ---
 
+## System Architecture
+
+```mermaid
+graph TB
+    subgraph Client["Client (Browser / PWA)"]
+        LP["Landing Page<br/><small>/</small>"]
+        Auth["Login / Signup<br/><small>/login, /signup</small>"]
+        App["App Shell<br/><small>Sidebar + Top Bar</small>"]
+        Dash["Dashboard<br/><small>Manager KPIs / Advisor My Day</small>"]
+        Pipe["Pipeline Kanban<br/><small>Drag-and-drop stages</small>"]
+        Leads["Leads List + Detail<br/><small>Search, filter, qualify</small>"]
+        Cap["Quick Capture<br/><small>Mobile lead intake</small>"]
+        Team["Team Management<br/><small>Invite, assign, monitor</small>"]
+        Reports["Reports<br/><small>KPIs, funnel, leaderboard</small>"]
+        Settings["Settings<br/><small>Profile, pipeline config</small>"]
+    end
+
+    subgraph NextAPI["Next.js API Routes (Vercel)"]
+        CronAPI["GET /api/cron/send-reminders<br/><small>Daily 7am UK</small>"]
+        ImportAPI["POST /api/import<br/><small>CSV/XLS upload + dedup</small>"]
+        TeamAPI["POST /api/team<br/><small>Invite, role mgmt</small>"]
+        ReportsAPI["GET /api/reports<br/><small>Aggregated KPIs</small>"]
+        NotifAPI["/api/notifications<br/><small>List + mark read</small>"]
+        SettingsAPI["/api/settings<br/><small>Profile + pipeline CRUD</small>"]
+    end
+
+    subgraph Firebase["Firebase (GCP)"]
+        FireAuth["Firebase Auth<br/><small>Email/password</small>"]
+        Firestore["Cloud Firestore<br/><small>leads, tasks, activities,<br/>users, notifications</small>"]
+        Storage["Cloud Storage<br/><small>Document uploads</small>"]
+    end
+
+    subgraph External["External Services"]
+        Resend["Resend<br/><small>Transactional email</small>"]
+        VercelCron["Vercel Cron<br/><small>0 7 * * *</small>"]
+        MAB["MAB Platform<br/><small>CSV/XLS export</small>"]
+    end
+
+    %% Client connections
+    LP --> Auth
+    Auth --> FireAuth
+    App --> Dash & Pipe & Leads & Cap & Team & Reports & Settings
+
+    %% Real-time subscriptions
+    Dash -- "onSnapshot" --> Firestore
+    Pipe -- "onSnapshot" --> Firestore
+    Leads -- "onSnapshot" --> Firestore
+    Cap -- "addDoc" --> Firestore
+
+    %% API route connections
+    Team --> TeamAPI
+    Reports --> ReportsAPI
+    Settings --> SettingsAPI
+    TeamAPI --> FireAuth
+    TeamAPI --> Resend
+    ReportsAPI --> Firestore
+    SettingsAPI --> Firestore
+    NotifAPI --> Firestore
+    ImportAPI --> Firestore
+
+    %% Cron flow
+    VercelCron -- "HTTP GET" --> CronAPI
+    CronAPI -- "query tasks" --> Firestore
+    CronAPI -- "send emails" --> Resend
+
+    %% Import flow
+    MAB -. "CSV/XLS export" .-> ImportAPI
+
+    %% Middleware
+    Auth -- "__session cookie" --> App
+
+    %% Styling
+    classDef client fill:#EFF6FF,stroke:#3B82F6,color:#1E3A5F
+    classDef api fill:#F0FDF4,stroke:#22C55E,color:#14532D
+    classDef firebase fill:#FEF3C7,stroke:#F59E0B,color:#78350F
+    classDef external fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95
+
+    class LP,Auth,App,Dash,Pipe,Leads,Cap,Team,Reports,Settings client
+    class CronAPI,ImportAPI,TeamAPI,ReportsAPI,NotifAPI,SettingsAPI api
+    class FireAuth,Firestore,Storage firebase
+    class Resend,VercelCron,MAB external
+```
+
+### Data Flow: Follow-up Reminder (Core Feature)
+
+```mermaid
+sequenceDiagram
+    participant S as Salesperson
+    participant App as Mallard Connect
+    participant FS as Firestore
+    participant Cron as Vercel Cron (7am)
+    participant Resend as Resend Email
+
+    S->>App: Set follow-up date + 3 recipients
+    App->>FS: addDoc("tasks", {dueDate, reminderEmails})
+    Note over FS: Task stored with status: pending
+
+    Cron->>App: GET /api/cron/send-reminders
+    App->>FS: Query tasks where dueDate ≤ today
+    FS-->>App: [task1, task2, ...]
+    loop Each due task
+        App->>Resend: Send reminder email to recipients
+        App->>FS: updateDoc(task, {reminderSent: true})
+    end
+    App->>FS: addDoc("auditLog", {action: "reminders_sent"})
+```
+
+### Data Model
+
+```mermaid
+erDiagram
+    USERS ||--o{ LEADS : "assignedTo"
+    USERS ||--o{ TASKS : "assignedTo"
+    USERS ||--o{ ACTIVITIES : "performedBy"
+    USERS ||--o{ NOTIFICATIONS : "userId"
+    LEADS ||--o{ ACTIVITIES : "leadId"
+    LEADS ||--o{ TASKS : "leadId"
+
+    USERS {
+        string id PK
+        string email
+        string fullName
+        string phone
+        enum role "admin | manager | advisor"
+        boolean isActive
+    }
+
+    LEADS {
+        string id PK
+        string firstName
+        string lastName
+        string phone
+        string email
+        enum source "website | referral | phone | walk-in | social | mab-import"
+        enum status "active | on-hold | lost | converted"
+        string currentStageId FK
+        string assignedTo FK
+        enum mortgageType "first-time-buyer | remortgage | self-employed | buy-to-let"
+        enum readiness "ready-now | 1-3-months | 3-6-months | 6-12-months | exploring"
+    }
+
+    TASKS {
+        string id PK
+        string leadId FK
+        string assignedTo FK
+        string title
+        timestamp dueDate
+        enum priority "low | normal | high | urgent"
+        enum status "pending | snoozed | completed | cancelled"
+        array reminderEmails "up to 3"
+        boolean reminderSent
+    }
+
+    ACTIVITIES {
+        string id PK
+        string leadId FK
+        string performedBy FK
+        enum activityType "call | email | meeting | note | sms | whatsapp | stage-change"
+        string title
+        string description
+    }
+
+    NOTIFICATIONS {
+        string id PK
+        string userId FK
+        string type
+        string title
+        boolean isRead
+    }
+```
+
+---
+
 ## Phased Delivery
 
 ### Phase 1: Foundation + Core
