@@ -1,0 +1,91 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function getUser() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && getUser().role == 'admin';
+    }
+
+    function isManager() {
+      return isSignedIn() && getUser().role == 'manager';
+    }
+
+    function isAdminOrManager() {
+      return isAdmin() || isManager();
+    }
+
+    function isAdvisor() {
+      return isSignedIn() && getUser().role == 'advisor';
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    match /leads/{leadId} {
+      allow read: if isAdminOrManager() ||
+                    (isAdvisor() && resource.data.assignedTo == request.auth.uid);
+
+      allow create: if isSignedIn();
+
+      allow update, delete: if isAdminOrManager() ||
+                               (isAdvisor() && resource.data.assignedTo == request.auth.uid);
+
+      match /activities/{activityId} {
+        allow read: if isAdminOrManager() ||
+                      (isAdvisor() && get(/databases/$(database)/documents/leads/$(leadId)).data.assignedTo == request.auth.uid);
+
+        allow create: if isAdminOrManager() ||
+                        (isAdvisor() && get(/databases/$(database)/documents/leads/$(leadId)).data.assignedTo == request.auth.uid);
+
+        allow update, delete: if isAdminOrManager();
+      }
+    }
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdminOrManager();
+      allow write: if isAdminOrManager();
+    }
+
+    match /tasks/{taskId} {
+      allow read, write: if isSignedIn() && (
+        resource == null ||
+        resource.data.assignedTo == request.auth.uid ||
+        resource.data.createdBy == request.auth.uid ||
+        isAdminOrManager()
+      );
+    }
+
+    match /notifications/{notificationId} {
+      allow read, write: if isSignedIn() && (
+        resource == null ||
+        resource.data.userId == request.auth.uid ||
+        isAdminOrManager()
+      );
+    }
+
+    match /auditLog/{logId} {
+      allow create: if isSignedIn();
+      allow read: if isAdminOrManager();
+      allow update, delete: if false;
+    }
+
+    match /imports/{importId} {
+      allow read, write: if isAdminOrManager();
+    }
+
+    match /pipeline/{stageId} {
+      allow read: if isSignedIn();
+      allow write: if isAdminOrManager();
+    }
+  }
+}
