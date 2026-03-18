@@ -76,7 +76,7 @@ export default function LeadsPage() {
     status: statusFilter || undefined,
   });
 
-  const { data: firestoreUsers } = useRealtimeCollection<User>(demo ? "__skip__/x" : "users");
+  const { data: firestoreUsers } = useRealtimeCollection<User>(demo ? "__skip__" : "users");
 
   const leads = demo
     ? MOCK_LEADS.filter((l) => {

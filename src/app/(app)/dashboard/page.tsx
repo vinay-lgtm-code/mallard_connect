@@ -70,11 +70,11 @@ function useDashboardData(userId: string, isManager: boolean) {
     demo ? "__skip__" : isManager ? "__manager__" : userId
   );
   const { data: firestoreActivities, loading: activitiesLoading } = useRealtimeCollection<Activity>(
-    demo ? "__skip__/x" : "activities",
+    demo ? "__skip__" : "activities",
     demo ? [] : [orderBy("createdAt", "desc"), limit(10)]
   );
   const { data: firestoreUsers } = useRealtimeCollection<User>(
-    demo ? "__skip__/x" : "users"
+    demo ? "__skip__" : "users"
   );
 
   if (demo) {
