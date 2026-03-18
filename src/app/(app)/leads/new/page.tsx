@@ -2,8 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
-import { ZodError } from "zod";
 
 type FieldErrors = Partial<Record<keyof CreateLeadInput, string>>;
 
@@ -95,8 +97,10 @@ function SelectField({ label, error, options, placeholder, ...props }: SelectPro
 
 export default function NewLeadPage() {
   const router = useRouter();
+  const { user } = useAuth();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     firstName: "",
@@ -123,6 +127,7 @@ export default function NewLeadPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setErrors({});
+    setSubmitError(null);
 
     const payload = {
       firstName: form.firstName,
@@ -150,11 +155,62 @@ export default function NewLeadPage() {
       return;
     }
 
+    if (!user) {
+      setSubmitError("You must be logged in to create a lead.");
+      return;
+    }
+
     setSaving(true);
     try {
-      // In production: addDoc to Firestore leads collection, create task if followUpDate set
-      await new Promise((res) => setTimeout(res, 800));
-      router.push("/leads/l1");
+      const docRef = await addDoc(collection(db, "leads"), {
+        firstName: form.firstName,
+        lastName: form.lastName,
+        phone: form.phone,
+        email: form.email || null,
+        source: form.source,
+        mortgageType: form.mortgageType || null,
+        readiness: form.readiness || null,
+        status: "active",
+        currentStageId: "new_enquiry",
+        assignedTo: user.id,
+        notes: form.notes || null,
+        nextFollowUpDate: form.followUpDate ? Timestamp.fromDate(new Date(form.followUpDate)) : null,
+        followUpReason: form.followUpReason || null,
+        followUpNotes: form.reminderNote || null,
+        tags: [],
+        referredBy: null,
+        importId: null,
+        propertyValue: null,
+        depositAmount: null,
+        loanAmount: null,
+        convertedAt: null,
+        lostAt: null,
+        lostReason: null,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      if (form.followUpDate) {
+        const reminderEmails = [form.reminderEmail1, form.reminderEmail2, form.reminderEmail3].filter(Boolean);
+        await addDoc(collection(db, "tasks"), {
+          leadId: docRef.id,
+          assignedTo: user.id,
+          createdBy: user.id,
+          title: `Follow up: ${form.firstName} ${form.lastName}`,
+          description: form.reminderNote || null,
+          dueDate: Timestamp.fromDate(new Date(form.followUpDate)),
+          priority: "normal",
+          status: "pending",
+          reminderEmails,
+          reminderSent: false,
+          createdAt: serverTimestamp(),
+        });
+      }
+
+      router.push(`/leads/${docRef.id}`);
+    } catch (err) {
+      console.error("Failed to create lead:", err);
+      setSubmitError("Failed to save lead. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -295,6 +351,10 @@ export default function NewLeadPage() {
             </div>
           </div>
         </div>
+
+        {submitError && (
+          <p className="mt-4 text-sm text-destructive text-center">{submitError}</p>
+        )}
 
         <div className="mt-6">
           <button

@@ -8,6 +8,11 @@ import {
   Draggable,
   type DropResult,
 } from "@hello-pangea/dnd";
+import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
+import { useLeads } from "@/hooks/use-leads";
+import { useAuth } from "@/hooks/useAuth";
+import { getInitials } from "@/lib/utils";
 import type { Lead } from "@/types";
 
 interface StageConfig {
@@ -36,66 +41,6 @@ const MORTGAGE_TYPE_LABELS: Record<string, string> = {
   other: "Other",
 };
 
-const MOCK_LEADS: Lead[] = [
-  {
-    id: "l1", firstName: "James", lastName: "Thornton", email: "james@example.com",
-    phone: "+44 7700 900123", source: "website", status: "active", currentStageId: "new_enquiry",
-    assignedTo: "u1", mortgageType: "first-time-buyer", readiness: "3-6-months",
-    propertyValue: null, depositAmount: null, loanAmount: null,
-    nextFollowUpDate: null, followUpReason: null, followUpNotes: null,
-    tags: [], referredBy: null, importId: null,
-    createdAt: null as never, updatedAt: null as never, convertedAt: null, lostAt: null, lostReason: null,
-  },
-  {
-    id: "l2", firstName: "Priya", lastName: "Sharma", email: "priya@example.com",
-    phone: "+44 7911 123456", source: "referral", status: "active", currentStageId: "new_enquiry",
-    assignedTo: "u2", mortgageType: "remortgage", readiness: "ready-now",
-    propertyValue: null, depositAmount: null, loanAmount: null,
-    nextFollowUpDate: null, followUpReason: null, followUpNotes: null,
-    tags: [], referredBy: null, importId: null,
-    createdAt: null as never, updatedAt: null as never, convertedAt: null, lostAt: null, lostReason: null,
-  },
-  {
-    id: "l3", firstName: "Tom", lastName: "Baker", email: "tom@example.com",
-    phone: "+44 7800 654321", source: "phone", status: "active", currentStageId: "initial_contact",
-    assignedTo: "u1", mortgageType: "buy-to-let", readiness: "1-3-months",
-    propertyValue: null, depositAmount: null, loanAmount: null,
-    nextFollowUpDate: null, followUpReason: null, followUpNotes: null,
-    tags: [], referredBy: null, importId: null,
-    createdAt: null as never, updatedAt: null as never, convertedAt: null, lostAt: null, lostReason: null,
-  },
-  {
-    id: "l4", firstName: "Ayesha", lastName: "Patel", email: "ayesha@example.com",
-    phone: "+44 7700 111222", source: "social", status: "active", currentStageId: "not_ready_yet",
-    assignedTo: "u2", mortgageType: "first-time-buyer", readiness: "6-12-months",
-    propertyValue: null, depositAmount: null, loanAmount: null,
-    nextFollowUpDate: null, followUpReason: null, followUpNotes: null,
-    tags: [], referredBy: null, importId: null,
-    createdAt: null as never, updatedAt: null as never, convertedAt: null, lostAt: null, lostReason: null,
-  },
-  {
-    id: "l5", firstName: "Marcus", lastName: "Reid", email: "marcus@example.com",
-    phone: "+44 7800 333444", source: "referral", status: "active", currentStageId: "nurturing",
-    assignedTo: "u1", mortgageType: "remortgage", readiness: "3-6-months",
-    propertyValue: null, depositAmount: null, loanAmount: null,
-    nextFollowUpDate: null, followUpReason: null, followUpNotes: null,
-    tags: [], referredBy: null, importId: null,
-    createdAt: null as never, updatedAt: null as never, convertedAt: null, lostAt: null, lostReason: null,
-  },
-  {
-    id: "l6", firstName: "Olivia", lastName: "Chen", email: "olivia@example.com",
-    phone: "+44 7911 555666", source: "website", status: "active", currentStageId: "ready_to_proceed",
-    assignedTo: "u2", mortgageType: "first-time-buyer", readiness: "ready-now",
-    propertyValue: null, depositAmount: null, loanAmount: null,
-    nextFollowUpDate: null, followUpReason: null, followUpNotes: null,
-    tags: [], referredBy: null, importId: null,
-    createdAt: null as never, updatedAt: null as never, convertedAt: null, lostAt: null, lostReason: null,
-  },
-];
-
-const ASSIGNEE_INITIALS: Record<string, string> = { u1: "SW", u2: "DM" };
-const ASSIGNEE_COLORS: Record<string, string> = { u1: "bg-indigo-500", u2: "bg-green-500" };
-
 interface LeadCardProps {
   lead: Lead;
   index: number;
@@ -104,8 +49,7 @@ interface LeadCardProps {
 
 function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
   const mortgageLabel = lead.mortgageType ? MORTGAGE_TYPE_LABELS[lead.mortgageType] : null;
-  const initials = ASSIGNEE_INITIALS[lead.assignedTo] ?? "?";
-  const avatarColor = ASSIGNEE_COLORS[lead.assignedTo] ?? "bg-gray-400";
+  const initials = getInitials(`${lead.firstName} ${lead.lastName}`);
 
   return (
     <Draggable draggableId={lead.id} index={index}>
@@ -139,7 +83,7 @@ function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
                 {mortgageLabel}
               </span>
             )}
-            <div className={`w-6 h-6 rounded-full ${avatarColor} flex items-center justify-center ml-auto flex-shrink-0`}>
+            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center ml-auto flex-shrink-0">
               <span className="text-white text-[10px] font-bold">{initials}</span>
             </div>
           </div>
@@ -149,28 +93,136 @@ function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
   );
 }
 
+interface StageChangeModalProps {
+  stageName: string;
+  onConfirm: (note: string) => void;
+  onCancel: () => void;
+}
+
+function StageChangeModal({ stageName, onConfirm, onCancel }: StageChangeModalProps) {
+  const [note, setNote] = useState("");
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+      <div className="bg-white rounded-[12px] p-6 shadow-xl w-full max-w-sm mx-4">
+        <h2 className="text-base font-bold text-gray-900 mb-1">Stage changed to {stageName}</h2>
+        <p className="text-sm text-gray-500 mb-4">Add an optional note about this stage change.</p>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={3}
+          placeholder="Optional note…"
+          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          autoFocus
+        />
+        <div className="flex gap-2 mt-4 justify-end">
+          <button
+            onClick={onCancel}
+            className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onConfirm(note)}
+            className="text-sm text-white bg-primary px-4 py-1.5 rounded-lg font-semibold hover:bg-primary-dark"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function PipelinePage() {
-  const [leads, setLeads] = useState<Lead[]>(MOCK_LEADS);
+  const { user } = useAuth();
+  const { leads: firestoreLeads, loading } = useLeads();
+  // Local state for optimistic UI during drag
+  const [localLeads, setLocalLeads] = useState<Lead[] | null>(null);
+  const [pendingDrag, setPendingDrag] = useState<{
+    leadId: string;
+    fromStageId: string;
+    toStageId: string;
+    stageName: string;
+  } | null>(null);
+
+  const leads = localLeads ?? firestoreLeads;
+
+  // Sync local state when Firestore updates (but not during a pending drag)
+  if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
+    setLocalLeads(null);
+  }
 
   function handleDragEnd(result: DropResult) {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
-    setLeads((prev) =>
-      prev.map((lead) =>
+    const stageName = STAGES.find((s) => s.id === destination.droppableId)?.name ?? destination.droppableId;
+
+    // Optimistically update local state
+    setLocalLeads(
+      (firestoreLeads).map((lead) =>
         lead.id === draggableId
           ? { ...lead, currentStageId: destination.droppableId }
           : lead
       )
     );
-    // In production: update Firestore + log stage-change activity
+
+    // Show modal for optional note
+    setPendingDrag({
+      leadId: draggableId,
+      fromStageId: source.droppableId,
+      toStageId: destination.droppableId,
+      stageName,
+    });
+  }
+
+  async function confirmStageChange(note: string) {
+    if (!pendingDrag || !user) return;
+    const { leadId, toStageId, stageName } = pendingDrag;
+
+    try {
+      await updateDoc(doc(db, "leads", leadId), {
+        currentStageId: toStageId,
+        updatedAt: serverTimestamp(),
+      });
+      await addDoc(collection(db, "activities"), {
+        leadId,
+        performedBy: user.id,
+        activityType: "stage-change",
+        title: `Stage changed to ${stageName}`,
+        description: note || null,
+        metadata: null,
+        createdAt: serverTimestamp(),
+      });
+    } catch (err) {
+      console.error("Failed to update stage:", err);
+      // Revert on error
+      setLocalLeads(null);
+    } finally {
+      setPendingDrag(null);
+      setLocalLeads(null);
+    }
+  }
+
+  function cancelStageChange() {
+    // Revert optimistic update
+    setLocalLeads(null);
+    setPendingDrag(null);
   }
 
   const leadsByStage = (stageId: string) => leads.filter((l) => l.currentStageId === stageId);
 
   return (
     <>
+      {pendingDrag && (
+        <StageChangeModal
+          stageName={pendingDrag.stageName}
+          onConfirm={confirmStageChange}
+          onCancel={cancelStageChange}
+        />
+      )}
+
       {/* Mobile fallback */}
       <div className="md:hidden p-6 text-center">
         <p className="text-gray-600 text-sm">
@@ -186,45 +238,51 @@ export default function PipelinePage() {
 
       {/* Desktop Kanban */}
       <div className="hidden md:block h-full">
-        <DragDropContext onDragEnd={handleDragEnd}>
-          <div className="flex gap-3 p-4 h-full overflow-x-auto">
-            {STAGES.map((stage) => {
-              const stageLeads = leadsByStage(stage.id);
-              return (
-                <div
-                  key={stage.id}
-                  className={`flex-none w-64 flex flex-col rounded-[12px] border border-gray-200 bg-gray-50 ${stage.borderAccent ?? ""}`}
-                >
-                  <div className={`flex items-center justify-between px-3 py-2.5 rounded-t-[12px] ${stage.headerBg}`}>
-                    <h3 className={`text-xs font-bold uppercase tracking-wide ${stage.color}`}>
-                      {stage.name}
-                    </h3>
-                    <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stage.badgeBg}`}>
-                      {stageLeads.length}
-                    </span>
-                  </div>
-
-                  <Droppable droppableId={stage.id}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`flex-1 p-2 space-y-2 overflow-y-auto min-h-20 transition-colors ${
-                          snapshot.isDraggingOver ? "bg-gray-100" : ""
-                        }`}
-                      >
-                        {stageLeads.map((lead, index) => (
-                          <LeadCard key={lead.id} lead={lead} index={index} />
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
-                </div>
-              );
-            })}
+        {loading ? (
+          <div className="flex justify-center items-center h-full">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
-        </DragDropContext>
+        ) : (
+          <DragDropContext onDragEnd={handleDragEnd}>
+            <div className="flex gap-3 p-4 h-full overflow-x-auto">
+              {STAGES.map((stage) => {
+                const stageLeads = leadsByStage(stage.id);
+                return (
+                  <div
+                    key={stage.id}
+                    className={`flex-none w-64 flex flex-col rounded-[12px] border border-gray-200 bg-gray-50 ${stage.borderAccent ?? ""}`}
+                  >
+                    <div className={`flex items-center justify-between px-3 py-2.5 rounded-t-[12px] ${stage.headerBg}`}>
+                      <h3 className={`text-xs font-bold uppercase tracking-wide ${stage.color}`}>
+                        {stage.name}
+                      </h3>
+                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stage.badgeBg}`}>
+                        {stageLeads.length}
+                      </span>
+                    </div>
+
+                    <Droppable droppableId={stage.id}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={`flex-1 p-2 space-y-2 overflow-y-auto min-h-20 transition-colors ${
+                            snapshot.isDraggingOver ? "bg-gray-100" : ""
+                          }`}
+                        >
+                          {stageLeads.map((lead, index) => (
+                            <LeadCard key={lead.id} lead={lead} index={index} />
+                          ))}
+                          {provided.placeholder}
+                        </div>
+                      )}
+                    </Droppable>
+                  </div>
+                );
+              })}
+            </div>
+          </DragDropContext>
+        )}
       </div>
     </>
   );

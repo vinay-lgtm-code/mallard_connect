@@ -1,7 +1,13 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
+import { useLeads } from "@/hooks/use-leads";
+import { useTodayTasks, useOverdueTasks } from "@/hooks/use-tasks";
+import { useRealtimeCollection } from "@/hooks/use-realtime";
+import { orderBy, limit } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
+import { getInitials } from "@/lib/utils";
+import type { Activity, User } from "@/types";
 
 interface KpiCardProps {
   label: string;
@@ -19,29 +25,13 @@ function KpiCard({ label, value, colorClass, bgClass }: KpiCardProps) {
   );
 }
 
-const MOCK_KPI = { newLeads: 14, followUpsDue: 7, overdue: 3, dealsClosed: 2 };
-
-const MOCK_PIPELINE_STAGES = [
-  { id: "new_enquiry", name: "New Enquiry", count: 14, color: "bg-indigo-500" },
-  { id: "initial_contact", name: "Initial Contact", count: 9, color: "bg-blue-500" },
-  { id: "not_ready_yet", name: "Not Ready Yet", count: 21, color: "bg-amber-500" },
-  { id: "nurturing", name: "Nurturing", count: 11, color: "bg-green-500" },
-  { id: "ready_to_proceed", name: "Ready to Proceed", count: 5, color: "bg-blue-600" },
-  { id: "referred_to_mab", name: "Referred to MAB", count: 8, color: "bg-purple-500" },
-];
-
-const MOCK_TEAM_ACTIVITY = [
-  { id: "1", initials: "SW", name: "Sarah W.", action: "moved", leadName: "James Thornton", stage: "Ready to Proceed", ts: new Date(Date.now() - 1000 * 60 * 12) },
-  { id: "2", initials: "DM", name: "David M.", action: "called", leadName: "Priya Sharma", stage: "", ts: new Date(Date.now() - 1000 * 60 * 34) },
-  { id: "3", initials: "EL", name: "Emma L.", action: "added note on", leadName: "Tom Baker", stage: "", ts: new Date(Date.now() - 1000 * 60 * 58) },
-  { id: "4", initials: "SW", name: "Sarah W.", action: "scheduled follow-up for", leadName: "Ayesha Patel", stage: "", ts: new Date(Date.now() - 1000 * 60 * 90) },
-  { id: "5", initials: "DM", name: "David M.", action: "imported", leadName: "12 new leads", stage: "", ts: new Date(Date.now() - 1000 * 60 * 120) },
-];
-
-const MOCK_MY_FOLLOWUPS = [
-  { id: "1", name: "James Thornton", phone: "+44 7700 900123", context: "Saving deposit — target spring", status: "overdue" as const },
-  { id: "2", name: "Priya Sharma", phone: "+44 7911 123456", context: "Improving credit score", status: "due_today" as const },
-  { id: "3", name: "Tom Baker", phone: "+44 7800 654321", context: "Waiting for P60 documents", status: "planned" as const },
+const PIPELINE_STAGE_CONFIG = [
+  { id: "new_enquiry", name: "New Enquiry", color: "bg-indigo-500" },
+  { id: "initial_contact", name: "Initial Contact", color: "bg-blue-500" },
+  { id: "not_ready_yet", name: "Not Ready Yet", color: "bg-amber-500" },
+  { id: "nurturing", name: "Nurturing", color: "bg-green-500" },
+  { id: "ready_to_proceed", name: "Ready to Proceed", color: "bg-blue-600" },
+  { id: "referred_to_mab", name: "Referred to MAB", color: "bg-purple-500" },
 ];
 
 const STATUS_STYLES = {
@@ -56,73 +46,160 @@ const STATUS_LABELS = {
   planned: "Planned",
 };
 
+const ACTIVITY_ACTION_LABEL: Record<string, string> = {
+  call: "called",
+  email: "emailed",
+  meeting: "met with",
+  note: "added note on",
+  sms: "sent SMS to",
+  whatsapp: "WhatsApp'd",
+  "stage-change": "moved",
+};
+
 function ManagerDashboard() {
-  const total = MOCK_PIPELINE_STAGES.reduce((s, st) => s + st.count, 0);
+  const { leads, loading: leadsLoading } = useLeads();
+  const { tasks: todayTasks, loading: todayLoading } = useTodayTasks("__manager__");
+  const { tasks: overdueTasks, loading: overdueLoading } = useOverdueTasks("__manager__");
+  const { data: activities, loading: activitiesLoading } = useRealtimeCollection<Activity>(
+    "activities",
+    [orderBy("createdAt", "desc"), limit(10)]
+  );
+  const { data: users } = useRealtimeCollection<User>("users");
+
+  const loading = leadsLoading || todayLoading || overdueLoading || activitiesLoading;
+
+  const newLeads = leads.filter((l) => l.currentStageId === "new_enquiry").length;
+  const dealsClosed = leads.filter((l) => l.status === "converted").length;
+
+  const pipelineStages = PIPELINE_STAGE_CONFIG.map((cfg) => ({
+    ...cfg,
+    count: leads.filter((l) => l.currentStageId === cfg.id).length,
+  }));
+  const total = pipelineStages.reduce((s, st) => s + st.count, 0);
+
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  if (loading) {
+    return (
+      <div className="p-6 flex justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <KpiCard label="New Leads" value={MOCK_KPI.newLeads} colorClass="text-indigo-700" bgClass="bg-indigo-50" />
-        <KpiCard label="Follow-ups Due" value={MOCK_KPI.followUpsDue} colorClass="text-amber-700" bgClass="bg-amber-50" />
-        <KpiCard label="Overdue" value={MOCK_KPI.overdue} colorClass="text-red-700" bgClass="bg-red-50" />
-        <KpiCard label="Deals Closed" value={MOCK_KPI.dealsClosed} colorClass="text-green-700" bgClass="bg-green-50" />
+        <KpiCard label="New Leads" value={newLeads} colorClass="text-indigo-700" bgClass="bg-indigo-50" />
+        <KpiCard label="Follow-ups Due" value={todayTasks.length} colorClass="text-amber-700" bgClass="bg-amber-50" />
+        <KpiCard label="Overdue" value={overdueTasks.length} colorClass="text-red-700" bgClass="bg-red-50" />
+        <KpiCard label="Deals Closed" value={dealsClosed} colorClass="text-green-700" bgClass="bg-green-50" />
       </div>
 
       <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">Pipeline Health</h2>
-        <div className="flex rounded-lg overflow-hidden h-6">
-          {MOCK_PIPELINE_STAGES.map((stage) => (
-            <div
-              key={stage.id}
-              className={`${stage.color} flex-none`}
-              style={{ width: `${(stage.count / total) * 100}%` }}
-              title={`${stage.name}: ${stage.count}`}
-            />
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
-          {MOCK_PIPELINE_STAGES.map((stage) => (
-            <div key={stage.id} className="flex items-center gap-1.5">
-              <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-              <span className="text-xs text-gray-600">{stage.name} <span className="font-semibold">{stage.count}</span></span>
+        {total === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">No leads in pipeline yet.</p>
+        ) : (
+          <>
+            <div className="flex rounded-lg overflow-hidden h-6">
+              {pipelineStages.filter((s) => s.count > 0).map((stage) => (
+                <div
+                  key={stage.id}
+                  className={`${stage.color} flex-none`}
+                  style={{ width: `${(stage.count / total) * 100}%` }}
+                  title={`${stage.name}: ${stage.count}`}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+              {pipelineStages.map((stage) => (
+                <div key={stage.id} className="flex items-center gap-1.5">
+                  <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
+                  <span className="text-xs text-gray-600">{stage.name} <span className="font-semibold">{stage.count}</span></span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">Team Activity</h2>
-        <div className="space-y-4">
-          {MOCK_TEAM_ACTIVITY.map((item) => (
-            <div key={item.id} className="flex items-start gap-3">
-              <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs font-bold">{item.initials}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-700">
-                  <span className="font-medium">{item.name}</span>{" "}
-                  {item.action}{" "}
-                  <span className="font-medium">{item.leadName}</span>
-                  {item.stage && <> → <span className="text-primary">{item.stage}</span></>}
-                </p>
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {formatDistanceToNow(item.ts, { addSuffix: true })}
-                </p>
-              </div>
-            </div>
-          ))}
-        </div>
+        {activities.length === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-4">No recent activity.</p>
+        ) : (
+          <div className="space-y-4">
+            {activities.map((item) => {
+              const performer = userMap.get(item.performedBy);
+              const name = performer?.fullName ?? item.performedBy;
+              const initials = performer ? getInitials(performer.fullName) : item.performedBy.slice(0, 2).toUpperCase();
+              const action = ACTIVITY_ACTION_LABEL[item.activityType] ?? item.activityType;
+              const ts = item.createdAt instanceof Date ? item.createdAt : (item.createdAt as { toDate?: () => Date })?.toDate?.() ?? new Date();
+              return (
+                <div key={item.id} className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                    <span className="text-white text-xs font-bold">{initials}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-700">
+                      <span className="font-medium">{name}</span>{" "}
+                      {action}{" "}
+                      <span className="font-medium">{item.title}</span>
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {formatDistanceToNow(ts, { addSuffix: true })}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
 }
 
-function AdvisorDashboard({ name }: { name: string }) {
-  const followUpsDue = MOCK_MY_FOLLOWUPS.filter((f) => f.status !== "planned").length;
+function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
+  const { leads, loading: leadsLoading } = useLeads({ assignedTo: userId });
+  const { tasks: todayTasks, loading: todayLoading } = useTodayTasks(userId);
+  const { tasks: overdueTasks, loading: overdueLoading } = useOverdueTasks(userId);
+
+  const loading = leadsLoading || todayLoading || overdueLoading;
+
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
-  const total = MOCK_PIPELINE_STAGES.reduce((s, st) => s + st.count, 0);
+  const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
+  const newAssignments = leads.filter((l) => {
+    const created = l.createdAt instanceof Date ? l.createdAt : (l.createdAt as { toDate?: () => Date })?.toDate?.();
+    return created ? created >= fortyEightHoursAgo : false;
+  });
+
+  const pipelineStages = PIPELINE_STAGE_CONFIG.map((cfg) => ({
+    ...cfg,
+    count: leads.filter((l) => l.currentStageId === cfg.id).length,
+  }));
+  const total = pipelineStages.reduce((s, st) => s + st.count, 0);
+
+  // Combine overdue + today tasks for the follow-up list
+  const allDueTasks = [
+    ...overdueTasks.map((t) => ({ ...t, _status: "overdue" as const })),
+    ...todayTasks.map((t) => ({ ...t, _status: "due_today" as const })),
+  ];
+  const followUpsDue = allDueTasks.length;
+
+  // Build a lead map for task display
+  const leadMap = new Map(leads.map((l) => [l.id, l]));
+
+  if (loading) {
+    return (
+      <div className="p-6 flex justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-4 md:p-6 space-y-6">
@@ -135,64 +212,90 @@ function AdvisorDashboard({ name }: { name: string }) {
 
       <div>
         <h2 className="text-sm font-semibold text-gray-700 mb-3">Today&apos;s Follow-ups</h2>
-        <div className="space-y-3">
-          {MOCK_MY_FOLLOWUPS.map((item) => (
-            <div key={item.id} className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100">
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">{item.name}</p>
-                  <a href={`tel:${item.phone}`} className="text-primary text-sm font-medium mt-0.5 block hover:underline">
-                    {item.phone}
-                  </a>
-                  <p className="text-xs text-gray-500 mt-1">{item.context}</p>
+        {allDueTasks.length === 0 ? (
+          <div className="bg-white rounded-[12px] p-6 text-center text-sm text-gray-400 border border-gray-100">
+            No follow-ups due today.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {allDueTasks.map((task) => {
+              const lead = leadMap.get(task.leadId);
+              const leadName = lead ? `${lead.firstName} ${lead.lastName}` : task.leadId;
+              const phone = lead?.phone ?? "";
+              return (
+                <div key={task.id} className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold text-gray-900 text-sm">{leadName}</p>
+                      {phone && (
+                        <a href={`tel:${phone}`} className="text-primary text-sm font-medium mt-0.5 block hover:underline">
+                          {phone}
+                        </a>
+                      )}
+                      <p className="text-xs text-gray-500 mt-1">{task.title}</p>
+                    </div>
+                    <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLES[task._status]}`}>
+                      {STATUS_LABELS[task._status]}
+                    </span>
+                  </div>
                 </div>
-                <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLES[item.status]}`}>
-                  {STATUS_LABELS[item.status]}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
         <h2 className="text-sm font-semibold text-gray-700 mb-3">My Pipeline</h2>
-        <div className="flex rounded-lg overflow-hidden h-4">
-          {MOCK_PIPELINE_STAGES.map((stage) => (
-            <div
-              key={stage.id}
-              className={`${stage.color} flex-none`}
-              style={{ width: `${(stage.count / total) * 100}%` }}
-              title={`${stage.name}: ${stage.count}`}
-            />
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
-          {MOCK_PIPELINE_STAGES.map((stage) => (
-            <div key={stage.id} className="flex items-center gap-1.5">
-              <div className={`w-2 h-2 rounded-full ${stage.color}`} />
-              <span className="text-xs text-gray-600">{stage.name} <span className="font-semibold">{stage.count}</span></span>
+        {total === 0 ? (
+          <p className="text-sm text-gray-400 text-center py-2">No leads assigned yet.</p>
+        ) : (
+          <>
+            <div className="flex rounded-lg overflow-hidden h-4">
+              {pipelineStages.filter((s) => s.count > 0).map((stage) => (
+                <div
+                  key={stage.id}
+                  className={`${stage.color} flex-none`}
+                  style={{ width: `${(stage.count / total) * 100}%` }}
+                  title={`${stage.name}: ${stage.count}`}
+                />
+              ))}
             </div>
-          ))}
-        </div>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+              {pipelineStages.map((stage) => (
+                <div key={stage.id} className="flex items-center gap-1.5">
+                  <div className={`w-2 h-2 rounded-full ${stage.color}`} />
+                  <span className="text-xs text-gray-600">{stage.name} <span className="font-semibold">{stage.count}</span></span>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       <div>
         <h2 className="text-sm font-semibold text-gray-700 mb-3">New Assignments</h2>
-        <div className="space-y-2">
-          {[
-            { id: "a1", name: "Olivia Chen", type: "First-time buyer", source: "Website", assignedAt: "Today, 09:14" },
-            { id: "a2", name: "Marcus Reid", type: "Remortgage", source: "Referral", assignedAt: "Yesterday, 16:30" },
-          ].map((lead) => (
-            <div key={lead.id} className="bg-white rounded-[12px] px-4 py-3 shadow-sm border border-gray-100 flex items-center justify-between gap-3">
-              <div>
-                <p className="font-semibold text-sm text-gray-900">{lead.name}</p>
-                <p className="text-xs text-gray-500">{lead.type} · {lead.source}</p>
-              </div>
-              <p className="text-xs text-gray-400 flex-shrink-0">{lead.assignedAt}</p>
-            </div>
-          ))}
-        </div>
+        {newAssignments.length === 0 ? (
+          <div className="bg-white rounded-[12px] p-6 text-center text-sm text-gray-400 border border-gray-100">
+            No new assignments in the last 48 hours.
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {newAssignments.map((lead) => {
+              const created = lead.createdAt instanceof Date ? lead.createdAt : (lead.createdAt as { toDate?: () => Date })?.toDate?.() ?? new Date();
+              const assignedAt = formatDistanceToNow(created, { addSuffix: true });
+              return (
+                <div key={lead.id} className="bg-white rounded-[12px] px-4 py-3 shadow-sm border border-gray-100 flex items-center justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-sm text-gray-900">{lead.firstName} {lead.lastName}</p>
+                    <p className="text-xs text-gray-500">{lead.mortgageType ?? "Unknown type"} · {lead.source}</p>
+                  </div>
+                  <p className="text-xs text-gray-400 flex-shrink-0">{assignedAt}</p>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -208,6 +311,6 @@ export default function DashboardPage() {
   return isManager ? (
     <ManagerDashboard />
   ) : (
-    <AdvisorDashboard name={user.fullName ?? "there"} />
+    <AdvisorDashboard userId={user.id} name={user.fullName ?? "there"} />
   );
 }

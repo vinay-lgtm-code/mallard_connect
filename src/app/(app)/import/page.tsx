@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef } from "react";
 import { Upload, Check, RefreshCw } from "lucide-react";
+import { useAuth } from "@/hooks/useAuth";
 
 type Step = "upload" | "mapping" | "preview" | "importing" | "done";
 
@@ -29,34 +30,6 @@ const TARGET_FIELDS = [
   { value: "readiness", label: "Readiness" },
   { value: "notes", label: "Notes" },
   { value: "referredBy", label: "Referred By" },
-];
-
-const MOCK_SOURCE_COLUMNS = [
-  "First Name",
-  "Surname",
-  "Email Address",
-  "Mobile",
-  "Mortgage Interest",
-  "When Ready",
-  "Agent Notes",
-  "Ref",
-];
-
-const AUTO_MAPPING: Record<string, string> = {
-  "First Name": "firstName",
-  Surname: "lastName",
-  "Email Address": "email",
-  Mobile: "phone",
-  "Mortgage Interest": "mortgageType",
-  "When Ready": "readiness",
-  "Agent Notes": "notes",
-  Ref: "",
-};
-
-const MOCK_DUPLICATES_UPDATE: DuplicateRecord[] = [
-  { id: "d1", name: "Sarah O'Brien", phone: "+44 7700 111222", action: "update", selected: true },
-  { id: "d2", name: "Kwame Asante", phone: "+44 7911 333444", action: "update", selected: false },
-  { id: "d3", name: "Laura Finch", phone: "+44 7800 555666", action: "update", selected: true },
 ];
 
 function StepIndicator({ current, step, label }: { current: Step; step: Step; label: string }) {
@@ -87,24 +60,86 @@ function StepIndicator({ current, step, label }: { current: Step; step: Step; la
 }
 
 export default function ImportPage() {
+  const { user } = useAuth();
   const [step, setStep] = useState<Step>("upload");
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [mappings, setMappings] = useState<ColumnMapping[]>(
-    MOCK_SOURCE_COLUMNS.map((col) => ({ sourceColumn: col, targetField: AUTO_MAPPING[col] ?? "" }))
-  );
-  const [duplicateUpdates, setDuplicateUpdates] = useState<DuplicateRecord[]>(MOCK_DUPLICATES_UPDATE);
+  const [currentFile, setCurrentFile] = useState<File | null>(null);
+  const [mappings, setMappings] = useState<ColumnMapping[]>([]);
+  const [duplicateUpdates, setDuplicateUpdates] = useState<DuplicateRecord[]>([]);
   const [progress, setProgress] = useState(0);
+  const [newCount, setNewCount] = useState(0);
+  const [skipCount, setSkipCount] = useState(0);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [uploadLoading, setUploadLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const newCount = 42;
-  const skipCount = 8;
   const updateCount = duplicateUpdates.filter((d) => d.selected).length;
   const totalImporting = newCount + updateCount;
 
-  function handleFile(file: File) {
+  async function handleFile(file: File) {
     setFileName(file.name);
-    setStep("mapping");
+    setCurrentFile(file);
+    setImportError(null);
+    setUploadLoading(true);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const headers: HeadersInit = {};
+      if (user) {
+        // Pass user ID for server-side auth context
+        headers["x-user-id"] = user.id;
+      }
+
+      const res = await fetch("/api/import", {
+        method: "POST",
+        body: formData,
+        headers,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Upload failed with status ${res.status}`);
+      }
+
+      const preview = await res.json();
+
+      // Set column mappings from API response, fallback to file columns
+      const sourceColumns: string[] = preview.columns ?? Object.keys(preview.columnMapping ?? {});
+      const autoMapping: Record<string, string> = preview.columnMapping ?? {};
+      setMappings(sourceColumns.map((col: string) => ({
+        sourceColumn: col,
+        targetField: autoMapping[col] ?? "",
+      })));
+
+      // Set counts from preview stats
+      setNewCount(preview.stats?.new ?? preview.newCount ?? 0);
+      setSkipCount(preview.stats?.skip ?? preview.skipCount ?? 0);
+
+      // Set duplicate update records if provided
+      if (Array.isArray(preview.duplicates)) {
+        setDuplicateUpdates(
+          preview.duplicates.map((d: { id: string; name: string; phone: string }) => ({
+            id: d.id,
+            name: d.name,
+            phone: d.phone,
+            action: "update" as const,
+            selected: true,
+          }))
+        );
+      } else {
+        setDuplicateUpdates([]);
+      }
+
+      setStep("mapping");
+    } catch (err) {
+      console.error("Upload error:", err);
+      setImportError(err instanceof Error ? err.message : "Failed to upload file. Please try again.");
+    } finally {
+      setUploadLoading(false);
+    }
   }
 
   function handleDrop(e: React.DragEvent) {
@@ -142,11 +177,62 @@ export default function ImportPage() {
 
   async function startImport() {
     setStep("importing");
-    for (let i = 0; i <= 100; i += 5) {
-      await new Promise((res) => setTimeout(res, 60));
-      setProgress(i);
+    setProgress(0);
+    setImportError(null);
+
+    try {
+      const selectedUpdates = duplicateUpdates
+        .filter((d) => d.selected)
+        .map((d) => d.id);
+
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (user) {
+        headers["x-user-id"] = user.id;
+      }
+
+      const res = await fetch("/api/import", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          action: "execute",
+          mappings,
+          selectedUpdates,
+          fileName,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Import failed with status ${res.status}`);
+      }
+
+      const result = await res.json();
+
+      // Update counts from execution result
+      if (result.stats) {
+        setNewCount(result.stats.imported ?? newCount);
+        setSkipCount(result.stats.skipped ?? skipCount);
+      }
+
+      setProgress(100);
+      setStep("done");
+    } catch (err) {
+      console.error("Import error:", err);
+      setImportError(err instanceof Error ? err.message : "Import failed. Please try again.");
+      setStep("preview");
     }
-    setStep("done");
+  }
+
+  function resetImport() {
+    setStep("upload");
+    setFileName(null);
+    setCurrentFile(null);
+    setProgress(0);
+    setMappings([]);
+    setDuplicateUpdates([]);
+    setNewCount(0);
+    setSkipCount(0);
+    setImportError(null);
   }
 
   return (
@@ -176,12 +262,21 @@ export default function ImportPage() {
               dragging
                 ? "border-primary bg-primary/5"
                 : "border-gray-300 hover:border-primary hover:bg-gray-50"
-            }`}
-            onClick={() => fileInputRef.current?.click()}
+            } ${uploadLoading ? "opacity-60 pointer-events-none" : ""}`}
+            onClick={() => !uploadLoading && fileInputRef.current?.click()}
           >
-            <Upload className="mx-auto text-gray-400 mb-3" size={36} />
-            <p className="text-sm font-semibold text-gray-700">Drop CSV or XLS file here</p>
-            <p className="text-xs text-gray-400 mt-1">or click to browse</p>
+            {uploadLoading ? (
+              <>
+                <RefreshCw className="mx-auto text-primary animate-spin mb-3" size={36} />
+                <p className="text-sm font-semibold text-gray-700">Processing file…</p>
+              </>
+            ) : (
+              <>
+                <Upload className="mx-auto text-gray-400 mb-3" size={36} />
+                <p className="text-sm font-semibold text-gray-700">Drop CSV or XLS file here</p>
+                <p className="text-xs text-gray-400 mt-1">or click to browse</p>
+              </>
+            )}
             <input
               ref={fileInputRef}
               type="file"
@@ -190,6 +285,10 @@ export default function ImportPage() {
               onChange={handleFileInput}
             />
           </div>
+
+          {importError && (
+            <p className="text-sm text-destructive mt-3 text-center">{importError}</p>
+          )}
 
           <p className="text-xs text-gray-400 text-center mt-3">Supported formats: CSV, XLS, XLSX · Max 10 MB</p>
         </div>
@@ -283,41 +382,47 @@ export default function ImportPage() {
             </div>
 
             {/* Update duplicates */}
-            <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-10 h-10 rounded-full bg-info flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-bold text-sm">{duplicateUpdates.length}</span>
-                </div>
-                <div>
-                  <p className="font-semibold text-blue-800">Duplicates (update available)</p>
-                  <p className="text-sm text-blue-600">Incoming data is newer. Toggle to update each record.</p>
-                </div>
-              </div>
-              <div className="space-y-2">
-                {duplicateUpdates.map((record) => (
-                  <div key={record.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-blue-100">
-                    <div>
-                      <p className="text-sm font-medium text-gray-800">{record.name}</p>
-                      <p className="text-xs text-gray-500">{record.phone}</p>
-                    </div>
-                    <button
-                      onClick={() => toggleDuplicateUpdate(record.id)}
-                      className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${
-                        record.selected ? "bg-primary" : "bg-gray-300"
-                      }`}
-                      role="switch"
-                      aria-checked={record.selected}
-                    >
-                      <span
-                        className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
-                          record.selected ? "translate-x-5" : "translate-x-0"
-                        }`}
-                      />
-                    </button>
+            {duplicateUpdates.length > 0 && (
+              <div className="rounded-lg bg-blue-50 border border-blue-200 p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-10 h-10 rounded-full bg-info flex items-center justify-center flex-shrink-0">
+                    <span className="text-white font-bold text-sm">{duplicateUpdates.length}</span>
                   </div>
-                ))}
+                  <div>
+                    <p className="font-semibold text-blue-800">Duplicates (update available)</p>
+                    <p className="text-sm text-blue-600">Incoming data is newer. Toggle to update each record.</p>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  {duplicateUpdates.map((record) => (
+                    <div key={record.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-blue-100">
+                      <div>
+                        <p className="text-sm font-medium text-gray-800">{record.name}</p>
+                        <p className="text-xs text-gray-500">{record.phone}</p>
+                      </div>
+                      <button
+                        onClick={() => toggleDuplicateUpdate(record.id)}
+                        className={`w-11 h-6 rounded-full transition-colors relative flex-shrink-0 ${
+                          record.selected ? "bg-primary" : "bg-gray-300"
+                        }`}
+                        role="switch"
+                        aria-checked={record.selected}
+                      >
+                        <span
+                          className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${
+                            record.selected ? "translate-x-5" : "translate-x-0"
+                          }`}
+                        />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
+
+            {importError && (
+              <p className="text-sm text-destructive mt-3">{importError}</p>
+            )}
           </div>
 
           <div className="flex gap-3">
@@ -366,12 +471,7 @@ export default function ImportPage() {
           </p>
           <div className="flex gap-3 mt-6 justify-center">
             <button
-              onClick={() => {
-                setStep("upload");
-                setFileName(null);
-                setProgress(0);
-                setDuplicateUpdates(MOCK_DUPLICATES_UPDATE);
-              }}
+              onClick={resetImport}
               className="px-5 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
             >
               Import another file
