@@ -56,11 +56,6 @@ function HeroSection() {
     <section className="bg-gradient-to-br from-sidebar via-primary-dark to-primary text-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 bg-white/10 rounded-full px-4 py-1.5 mb-6">
-            <div className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-sm text-white/90">Built for mortgage teams in the UK</span>
-          </div>
-
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold leading-tight tracking-tight">
             Never lose track of{" "}
             <span className="text-accent">a prospect</span>{" "}
