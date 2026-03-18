@@ -15,7 +15,7 @@ import {
   UserPlus,
   Plus,
 } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { NotificationDropdown } from "@/components/notifications";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
@@ -79,7 +79,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     Object.entries(PAGE_TITLES).find(([key]) => pathname.startsWith(key))?.[1] ?? "Mallard Connect";
 
   async function handleSignOut() {
-    await signOut(auth);
+    if (getDemoUser()) {
+      clearDemoUser();
+    } else {
+      await signOut(auth);
+    }
     router.push("/login");
   }
 

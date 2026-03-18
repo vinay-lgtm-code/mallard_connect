@@ -3,34 +3,59 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
-import { setDemoUser } from "@/hooks/useAuth";
+import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
+import { doc, setDoc, Timestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase/client";
 
-export default function LoginPage() {
+export default function SignUpPage() {
   const router = useRouter();
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters.");
+      return;
+    }
+
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: fullName });
+      await setDoc(doc(db, "users", cred.user.uid), {
+        email,
+        fullName,
+        phone: null,
+        role: "advisor",
+        avatarUrl: null,
+        isActive: true,
+        createdAt: Timestamp.now(),
+      });
       router.push("/dashboard");
-    } catch {
-      setError("Invalid email or password. Please try again.");
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code;
+      if (code === "auth/email-already-in-use") {
+        setError("An account with this email already exists.");
+      } else if (code === "auth/weak-password") {
+        setError("Password is too weak. Use at least 6 characters.");
+      } else {
+        setError("Something went wrong. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
-  }
-
-  function handleDemoLogin(mode: "demo-manager" | "demo-sales") {
-    setDemoUser(mode);
-    router.push("/dashboard");
   }
 
   return (
@@ -43,8 +68,8 @@ export default function LoginPage() {
               <path d="M8 12l3 3 5-5" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Mallard Connect</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
+          <p className="text-sm text-gray-500 mt-1">Join Mallard Connect</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -53,6 +78,21 @@ export default function LoginPage() {
               {error}
             </div>
           )}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Full name
+            </label>
+            <input
+              type="text"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              autoComplete="name"
+              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="Jane Smith"
+            />
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
@@ -78,19 +118,25 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              autoComplete="current-password"
+              autoComplete="new-password"
               className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="••••••••"
             />
           </div>
 
-          <div className="flex justify-between items-center">
-            <Link href="/signup" className="text-sm text-primary hover:underline">
-              Create an account
-            </Link>
-            <a href="/forgot-password" className="text-sm text-primary hover:underline">
-              Forgot password?
-            </a>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Confirm password
+            </label>
+            <input
+              type="password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              autoComplete="new-password"
+              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="••••••••"
+            />
           </div>
 
           <button
@@ -98,35 +144,16 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 text-sm hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
-            {loading ? "Signing in…" : "Sign In"}
+            {loading ? "Creating account…" : "Create Account"}
           </button>
         </form>
 
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center mb-4">Try a demo account</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleDemoLogin("demo-manager")}
-              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors group"
-            >
-              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-white text-xs font-bold">DS</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900 group-hover:text-primary">Della Sheridan</span>
-              <span className="text-xs text-gray-500">Owner / Manager</span>
-            </button>
-            <button
-              onClick={() => handleDemoLogin("demo-sales")}
-              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors group"
-            >
-              <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center">
-                <span className="text-white text-xs font-bold">AR</span>
-              </div>
-              <span className="text-sm font-medium text-gray-900 group-hover:text-primary">Alex Rivera</span>
-              <span className="text-xs text-gray-500">Salesperson</span>
-            </button>
-          </div>
-        </div>
+        <p className="text-center text-sm text-gray-500 mt-6">
+          Already have an account?{" "}
+          <Link href="/login" className="text-primary font-medium hover:underline">
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );
