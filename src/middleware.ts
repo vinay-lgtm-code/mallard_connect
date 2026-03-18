@@ -5,6 +5,10 @@ const PUBLIC_PATHS = ["/login", "/signup", "/forgot-password", "/accept-invite"]
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  if (pathname === "/") {
+    return NextResponse.next();
+  }
+
   if (pathname.startsWith("/api/cron/")) {
     return NextResponse.next();
   }

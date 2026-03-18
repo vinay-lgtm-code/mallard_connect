@@ -11,7 +11,7 @@ const DEMO_USERS: Record<string, User> = {
   "demo-manager": {
     id: "demo-manager",
     email: "shankardivya100@gmail.com",
-    fullName: "Della Sheridan",
+    fullName: "Della Mallard",
     phone: "+44 114 000 0001",
     role: "manager",
     avatarUrl: null,
