@@ -10,10 +10,13 @@ import {
   Upload,
   Settings,
   Search,
-  Bell,
   ChevronDown,
+  BarChart3,
+  UserPlus,
+  Plus,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { NotificationDropdown } from "@/components/notifications";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { useState } from "react";
@@ -22,6 +25,8 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch, adminOnly: false },
   { href: "/leads", label: "Leads", icon: Users, adminOnly: false },
+  { href: "/team", label: "Team", icon: UserPlus, adminOnly: true },
+  { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
   { href: "/import", label: "Import", icon: Upload, adminOnly: true },
   { href: "/settings", label: "Settings", icon: Settings, adminOnly: false },
 ];
@@ -30,7 +35,10 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/pipeline": "Pipeline",
   "/leads": "Leads",
+  "/team": "Team",
+  "/reports": "Reports",
   "/import": "Import",
+  "/capture": "Quick Capture",
   "/settings": "Settings",
 };
 
@@ -130,10 +138,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
               <Search size={18} />
             </button>
-            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 relative">
-              <Bell size={18} />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-accent rounded-full" />
-            </button>
+            <NotificationDropdown />
 
             <div className="relative">
               <button
@@ -176,6 +181,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
       </div>
+
+      {/* Mobile FAB for quick capture */}
+      <Link
+        href="/capture"
+        className="md:hidden fixed bottom-20 right-4 z-50 w-14 h-14 rounded-full bg-accent shadow-lg flex items-center justify-center"
+      >
+        <Plus size={24} className="text-white" />
+      </Link>
 
       {/* Mobile bottom tab bar */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 flex">
