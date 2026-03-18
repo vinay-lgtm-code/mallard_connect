@@ -43,14 +43,15 @@ export function useOverdueTasks(userId: string) {
     return Timestamp.fromDate(d);
   }, []);
 
-  const constraints: QueryConstraint[] = [
+  const skip = userId === "__skip__";
+  const constraints: QueryConstraint[] = skip ? [] : [
     where("assignedTo", "==", userId),
     where("status", "==", "pending"),
     where("dueDate", "<", todayStart),
     orderBy("dueDate", "asc"),
   ];
 
-  const { data, loading, error } = useRealtimeCollection<Task>("tasks", constraints);
+  const { data, loading, error } = useRealtimeCollection<Task>(skip ? "__skip__" : "tasks", constraints);
 
   return { tasks: data, loading, error };
 }
@@ -67,14 +68,15 @@ export function useTodayTasks(userId: string) {
     };
   }, []);
 
-  const constraints: QueryConstraint[] = [
+  const skip = userId === "__skip__";
+  const constraints: QueryConstraint[] = skip ? [] : [
     where("assignedTo", "==", userId),
     where("dueDate", ">=", todayStart),
     where("dueDate", "<=", todayEnd),
     orderBy("dueDate", "asc"),
   ];
 
-  const { data, loading, error } = useRealtimeCollection<Task>("tasks", constraints);
+  const { data, loading, error } = useRealtimeCollection<Task>(skip ? "__skip__" : "tasks", constraints);
 
   return { tasks: data, loading, error };
 }

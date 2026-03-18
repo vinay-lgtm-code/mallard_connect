@@ -42,6 +42,12 @@ export function useRealtimeCollection<T>(
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (collectionPath === "__skip__") {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+
     const ref = collection(db, collectionPath);
     const q = queryConstraints.length > 0 ? query(ref, ...queryConstraints) : query(ref);
 
