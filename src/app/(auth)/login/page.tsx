@@ -110,9 +110,9 @@ export default function LoginPage() {
               className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors group"
             >
               <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-white text-xs font-bold">DS</span>
+                <span className="text-white text-xs font-bold">DM</span>
               </div>
-              <span className="text-sm font-medium text-gray-900 group-hover:text-primary">Della Sheridan</span>
+              <span className="text-sm font-medium text-gray-900 group-hover:text-primary">Della Mallard</span>
               <span className="text-xs text-gray-500">Owner / Manager</span>
             </button>
             <button

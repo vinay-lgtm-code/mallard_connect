@@ -7,6 +7,7 @@ import { useRealtimeCollection } from "@/hooks/use-realtime";
 import { orderBy, limit } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
 import { getInitials } from "@/lib/utils";
+import { isDemoUser, MOCK_LEADS, MOCK_TASKS, MOCK_ACTIVITIES, MOCK_USERS } from "@/lib/mock-data";
 import type { Activity, User } from "@/types";
 
 interface KpiCardProps {
@@ -56,17 +57,61 @@ const ACTIVITY_ACTION_LABEL: Record<string, string> = {
   "stage-change": "moved",
 };
 
-function ManagerDashboard() {
-  const { leads, loading: leadsLoading } = useLeads();
-  const { tasks: todayTasks, loading: todayLoading } = useTodayTasks("__manager__");
-  const { tasks: overdueTasks, loading: overdueLoading } = useOverdueTasks("__manager__");
-  const { data: activities, loading: activitiesLoading } = useRealtimeCollection<Activity>(
-    "activities",
-    [orderBy("createdAt", "desc"), limit(10)]
-  );
-  const { data: users } = useRealtimeCollection<User>("users");
+function useDashboardData(userId: string, isManager: boolean) {
+  const demo = isDemoUser(userId);
 
-  const loading = leadsLoading || todayLoading || overdueLoading || activitiesLoading;
+  const { leads: firestoreLeads, loading: leadsLoading } = useLeads(
+    !demo && !isManager ? { assignedTo: userId } : undefined
+  );
+  const { tasks: firestoreTodayTasks, loading: todayLoading } = useTodayTasks(
+    demo ? "__skip__" : isManager ? "__manager__" : userId
+  );
+  const { tasks: firestoreOverdueTasks, loading: overdueLoading } = useOverdueTasks(
+    demo ? "__skip__" : isManager ? "__manager__" : userId
+  );
+  const { data: firestoreActivities, loading: activitiesLoading } = useRealtimeCollection<Activity>(
+    demo ? "__skip__/x" : "activities",
+    demo ? [] : [orderBy("createdAt", "desc"), limit(10)]
+  );
+  const { data: firestoreUsers } = useRealtimeCollection<User>(
+    demo ? "__skip__/x" : "users"
+  );
+
+  if (demo) {
+    const leads = isManager ? MOCK_LEADS : MOCK_LEADS.filter((l) => l.assignedTo === userId);
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
+    const allPendingTasks = isManager ? MOCK_TASKS : MOCK_TASKS.filter((t) => t.assignedTo === userId);
+    const todayTasks = allPendingTasks.filter((t) => {
+      const d = t.dueDate instanceof Date ? t.dueDate : new Date();
+      return d >= todayStart && d <= todayEnd && t.status === "pending";
+    });
+    const overdueTasks = allPendingTasks.filter((t) => {
+      const d = t.dueDate instanceof Date ? t.dueDate : new Date();
+      return d < todayStart && t.status === "pending";
+    });
+    return {
+      leads,
+      todayTasks,
+      overdueTasks,
+      activities: MOCK_ACTIVITIES,
+      users: MOCK_USERS,
+      loading: false,
+    };
+  }
+
+  return {
+    leads: firestoreLeads,
+    todayTasks: firestoreTodayTasks,
+    overdueTasks: firestoreOverdueTasks,
+    activities: firestoreActivities,
+    users: firestoreUsers,
+    loading: leadsLoading || todayLoading || overdueLoading || activitiesLoading,
+  };
+}
+
+function ManagerDashboard({ userId }: { userId: string }) {
+  const { leads, todayTasks, overdueTasks, activities, users, loading } = useDashboardData(userId, true);
 
   const newLeads = leads.filter((l) => l.currentStageId === "new_enquiry").length;
   const dealsClosed = leads.filter((l) => l.status === "converted").length;
@@ -77,7 +122,7 @@ function ManagerDashboard() {
   }));
   const total = pipelineStages.reduce((s, st) => s + st.count, 0);
 
-  const userMap = new Map(users.map((u) => [u.id, u]));
+  const userMap = new Map(users.map((u: User) => [u.id, u]));
 
   if (loading) {
     return (
@@ -130,7 +175,7 @@ function ManagerDashboard() {
           <p className="text-sm text-gray-400 text-center py-4">No recent activity.</p>
         ) : (
           <div className="space-y-4">
-            {activities.map((item) => {
+            {activities.map((item: Activity) => {
               const performer = userMap.get(item.performedBy);
               const name = performer?.fullName ?? item.performedBy;
               const initials = performer ? getInitials(performer.fullName) : item.performedBy.slice(0, 2).toUpperCase();
@@ -162,11 +207,7 @@ function ManagerDashboard() {
 }
 
 function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
-  const { leads, loading: leadsLoading } = useLeads({ assignedTo: userId });
-  const { tasks: todayTasks, loading: todayLoading } = useTodayTasks(userId);
-  const { tasks: overdueTasks, loading: overdueLoading } = useOverdueTasks(userId);
-
-  const loading = leadsLoading || todayLoading || overdueLoading;
+  const { leads, todayTasks, overdueTasks, loading } = useDashboardData(userId, false);
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
@@ -183,14 +224,12 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
   }));
   const total = pipelineStages.reduce((s, st) => s + st.count, 0);
 
-  // Combine overdue + today tasks for the follow-up list
   const allDueTasks = [
     ...overdueTasks.map((t) => ({ ...t, _status: "overdue" as const })),
     ...todayTasks.map((t) => ({ ...t, _status: "due_today" as const })),
   ];
   const followUpsDue = allDueTasks.length;
 
-  // Build a lead map for task display
   const leadMap = new Map(leads.map((l) => [l.id, l]));
 
   if (loading) {
@@ -309,7 +348,7 @@ export default function DashboardPage() {
   const isManager = user.role === "admin" || user.role === "manager";
 
   return isManager ? (
-    <ManagerDashboard />
+    <ManagerDashboard userId={user.id} />
   ) : (
     <AdvisorDashboard userId={user.id} name={user.fullName ?? "there"} />
   );

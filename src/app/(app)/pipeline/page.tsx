@@ -13,6 +13,7 @@ import { db } from "@/lib/firebase/client";
 import { useLeads } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
+import { isDemoUser, MOCK_LEADS } from "@/lib/mock-data";
 import type { Lead } from "@/types";
 
 interface StageConfig {
@@ -135,7 +136,9 @@ function StageChangeModal({ stageName, onConfirm, onCancel }: StageChangeModalPr
 
 export default function PipelinePage() {
   const { user } = useAuth();
-  const { leads: firestoreLeads, loading } = useLeads();
+  const demo = user ? isDemoUser(user.id) : false;
+  const { leads: firestoreLeads, loading: firestoreLoading } = useLeads();
+  const loading = demo ? false : firestoreLoading;
   // Local state for optimistic UI during drag
   const [localLeads, setLocalLeads] = useState<Lead[] | null>(null);
   const [pendingDrag, setPendingDrag] = useState<{
@@ -145,10 +148,11 @@ export default function PipelinePage() {
     stageName: string;
   } | null>(null);
 
-  const leads = localLeads ?? firestoreLeads;
+  const baseLeads = demo ? MOCK_LEADS : firestoreLeads;
+  const leads = localLeads ?? baseLeads;
 
   // Sync local state when Firestore updates (but not during a pending drag)
-  if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
+  if (!demo && !pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
     setLocalLeads(null);
   }
 
@@ -161,7 +165,7 @@ export default function PipelinePage() {
 
     // Optimistically update local state
     setLocalLeads(
-      (firestoreLeads).map((lead) =>
+      (baseLeads).map((lead) =>
         lead.id === draggableId
           ? { ...lead, currentStageId: destination.droppableId }
           : lead
@@ -181,6 +185,12 @@ export default function PipelinePage() {
     if (!pendingDrag || !user) return;
     const { leadId, toStageId, stageName } = pendingDrag;
 
+    if (demo) {
+      // In demo mode, just keep the optimistic update
+      setPendingDrag(null);
+      return;
+    }
+
     try {
       await updateDoc(doc(db, "leads", leadId), {
         currentStageId: toStageId,
@@ -197,7 +207,6 @@ export default function PipelinePage() {
       });
     } catch (err) {
       console.error("Failed to update stage:", err);
-      // Revert on error
       setLocalLeads(null);
     } finally {
       setPendingDrag(null);
