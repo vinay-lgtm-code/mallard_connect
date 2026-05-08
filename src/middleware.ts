@@ -6,8 +6,6 @@ const PUBLIC_PATHS = [
   "/signup",
   "/forgot-password",
   "/accept-invite",
-  "/pricing",
-  "/checkout",
   "/demo",
   "/onboarding",
 ];

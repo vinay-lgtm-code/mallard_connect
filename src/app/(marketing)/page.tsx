@@ -10,7 +10,6 @@ import {
   Zap,
   Smartphone,
   Mail,
-  Check,
 } from "lucide-react";
 
 function Header() {
@@ -26,7 +25,6 @@ function Header() {
 
         <nav className="hidden sm:flex items-center gap-6 text-sm">
           <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
-          <Link href="/pricing" className="text-gray-600 hover:text-gray-900">Pricing</Link>
           <Link href="/demo" className="text-gray-600 hover:text-gray-900">Demo</Link>
         </nav>
 
@@ -77,18 +75,17 @@ function HeroSection() {
               Try the demo
               <ChevronRight size={16} />
             </Link>
-            <Link
-              href="/pricing"
+            <a
+              href="#features"
               className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-6 py-3 rounded-lg hover:bg-white/20 transition-colors text-sm border border-white/20"
             >
-              See pricing
-            </Link>
+              See how it works
+            </a>
           </div>
         </div>
 
-        <div className="mt-16 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8 border-t border-white/10 pt-10">
+        <div className="mt-16 grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8 border-t border-white/10 pt-10">
           {[
-            { value: "£50", label: "Per month, 5 users" },
             { value: "MAB / Brevo", label: "Pulls from your CRM" },
             { value: "7am", label: "Daily cadence digest" },
             { value: "Laptop-first", label: "Built for the way you work" },
@@ -176,65 +173,9 @@ function FeaturesSection() {
   );
 }
 
-function PricingSection() {
-  const included = [
-    "Multi-step cadences",
-    "Activity logging + timeline",
-    "Email & SMS templates",
-    "Pipeline kanban",
-    "MAB CSV import",
-    "Brevo integration",
-    "Daily reminder digest",
-    "Manager KPIs & reports",
-  ];
-  return (
-    <section id="pricing" className="py-16 sm:py-24 bg-card">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 text-center">
-        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Simple pricing</h2>
-        <p className="mt-3 text-gray-500 text-lg">One tier. Everything included. 14-day free trial.</p>
-
-        <div className="mt-10 rounded-[16px] bg-white border border-gray-200 p-8 text-left shadow-sm">
-          <div className="flex items-baseline gap-2">
-            <span className="text-5xl font-bold text-gray-900">&pound;50</span>
-            <span className="text-gray-500">/ month</span>
-          </div>
-          <p className="mt-1 text-sm text-gray-500">
-            Up to 5 users (manager + 4 advisers). &pound;8/month per additional user.
-          </p>
-
-          <ul className="mt-6 grid sm:grid-cols-2 gap-y-3 gap-x-6">
-            {included.map((item) => (
-              <li key={item} className="flex items-center gap-2 text-sm text-gray-700">
-                <Check size={16} className="text-primary flex-shrink-0" />
-                {item}
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link
-              href="/checkout"
-              className="inline-flex items-center gap-2 bg-primary text-white font-semibold px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors text-sm"
-            >
-              Start free trial
-              <ChevronRight size={16} />
-            </Link>
-            <Link
-              href="/demo"
-              className="inline-flex items-center gap-2 bg-white border border-gray-200 text-gray-700 font-semibold px-6 py-3 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-            >
-              Try the demo first
-            </Link>
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
 function ProblemSection() {
   return (
-    <section className="py-16 sm:py-24 bg-white">
+    <section className="py-16 sm:py-24 bg-card">
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
         <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">The problem we solve</h2>
 
@@ -257,7 +198,7 @@ function ProblemSection() {
           </p>
         </div>
 
-        <div className="mt-10 p-6 rounded-[12px] bg-card border border-gray-200">
+        <div className="mt-10 p-6 rounded-[12px] bg-white border border-gray-200">
           <div className="flex items-center gap-2 mb-3">
             <Smartphone size={16} className="text-primary" />
             <p className="text-sm font-semibold text-gray-900">Laptop-first, mobile-aware</p>
@@ -308,7 +249,6 @@ export default function LandingPage() {
       <Header />
       <HeroSection />
       <FeaturesSection />
-      <PricingSection />
       <ProblemSection />
       <Footer />
     </div>

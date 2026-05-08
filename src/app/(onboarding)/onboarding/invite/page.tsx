@@ -44,7 +44,7 @@ export default function OnboardingInvitePage() {
         <p className="text-xs font-semibold text-primary mb-1">Step 2 of 5</p>
         <h1 className="text-2xl font-bold text-gray-900">Invite your team</h1>
         <p className="mt-1 text-sm text-gray-500">
-          You + 4 invited users on the £50/month base tier. Add more later from the Team page.
+          You + 4 invited users on the base tier. Add more later from the Team page.
         </p>
       </div>
 
@@ -105,7 +105,7 @@ export default function OnboardingInvitePage() {
             </button>
           </div>
           <p className="mt-2 text-xs text-gray-400">
-            {4 - invites.length} more seat{invites.length === 3 ? "" : "s"} included on the base tier.
+            {4 - invites.length} more seat{invites.length === 3 ? "" : "s"} on the base tier.
           </p>
         </div>
       )}

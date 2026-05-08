@@ -24,10 +24,6 @@ Sequence is that layer. It plugs into existing data sources, runs cadences autom
 
 **Optimised for laptop-first usage.** Owners and advisers do most of their work at a desk: pipeline kanban, multi-column lead forms, manager dashboards, and table views are designed for ≥1280px. Mobile is secondary — kept for what it's actually good at: quick lead capture between appointments and tap-to-call from a "today" follow-up list.
 
-## Pricing
-
-£50 / month for 5 users. £8 / month per additional user. All features included. 14-day free trial. See `/pricing`.
-
 ## Tech stack
 
 | Layer | Tech |
@@ -71,7 +67,7 @@ For local vanity-subdomain testing, add to `/etc/hosts`:
 ```mermaid
 graph TB
     subgraph Web["Web (multiple hosts)"]
-        Marketing["www.sequence-ai.com<br/><small>Marketing + pricing + checkout</small>"]
+        Marketing["www.sequence-ai.com<br/><small>Marketing landing</small>"]
         App["app.sequence-ai.com<br/><small>Authed app + onboarding + demo</small>"]
         Vanity["{firm}.sequence-ai.com<br/><small>Tenant-pinned via subdomain map</small>"]
     end

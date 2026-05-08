@@ -31,7 +31,7 @@ The product directly addresses one customer pain: prospects who enquire but are 
 
 | Host | Purpose | Route group |
 |---|---|---|
-| `www.sequence-ai.com` | Marketing landing + pricing + checkout | `app/(marketing)/` |
+| `www.sequence-ai.com` | Marketing landing | `app/(marketing)/` |
 | `app.sequence-ai.com` | Authenticated app (default) | `app/(app)/`, `app/(auth)/`, `app/(onboarding)/`, `app/demo/` |
 | `{firm}.sequence-ai.com` (e.g. `mallard.*`, `friendscapital.*`) | Same as `app.*` but tenant pre-resolved from `subdomains/{firm}` map | same as above |
 
