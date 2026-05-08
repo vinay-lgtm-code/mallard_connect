@@ -24,8 +24,13 @@ export async function sendReminderEmail({
   reminderNote,
   leadUrl,
 }: SendReminderParams) {
+  // EMAIL_FROM lets you use Resend's onboarding sender (`onboarding@resend.dev`)
+  // for local demos before your real domain is verified. Defaults to the
+  // production sender otherwise.
+  const from = process.env.EMAIL_FROM ?? "Sequence <reminders@sequence-ai.com>";
+
   return getResend().emails.send({
-    from: "Mallard Connect <reminders@mallardconnect.co.uk>",
+    from,
     to,
     subject: `Follow-up reminder: ${prospectName}`,
     html: `
@@ -43,7 +48,7 @@ export async function sendReminderEmail({
         <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
           <tr>
             <td style="background-color:#1A5653;padding:24px 32px;">
-              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Mallard Connect</h1>
+              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Sequence</h1>
               <p style="margin:4px 0 0;color:#bfdbfe;font-size:14px;">Follow-up Reminder</p>
             </td>
           </tr>
@@ -92,14 +97,14 @@ export async function sendReminderEmail({
               </table>
 
               <a href="${leadUrl}" style="display:inline-block;background-color:#1A5653;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;">
-                View Lead in Mallard Connect
+                View Lead in Sequence
               </a>
             </td>
           </tr>
           <tr>
             <td style="padding:16px 32px;background-color:#f9fafb;border-top:1px solid #e5e7eb;">
               <p style="margin:0;color:#9ca3af;font-size:12px;">
-                This reminder was sent by Mallard Connect. If you believe this was sent in error, please contact your manager.
+                This reminder was sent by Sequence. If you believe this was sent in error, please contact your manager.
               </p>
             </td>
           </tr>

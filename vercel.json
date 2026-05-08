@@ -1,8 +1,12 @@
 {
   "crons": [
     {
-      "path": "/api/cron/send-reminders",
+      "path": "/api/cron/run-cadences",
       "schedule": "0 7 * * *"
+    },
+    {
+      "path": "/api/cron/sync-brevo",
+      "schedule": "0 */6 * * *"
     }
   ]
 }

@@ -9,8 +9,8 @@ const inter = Inter({ subsets: ["latin"] });
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Mallard Connect",
-  description: "Lead nurturing for Mallard Mortgages",
+  title: "Sequence",
+  description: "Lead nurturing and follow-up for UK mortgage advisers",
 };
 
 export default function RootLayout({

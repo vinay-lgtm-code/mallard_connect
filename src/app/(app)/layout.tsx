@@ -14,9 +14,12 @@ import {
   BarChart3,
   UserPlus,
   Plus,
+  Zap,
+  FileText,
 } from "lucide-react";
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { NotificationDropdown } from "@/components/notifications";
+import { DemoBanner } from "@/components/tenant/tenant-switcher";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase/client";
 import { useState } from "react";
@@ -25,6 +28,8 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch, adminOnly: false },
   { href: "/leads", label: "Leads", icon: Users, adminOnly: false },
+  { href: "/cadences", label: "Cadences", icon: Zap, adminOnly: false },
+  { href: "/templates", label: "Templates", icon: FileText, adminOnly: true },
   { href: "/team", label: "Team", icon: UserPlus, adminOnly: true },
   { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
   { href: "/import", label: "Import", icon: Upload, adminOnly: true },
@@ -35,6 +40,8 @@ const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/pipeline": "Pipeline",
   "/leads": "Leads",
+  "/cadences": "Cadences",
+  "/templates": "Templates",
   "/team": "Team",
   "/reports": "Reports",
   "/import": "Import",
@@ -76,7 +83,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
 
   const pageTitle =
-    Object.entries(PAGE_TITLES).find(([key]) => pathname.startsWith(key))?.[1] ?? "Mallard Connect";
+    Object.entries(PAGE_TITLES).find(([key]) => pathname.startsWith(key))?.[1] ?? "Sequence";
 
   async function handleSignOut() {
     if (getDemoUser()) {
@@ -93,9 +100,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex flex-col w-64 bg-sidebar flex-shrink-0">
         <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
           <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-bold text-white">MC</span>
+            <span className="text-xs font-bold text-white">S</span>
           </div>
-          <span className="text-white font-bold text-base">Mallard Connect</span>
+          <span className="text-white font-bold text-base">Sequence</span>
         </div>
 
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
@@ -134,6 +141,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
+        <DemoBanner visible={!!getDemoUser()} />
         {/* Top bar */}
         <header className="bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 h-14 flex-shrink-0">
           <h1 className="text-lg font-bold text-gray-900">{pageTitle}</h1>

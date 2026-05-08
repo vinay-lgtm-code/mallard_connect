@@ -7,7 +7,7 @@ type UserRole = "admin" | "manager" | "advisor";
 
 async function verifyAdminOrManager(
   request: NextRequest
-): Promise<{ uid: string; role: UserRole } | null> {
+): Promise<{ uid: string; role: UserRole; tenantId: string } | null> {
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return null;
@@ -15,8 +15,9 @@ async function verifyAdminOrManager(
   try {
     const decoded = await getAuthAdmin().verifyIdToken(token);
     const role = decoded.role as UserRole | undefined;
-    if (role === "admin" || role === "manager") {
-      return { uid: decoded.uid, role };
+    const tenantId = decoded.tenantId as string | undefined;
+    if ((role === "admin" || role === "manager") && tenantId) {
+      return { uid: decoded.uid, role, tenantId };
     }
     return null;
   } catch {
@@ -40,7 +41,11 @@ export async function GET(request: NextRequest) {
   }
 
   const db = getFirestoreAdmin();
-  const snap = await db.collection("users").orderBy("createdAt", "desc").get();
+  const snap = await db
+    .collection("users")
+    .where("tenantId", "==", caller.tenantId)
+    .orderBy("createdAt", "desc")
+    .get();
   const users = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
   return NextResponse.json(users);
@@ -91,10 +96,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: message }, { status: 422 });
   }
 
-  await authAdmin.setCustomUserClaims(uid, { role: userRole });
+  await authAdmin.setCustomUserClaims(uid, { role: userRole, tenantId: caller.tenantId });
 
   const now = Timestamp.now();
   await db.collection("users").doc(uid).set({
+    tenantId: caller.tenantId,
     email,
     fullName,
     phone: null,
@@ -107,22 +113,22 @@ export async function POST(request: NextRequest) {
   // Send invite email via Resend
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://mallardconnect.co.uk";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
     await resend.emails.send({
-      from: "Mallard Connect <no-reply@mallardconnect.co.uk>",
+      from: "Sequence <no-reply@sequence-ai.com>",
       to: [email],
-      subject: "You've been invited to Mallard Connect",
+      subject: "You've been invited to Sequence",
       html: `
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8" /><title>Welcome to Mallard Connect</title></head>
+<head><meta charset="UTF-8" /><title>Welcome to Sequence</title></head>
 <body style="margin:0;padding:0;background-color:#f4f4f5;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f4f5;padding:40px 0;">
     <tr><td align="center">
       <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.1);">
         <tr>
           <td style="background-color:#1A5653;padding:24px 32px;">
-            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Mallard Connect</h1>
+            <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">Sequence</h1>
             <p style="margin:4px 0 0;color:#bfdbfe;font-size:14px;">You've been invited</p>
           </td>
         </tr>
@@ -130,7 +136,7 @@ export async function POST(request: NextRequest) {
           <td style="padding:32px;">
             <h2 style="margin:0 0 16px;color:#111827;font-size:18px;">Welcome, ${fullName}!</h2>
             <p style="color:#374151;font-size:14px;line-height:1.6;margin:0 0 24px;">
-              You've been added to Mallard Connect as a <strong>${userRole}</strong>. Use the credentials below to log in for the first time.
+              You've been added to Sequence as a <strong>${userRole}</strong>. Use the credentials below to log in for the first time.
             </p>
             <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;margin-bottom:24px;">
               <tr><td style="padding:20px;">
@@ -142,7 +148,7 @@ export async function POST(request: NextRequest) {
             </table>
             <p style="color:#6b7280;font-size:13px;margin:0 0 24px;">Please change your password after logging in for the first time.</p>
             <a href="${appUrl}/login" style="display:inline-block;background-color:#1A5653;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;">
-              Log In to Mallard Connect
+              Log In to Sequence
             </a>
           </td>
         </tr>
@@ -193,7 +199,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }
     updates.role = role;
-    await authAdmin.setCustomUserClaims(userId, { role });
+    await authAdmin.setCustomUserClaims(userId, { role, tenantId: caller.tenantId });
   }
 
   if (isActive !== undefined) {
@@ -203,6 +209,12 @@ export async function PATCH(request: NextRequest) {
 
   if (Object.keys(updates).length === 0) {
     return NextResponse.json({ error: "Nothing to update" }, { status: 400 });
+  }
+
+  // Verify the target user belongs to the caller's tenant before updating.
+  const targetSnap = await db.collection("users").doc(userId).get();
+  if (!targetSnap.exists || targetSnap.data()?.tenantId !== caller.tenantId) {
+    return NextResponse.json({ error: "Cross-tenant update forbidden" }, { status: 403 });
   }
 
   await db.collection("users").doc(userId).update(updates);

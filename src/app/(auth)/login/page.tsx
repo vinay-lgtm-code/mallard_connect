@@ -43,7 +43,7 @@ export default function LoginPage() {
               <path d="M8 12l3 3 5-5" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Mallard Connect</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Sequence</h1>
           <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
         </div>
 

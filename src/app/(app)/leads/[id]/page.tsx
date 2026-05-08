@@ -15,6 +15,9 @@ import {
 import { db } from "@/lib/firebase/client";
 import { useLead, useLeadActivities, useLeadTasks } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
+import { QuickLogBar } from "@/components/leads/quick-log-bar";
+import { isDemoUser } from "@/lib/mock-data";
+import { tasksPath, leadPath, activitiesPath } from "@/lib/firebase/paths";
 import type { ActivityType } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
@@ -64,10 +67,12 @@ function getInitials(first: string, last: string) {
 interface FollowUpModalProps {
   leadId: string;
   userId: string;
-  onClose: () => void;
+  tenantId: string;
+  demo: boolean;
+  onClose: (saved: boolean) => void;
 }
 
-function FollowUpModal({ leadId, userId, onClose }: FollowUpModalProps) {
+function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModalProps) {
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [email1, setEmail1] = useState("");
@@ -82,8 +87,9 @@ function FollowUpModal({ leadId, userId, onClose }: FollowUpModalProps) {
     setSaving(true);
     setError(null);
     try {
-      await addDoc(collection(db, "tasks"), {
+      await addDoc(collection(db, tasksPath(tenantId, demo)), {
         leadId,
+        tenantId,
         assignedTo: userId,
         createdBy: userId,
         title: title.trim(),
@@ -95,7 +101,7 @@ function FollowUpModal({ leadId, userId, onClose }: FollowUpModalProps) {
         reminderSent: false,
         createdAt: serverTimestamp(),
       });
-      onClose();
+      onClose(true);
     } catch (err) {
       console.error("Failed to create follow-up:", err);
       setError("Failed to schedule follow-up. Please try again.");
@@ -154,7 +160,7 @@ function FollowUpModal({ leadId, userId, onClose }: FollowUpModalProps) {
           <div className="flex gap-2 justify-end pt-1">
             <button
               type="button"
-              onClick={onClose}
+              onClick={() => onClose(false)}
               className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100"
             >
               Cancel
@@ -177,6 +183,8 @@ export default function LeadDetailPage() {
   const params = useParams();
   const id = params.id as string;
   const { user } = useAuth();
+
+  const demo = user ? isDemoUser(user.id) : false;
 
   const { lead, loading } = useLead(id);
   const { activities } = useLeadActivities(id);
@@ -212,8 +220,9 @@ export default function LeadDetailPage() {
     if (!noteText.trim() || !user) return;
     setSavingNote(true);
     try {
-      await addDoc(collection(db, "leads", id, "activities"), {
+      await addDoc(collection(db, activitiesPath(user.tenantId, id, demo)), {
         leadId: id,
+        tenantId: user.tenantId,
         performedBy: user.id,
         activityType: "note",
         title: "Note added",
@@ -235,7 +244,7 @@ export default function LeadDetailPage() {
     setSavingQual(true);
     setQualSaved(false);
     try {
-      await updateDoc(doc(db, "leads", id), {
+      await updateDoc(doc(db, leadPath(user.tenantId, id, demo)), {
         propertyValue: qualPropertyValue ? Number(qualPropertyValue) : null,
         depositAmount: qualDepositAmount ? Number(qualDepositAmount) : null,
         updatedAt: serverTimestamp(),
@@ -281,6 +290,8 @@ export default function LeadDetailPage() {
         <FollowUpModal
           leadId={id}
           userId={user.id}
+          tenantId={user.tenantId}
+          demo={demo}
           onClose={() => setShowFollowUpModal(false)}
         />
       )}
@@ -416,6 +427,7 @@ export default function LeadDetailPage() {
 
         {activeTab === "activity" && (
           <div className="space-y-4">
+            <QuickLogBar prospectName={`${lead.firstName} ${lead.lastName}`} />
             {addingNote && (
               <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100">
                 <textarea

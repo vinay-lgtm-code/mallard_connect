@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDemoUser } from "@/lib/mock-data";
+import { leadsPath, tasksPath } from "@/lib/firebase/paths";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
 
 type FieldErrors = Partial<Record<keyof CreateLeadInput, string>>;
@@ -162,9 +164,11 @@ export default function NewLeadPage() {
 
     setSaving(true);
     try {
-      const docRef = await addDoc(collection(db, "leads"), {
+      const demo = isDemoUser(user.id);
+      const docRef = await addDoc(collection(db, leadsPath(user.tenantId, demo)), {
         firstName: form.firstName,
         lastName: form.lastName,
+        tenantId: user.tenantId,
         phone: form.phone,
         email: form.email || null,
         source: form.source,
@@ -192,8 +196,9 @@ export default function NewLeadPage() {
 
       if (form.followUpDate) {
         const reminderEmails = [form.reminderEmail1, form.reminderEmail2, form.reminderEmail3].filter(Boolean);
-        await addDoc(collection(db, "tasks"), {
+        await addDoc(collection(db, tasksPath(user.tenantId, demo)), {
           leadId: docRef.id,
+          tenantId: user.tenantId,
           assignedTo: user.id,
           createdBy: user.id,
           title: `Follow up: ${form.firstName} ${form.lastName}`,

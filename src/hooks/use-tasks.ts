@@ -3,6 +3,9 @@
 import { useMemo } from "react";
 import { orderBy, where, Timestamp, type QueryConstraint } from "firebase/firestore";
 import { useRealtimeCollection } from "@/hooks/use-realtime";
+import { useAuth } from "@/hooks/useAuth";
+import { isDemoUser } from "@/lib/mock-data";
+import { tasksPath } from "@/lib/firebase/paths";
 import type { Task } from "@/types";
 
 interface TaskFilters {
@@ -11,7 +14,13 @@ interface TaskFilters {
   dueDate?: string;
 }
 
+function pathFor(tenantId: string | undefined, demo: boolean): string {
+  return tenantId ? tasksPath(tenantId, demo) : "__skip__";
+}
+
 export function useTasks(filters?: TaskFilters) {
+  const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
   const constraints: QueryConstraint[] = [];
 
   if (filters?.assignedTo) {
@@ -31,19 +40,21 @@ export function useTasks(filters?: TaskFilters) {
 
   constraints.push(orderBy("dueDate", "asc"));
 
-  const { data, loading, error } = useRealtimeCollection<Task>("tasks", constraints);
+  const { data, loading, error } = useRealtimeCollection<Task>(pathFor(user?.tenantId, demo), constraints);
 
   return { tasks: data, loading, error };
 }
 
 export function useOverdueTasks(userId: string) {
+  const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
   const todayStart = useMemo(() => {
     const d = new Date();
     d.setHours(0, 0, 0, 0);
     return Timestamp.fromDate(d);
   }, []);
 
-  const skip = userId === "__skip__";
+  const skip = userId === "__skip__" || !user?.tenantId;
   const constraints: QueryConstraint[] = skip ? [] : [
     where("assignedTo", "==", userId),
     where("status", "==", "pending"),
@@ -51,12 +62,17 @@ export function useOverdueTasks(userId: string) {
     orderBy("dueDate", "asc"),
   ];
 
-  const { data, loading, error } = useRealtimeCollection<Task>(skip ? "__skip__" : "tasks", constraints);
+  const { data, loading, error } = useRealtimeCollection<Task>(
+    skip ? "__skip__" : pathFor(user.tenantId, demo),
+    constraints
+  );
 
   return { tasks: data, loading, error };
 }
 
 export function useTodayTasks(userId: string) {
+  const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
   const { todayStart, todayEnd } = useMemo(() => {
     const start = new Date();
     start.setHours(0, 0, 0, 0);
@@ -68,7 +84,7 @@ export function useTodayTasks(userId: string) {
     };
   }, []);
 
-  const skip = userId === "__skip__";
+  const skip = userId === "__skip__" || !user?.tenantId;
   const constraints: QueryConstraint[] = skip ? [] : [
     where("assignedTo", "==", userId),
     where("dueDate", ">=", todayStart),
@@ -76,7 +92,10 @@ export function useTodayTasks(userId: string) {
     orderBy("dueDate", "asc"),
   ];
 
-  const { data, loading, error } = useRealtimeCollection<Task>(skip ? "__skip__" : "tasks", constraints);
+  const { data, loading, error } = useRealtimeCollection<Task>(
+    skip ? "__skip__" : pathFor(user.tenantId, demo),
+    constraints
+  );
 
   return { tasks: data, loading, error };
 }

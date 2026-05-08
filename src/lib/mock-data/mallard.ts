@@ -1,17 +1,22 @@
-import type { Lead, Task, Activity, User } from "@/types";
+// Mallard Mortgages — Sheffield UK, FTB-heavy demo tenant.
+// First-time-buyer skew, deposit-saving cycles, Sheffield postcodes.
 
+import type { Lead, Task, Activity, User, Cadence, Template, CadenceEnrollment } from "@/types";
+import { buildSeededCadences, SEEDED_TEMPLATES, buildSeededEnrollments } from "./cadences-seed";
+
+const TENANT_ID = "mallard";
 const now = new Date();
 const daysAgo = (n: number) => new Date(now.getTime() - n * 24 * 60 * 60 * 1000);
 const hoursAgo = (n: number) => new Date(now.getTime() - n * 60 * 60 * 1000);
 
-export const MOCK_USERS: User[] = [
-  { id: "demo-manager", email: "della@mallardmortgages.co.uk", fullName: "Della Mallard", phone: "+44 114 000 0001", role: "manager", avatarUrl: null, isActive: true, createdAt: daysAgo(90) as never },
-  { id: "demo-sales", email: "alex@mallardmortgages.co.uk", fullName: "Alex Rivera", phone: "+44 114 000 0002", role: "advisor", avatarUrl: null, isActive: true, createdAt: daysAgo(60) as never },
-  { id: "user-3", email: "priya@mallardmortgages.co.uk", fullName: "Priya Patel", phone: "+44 114 000 0003", role: "advisor", avatarUrl: null, isActive: true, createdAt: daysAgo(45) as never },
-  { id: "user-4", email: "tom@mallardmortgages.co.uk", fullName: "Tom Beckett", phone: "+44 114 000 0004", role: "advisor", avatarUrl: null, isActive: true, createdAt: daysAgo(30) as never },
+export const users: User[] = [
+  { id: "demo-manager", tenantId: TENANT_ID, email: "della@mallardmortgages.co.uk", fullName: "Della Mallard", phone: "+44 114 000 0001", role: "manager", avatarUrl: null, isActive: true, createdAt: daysAgo(90) as never },
+  { id: "demo-sales", tenantId: TENANT_ID, email: "alex@mallardmortgages.co.uk", fullName: "Alex Rivera", phone: "+44 114 000 0002", role: "advisor", avatarUrl: null, isActive: true, createdAt: daysAgo(60) as never },
+  { id: "user-3", tenantId: TENANT_ID, email: "priya@mallardmortgages.co.uk", fullName: "Priya Patel", phone: "+44 114 000 0003", role: "advisor", avatarUrl: null, isActive: true, createdAt: daysAgo(45) as never },
+  { id: "user-4", tenantId: TENANT_ID, email: "tom@mallardmortgages.co.uk", fullName: "Tom Beckett", phone: "+44 114 000 0004", role: "advisor", avatarUrl: null, isActive: true, createdAt: daysAgo(30) as never },
 ];
 
-export const MOCK_LEADS: Lead[] = [
+export const leads: Lead[] = [
   { id: "lead-1", firstName: "Sarah", lastName: "Jenkins", email: "sarah.j@email.com", phone: "07700 900100", source: "website", status: "active", currentStageId: "new_enquiry", assignedTo: "demo-sales", mortgageType: "first-time-buyer", readiness: "1-3-months", propertyValue: 225000, depositAmount: 25000, loanAmount: 200000, nextFollowUpDate: null, followUpReason: null, followUpNotes: null, tags: [], referredBy: null, importId: null, createdAt: hoursAgo(4) as never, updatedAt: hoursAgo(4) as never, convertedAt: null, lostAt: null, lostReason: null },
   { id: "lead-2", firstName: "James", lastName: "Whitworth", email: "james.w@email.com", phone: "07700 900101", source: "referral", status: "active", currentStageId: "initial_contact", assignedTo: "demo-sales", mortgageType: "remortgage", readiness: "ready-now", propertyValue: 320000, depositAmount: null, loanAmount: 240000, nextFollowUpDate: null, followUpReason: "Rate review due", followUpNotes: null, tags: [], referredBy: "Dave Morris", importId: null, createdAt: daysAgo(3) as never, updatedAt: daysAgo(1) as never, convertedAt: null, lostAt: null, lostReason: null },
   { id: "lead-3", firstName: "Amira", lastName: "Hassan", email: "amira.h@email.com", phone: "07700 900102", source: "phone", status: "active", currentStageId: "not_ready_yet", assignedTo: "demo-sales", mortgageType: "first-time-buyer", readiness: "6-12-months", propertyValue: null, depositAmount: 15000, loanAmount: null, nextFollowUpDate: daysAgo(-30) as never, followUpReason: "Saving deposit — check in January", followUpNotes: "Wants to buy near Ecclesall Road", tags: ["first-time"], referredBy: null, importId: null, createdAt: daysAgo(14) as never, updatedAt: daysAgo(2) as never, convertedAt: null, lostAt: null, lostReason: null },
@@ -26,7 +31,7 @@ export const MOCK_LEADS: Lead[] = [
   { id: "lead-12", firstName: "Yusuf", lastName: "Khan", email: "yusuf.k@email.com", phone: "07700 900111", source: "referral", status: "active", currentStageId: "not_ready_yet", assignedTo: "user-3", mortgageType: "first-time-buyer", readiness: "6-12-months", propertyValue: null, depositAmount: 10000, loanAmount: null, nextFollowUpDate: daysAgo(-60) as never, followUpReason: "Building deposit — review in 6 months", followUpNotes: null, tags: ["first-time"], referredBy: "Mark Taylor", importId: null, createdAt: daysAgo(35) as never, updatedAt: daysAgo(8) as never, convertedAt: null, lostAt: null, lostReason: null },
 ];
 
-export const MOCK_TASKS: Task[] = [
+export const tasks: Task[] = [
   { id: "task-1", leadId: "lead-2", assignedTo: "demo-sales", createdBy: "demo-manager", title: "Call James re: rate review", description: "His current deal expires soon, discuss remortgage options", dueDate: now as never, priority: "high", status: "pending", reminderEmails: ["della@mallardmortgages.co.uk"], reminderSent: false, createdAt: daysAgo(1) as never },
   { id: "task-2", leadId: "lead-9", assignedTo: "demo-sales", createdBy: "demo-sales", title: "Send Lisa mortgage comparison", description: null, dueDate: now as never, priority: "normal", status: "pending", reminderEmails: [], reminderSent: false, createdAt: daysAgo(3) as never },
   { id: "task-3", leadId: "lead-3", assignedTo: "demo-sales", createdBy: "demo-manager", title: "Check in with Amira on deposit savings", description: "She wanted to buy near Ecclesall Road", dueDate: daysAgo(-1) as never, priority: "normal", status: "pending", reminderEmails: ["della@mallardmortgages.co.uk"], reminderSent: false, createdAt: daysAgo(14) as never },
@@ -35,7 +40,18 @@ export const MOCK_TASKS: Task[] = [
   { id: "task-6", leadId: "lead-5", assignedTo: "user-3", createdBy: "demo-manager", title: "Prepare Rachel's application docs", description: "She's ready to proceed — get DIP sorted", dueDate: daysAgo(-2) as never, priority: "urgent", status: "pending", reminderEmails: ["della@mallardmortgages.co.uk"], reminderSent: false, createdAt: daysAgo(2) as never },
 ];
 
-export const MOCK_ACTIVITIES: Activity[] = [
+export const cadences: Cadence[] = buildSeededCadences();
+
+export const templates: Template[] = SEEDED_TEMPLATES;
+
+// Mallard skews FTB-heavy, so the FTB cadence (cad-1) has the most active enrollments.
+export const enrollments: CadenceEnrollment[] = buildSeededEnrollments({
+  "cad-1": ["lead-3", "lead-9", "lead-12"], // Amira, Lisa, Yusuf — all in FTB-nurture
+  "cad-2": ["lead-2", "lead-8"], // James, Chris — remortgage warm-ups
+  "cad-3": ["lead-10"], // Robert — cold re-engagement
+});
+
+export const activities: Activity[] = [
   { id: "act-1", leadId: "lead-1", performedBy: "demo-sales", activityType: "note", title: "Sarah Jenkins", description: "Initial enquiry from website — first-time buyer, looking at S11 area", metadata: null, createdAt: hoursAgo(4) as never },
   { id: "act-2", leadId: "lead-2", performedBy: "demo-sales", activityType: "call", title: "James Whitworth", description: "Discussed remortgage options, current deal expires in 8 weeks", metadata: null, createdAt: hoursAgo(6) as never },
   { id: "act-3", leadId: "lead-5", performedBy: "user-3", activityType: "stage-change", title: "Rachel Cooper", description: "Moved from Nurturing to Ready to Proceed", metadata: { from: "nurturing", to: "ready_to_proceed" }, createdAt: daysAgo(1) as never },
@@ -45,7 +61,3 @@ export const MOCK_ACTIVITIES: Activity[] = [
   { id: "act-7", leadId: "lead-7", performedBy: "user-4", activityType: "meeting", title: "Emma Wilson", description: "Walk-in meeting — self-employed, needs 2 years of accounts", metadata: null, createdAt: hoursAgo(6) as never },
   { id: "act-8", leadId: "lead-9", performedBy: "demo-sales", activityType: "whatsapp", title: "Lisa Brown", description: "Shared mortgage calculator link", metadata: null, createdAt: daysAgo(3) as never },
 ];
-
-export function isDemoUser(userId: string): boolean {
-  return userId.startsWith("demo-");
-}

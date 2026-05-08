@@ -1,440 +1,271 @@
-# Mallard Connect
+# Sequence
 
-> Lead nurturing and follow-up system for Mallard Mortgages, Sheffield UK.
-> Works alongside the Mortgage Advice Bureau "Platform" system.
+> Lead nurturing and follow-up for UK mortgage advisers. Bolts on to whatever you already use — MAB Platform, FLG, Dashly, Intelligent Office — without replacing it.
 
-## The Problem
+`www.sequence-ai.com` (marketing) · `app.sequence-ai.com` (app) · vanity subdomains per firm (e.g. `mallard.sequence-ai.com`, `friendscapital.sequence-ai.com`)
 
-Prospects who enquire but aren't ready to proceed — like a first-time buyer still saving for a deposit, or a self-employed client building their accounts history — are falling through the cracks. Advisers might note down "contact again in January," but there's no structured process to make sure that follow-up actually happens.
+## The problem we solve
 
-Mallard Connect solves this by providing structured follow-up reminders, pipeline visibility, and team coordination — all without replacing their existing MAB Platform system.
+Prospects who enquire but aren't transaction-ready — first-time buyers still saving a deposit, self-employed clients building accounts history, remortgages months out — fall through the cracks. Advisers note "contact again in January", but there's no structured process to make sure the follow-up happens. A standalone CRM is overkill (and expensive) for firms whose primary system is fine for in-flight cases. They just need the nurture layer.
 
-## Design System
+Sequence is that layer. It plugs into existing data sources, runs cadences automatically, and gives the owner at-a-glance visibility on where every prospect sits and what the next action is.
 
-All UI mockups are designed in `pencil-welcome-desktop.pen` using the Lunaris design system with KokonutUI-inspired components. The design uses a **bold & energetic** aesthetic with:
+## What's inside
 
-- **Primary**: Dark teal (Mallard duck inspired)
-- **Accent**: Amber/gold (energetic CTAs, overdue alerts)
-- **Success**: Green (completed, on track)
-- **Destructive**: Red (overdue, errors)
-- **Clean white backgrounds** with subtle card elevation
+- **Pipeline (Kanban + list)** with a first-class "Not Ready Yet" stage — the column where most leads currently die.
+- **Cadences** — multi-step automations (Day 0 email, Day 7 SMS, Day 30 reminder) tied to stage changes or triggered manually. Three starter cadences seeded per firm: FTB deposit-saving, remortgage warm-up, cold re-engagement.
+- **Activity logging** — call, email, meeting, note, SMS, WhatsApp. One-click quick-log on the lead page; full timeline on every prospect.
+- **Email/SMS templates** with variables. Templates feed both cadences and ad-hoc activity logging.
+- **Daily reminder cron** — Resend emails to up to 3 recipients with full prospect context, deep-linking back into the lead.
+- **MAB CSV/XLS import** with auto column-mapping and duplicate detection.
+- **Brevo connector** *(opportunistic)* — one-way pull of contacts and email open/click events into the activity timeline. Resend stays as the send engine.
+- **Self-serve onboarding** — firm details → invite team → connect data source → import → pick starter cadences.
+- **Multi-tenant demo** — `app.sequence-ai.com/demo` switches between Mallard, Friends Capital, and Acme so prospects can feel the product.
 
----
+**Optimised for laptop-first usage.** Owners and advisers do most of their work at a desk: pipeline kanban, multi-column lead forms, manager dashboards, and table views are designed for ≥1280px. Mobile is secondary — kept for what it's actually good at: quick lead capture between appointments and tap-to-call from a "today" follow-up list.
 
-## User Experience by Persona
+## Pricing
 
-### Della (Owner/Manager)
+£50 / month for 5 users. £8 / month per additional user. All features included. 14-day free trial. See `/pricing`.
 
-Della needs to see everything at a glance — pipeline health, team performance, and which leads need attention. She can monitor without micromanaging.
+## Tech stack
 
-#### Manager Dashboard (Desktop)
+| Layer | Tech |
+|---|---|
+| Framework | Next.js 15 (App Router, TypeScript), React 19 |
+| Database | Firebase Firestore — multi-tenant under `tenants/{tid}/...` |
+| Auth | Firebase Auth + custom claims (`role`, `tenantId`) |
+| Email | Resend (always — Brevo is read-only) |
+| Cron | Vercel Cron — `run-cadences` daily 7am UK, `sync-brevo` every 6h |
+| Hosting | Vercel; wildcard subdomain routing via `src/middleware.ts` |
+| Styling | Tailwind v4 |
+| Validation | Zod (shared client/server) |
+| Real-time | Firestore `onSnapshot` |
+| Import | SheetJS (`xlsx`) |
+| Drag and drop | `@hello-pangea/dnd` |
 
-Full-width desktop view with sidebar navigation showing all manager-level sections. Features:
+See [`CLAUDE.md`](./CLAUDE.md) for the codebase contract — tenant rules, cadence engine, Brevo principles, branding rules, and conventions.
 
-- **4 KPI cards** at the top: New Leads, Follow-ups Due, Overdue, Deals Closed
-- **Pipeline Health** horizontal bar chart showing lead counts across all 6 active stages
-- **Team Activity** live feed showing recent actions by salespeople (calls logged, stages changed, leads created)
-- Real-time updates via Firestore `onSnapshot` — Della sees activity as it happens
+## Local development
 
-*Screen: `00PCT` in pencil-welcome-desktop.pen*
-
-#### Manager Dashboard (Mobile)
-
-Same data optimized for Della's phone — compact KPI pills, team scorecard cards with avatar + stats per salesperson, and a condensed activity feed. Bottom tab nav with Dashboard active and FAB for quick actions.
-
-*Screen: `bO6Pj` in pencil-welcome-desktop.pen*
-
-#### Pipeline Board (Desktop Kanban)
-
-Drag-and-drop Kanban board with 6 visible stage columns:
-
-| Stage | Color | Purpose |
-|-------|-------|---------|
-| New Enquiry | Indigo | Just came in, not yet contacted |
-| Initial Contact | Blue | First conversation happened |
-| **Not Ready Yet** | **Amber (highlighted)** | **THE key stage — where leads currently fall through cracks** |
-| Nurturing | Green | Active follow-up cycle |
-| Ready to Proceed | Blue | Prospect ready for handoff |
-| Referred to MAB | Purple | Handed to MAB Platform for formal application |
-
-Each prospect card shows: name, type (FTB/remortgage/self-employed), assigned salesperson avatar, time context, and overdue badges in red.
-
-The "Not Ready Yet" column has a **highlighted amber border** — this is the most important stage for Mallard, where the system earns its keep.
-
-*Screen: `yuS5D` in pencil-welcome-desktop.pen*
-
-#### MAB Platform Import (Desktop)
-
-Bridge to their existing system. Della exports CSV/XLS from MAB Platform and uploads it:
-
-1. **Upload area** with drag-and-drop, showing file name and row count confirmation
-2. **Column mapping table** auto-mapping MAB columns (Client Name, Tel Number, Email Address, Adviser, Case Status) to Mallard Connect fields
-3. **Deduplication preview** with three color-coded buckets:
-   - **Green (42)**: New leads — will be created
-   - **Amber (8)**: Duplicates — will be skipped (existing record is newer)
-   - **Blue (3)**: Duplicates — can be updated (incoming has newer data), with merge toggles
-
-The column mapper remembers mappings from the last import. Phone normalization handles +44 prefix and spacing variations.
-
-*Screen: `oaR0H` in pencil-welcome-desktop.pen*
-
----
-
-### Salespeople (Office/Desktop)
-
-Salespeople need clarity on what to do today and fast lead capture. No ambiguity, no leads slipping through.
-
-#### "My Day" Dashboard (Desktop)
-
-The salesperson's home screen. Shows:
-
-- **Greeting** with motivational nudge ("You have 3 follow-ups due today. Let's perform!")
-- **Today's Follow-ups** — cards with prospect name, phone number (tap-to-call on mobile), context blurb, and status badges (Overdue/Due today/Planned)
-- **My Pipeline** summary — stage counts at a glance
-- **New Assignments** — leads Della has assigned, with context
-
-*Screen: `xLorR` in pencil-welcome-desktop.pen*
-
-#### New Lead Form (Desktop)
-
-Two-column layout for capturing leads in under 60 seconds:
-
-**Left column — Contact Details:**
-- First/Last Name, Phone, Email
-- Lead Source (dropdown: website, referral, phone, walk-in, social)
-- Mortgage Type (dropdown: first-time buyer, remortgage, self-employed, buy-to-let)
-- Readiness (dropdown: ready now, 1-3 months, 3-6 months, 6-12 months, exploring)
-- Quick Notes (textarea)
-
-**Right column — Follow-up Reminder:**
-- Follow-up Date picker
-- Reason (dropdown: saving deposit, improving credit, building accounts history, etc.)
-- **Up to 3 email recipients** for the reminder (the core feature — ensures the right people get notified)
-- Reminder Note (context to include in the email)
-
-*Screen: `oluoT` in pencil-welcome-desktop.pen*
-
-#### Prospect Detail (Desktop)
-
-Full prospect view with:
-
-- **Header**: Avatar, name, tappable stage badge ("Not Ready Yet" in amber), meta info (type, source, assigned to)
-- **Action buttons**: Call, Email, Log Activity
-- **Tabs**: Overview (active), Notes & Activity, Qualification, Follow-ups
-- **Contact Information card**: Phone, email, source, readiness, mortgage type, deposit amount
-- **Next Follow-up card** (highlighted amber): Date, reason — prominent so it's never missed
-- **Activity Timeline** (right panel): Color-coded dots showing call logs, stage changes, lead creation with timestamps and notes
-
-*Screen: `CHnFT` in pencil-welcome-desktop.pen*
-
----
-
-### Salespeople (Field/Mobile)
-
-Field salespeople need speed and simplicity. Everything must work with one hand on a phone between appointments.
-
-#### "My Day" Dashboard (Mobile)
-
-Single-column, follow-up focused:
-
-- 3 follow-up cards with avatar, name, phone number, status badge, and context blurb
-- **Call and Snooze** action buttons on the first (overdue) card
-- Bottom tab nav: My Day (active), Pipeline, + FAB, Prospects, More
-
-*Screen: `S14Wd` in pencil-welcome-desktop.pen*
-
-#### Quick Capture (Mobile)
-
-15-second lead capture for networking events and in-person referrals:
-
-- **Name** (required)
-- **Phone** (required)
-- **Quick Note** (textarea — "Met at networking event, interested in...")
-- **Type tags** (tap to select: First-time buyer, Remortgage, Self-employed, Bad credit, Referral, Walk-in)
-- Save button in the header for one-tap completion
-
-*Screen: `gJmkX` in pencil-welcome-desktop.pen*
-
-#### Pipeline List (Mobile)
-
-Mobile-optimized pipeline view:
-
-- **Horizontal stage pills** at the top — tap to filter (Not Ready Yet active, showing count "12")
-- **Prospect cards** with avatar, name, type summary, follow-up date
-- **Color-coded badges**: Overdue (red), Due today (amber), Apr 15 (blue), On track (green)
-- Bottom nav with Pipeline tab active
-
-*Screen: `xNuto` in pencil-welcome-desktop.pen*
-
----
-
-## Pipeline Stages
-
-The UK mortgage nurture process, designed with Mallard's specific pain points in mind:
-
-```
-New Enquiry → Initial Contact → Not Ready Yet → Nurturing → Ready to Proceed → Referred to MAB → Won/Completed
-                                                                                                  └→ Lost/Gone Cold
+```bash
+cp .env.local.example .env.local      # fill in Firebase + Resend + (optional) Brevo keys
+npm install
+npm run dev
 ```
 
-**"Not Ready Yet" is a first-class stage** — not an afterthought. This is where Mallard's leads currently fall through cracks. The system gives it:
-- Highlighted amber borders in the Kanban board
-- Prominent follow-up scheduling
-- Long-duration reminder support (6-12 month follow-ups are normal)
-- Re-engagement reminders for cold leads (circumstances change)
+Visit:
+- `http://localhost:3000` — marketing landing.
+- `http://localhost:3000/demo` — multi-tenant demo switcher.
+- `http://localhost:3000/onboarding` — onboarding wizard.
 
----
+For local vanity-subdomain testing, add to `/etc/hosts`:
+```
+127.0.0.1 mallard.localhost
+127.0.0.1 friendscapital.localhost
+127.0.0.1 acme.localhost
+```
 
-## Core Feature: Follow-up Reminders
-
-The single most important feature. When a salesperson captures or updates a lead:
-
-1. Set a **follow-up date** (smart defaults based on readiness: 1 week, 1 month, 3 months, 6 months)
-2. Add **up to 3 email recipients** who should receive the reminder
-3. Write a **context blurb** about the client's situation
-4. A **daily cron job at 7am UK time** sends reminder emails via Resend to the configured recipients
-
-The reminder email includes enough context that the salesperson can act without opening the app — client name, phone, situation summary, and a deep link to the prospect detail.
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 14+ (App Router, TypeScript) |
-| Database | Firebase Firestore (NoSQL, real-time sync) |
-| Auth | Firebase Auth (email/password, magic link) |
-| Storage | Firebase Storage (document uploads) |
-| Email | Resend (transactional reminders, invites) |
-| Cron | Vercel Cron (daily 7am UK reminder job) |
-| Hosting | Vercel (Next.js optimized) |
-| UI | Tailwind CSS + shadcn/ui + KokonutUI |
-| Validation | Zod (shared client/server schemas) |
-| State | TanStack Query (server state) |
-| Real-time | Firestore `onSnapshot` (no additional WebSocket infra) |
-| Import | SheetJS/xlsx (CSV/XLS parsing) |
-
-**Migration path**: Firebase → Supabase/Postgres when Mallard is ready for a full CRM later in the year.
-
----
-
-## System Architecture
+## System architecture
 
 ```mermaid
 graph TB
-    subgraph Client["Client (Browser / PWA)"]
-        LP["Landing Page<br/><small>/</small>"]
-        Auth["Login / Signup<br/><small>/login, /signup</small>"]
-        App["App Shell<br/><small>Sidebar + Top Bar</small>"]
-        Dash["Dashboard<br/><small>Manager KPIs / Advisor My Day</small>"]
-        Pipe["Pipeline Kanban<br/><small>Drag-and-drop stages</small>"]
-        Leads["Leads List + Detail<br/><small>Search, filter, qualify</small>"]
-        Cap["Quick Capture<br/><small>Mobile lead intake</small>"]
-        Team["Team Management<br/><small>Invite, assign, monitor</small>"]
-        Reports["Reports<br/><small>KPIs, funnel, leaderboard</small>"]
-        Settings["Settings<br/><small>Profile, pipeline config</small>"]
+    subgraph Web["Web (multiple hosts)"]
+        Marketing["www.sequence-ai.com<br/><small>Marketing + pricing + checkout</small>"]
+        App["app.sequence-ai.com<br/><small>Authed app + onboarding + demo</small>"]
+        Vanity["{firm}.sequence-ai.com<br/><small>Tenant-pinned via subdomain map</small>"]
     end
 
-    subgraph NextAPI["Next.js API Routes (Vercel)"]
-        CronAPI["GET /api/cron/send-reminders<br/><small>Daily 7am UK</small>"]
-        ImportAPI["POST /api/import<br/><small>CSV/XLS upload + dedup</small>"]
-        TeamAPI["POST /api/team<br/><small>Invite, role mgmt</small>"]
-        ReportsAPI["GET /api/reports<br/><small>Aggregated KPIs</small>"]
-        NotifAPI["/api/notifications<br/><small>List + mark read</small>"]
-        SettingsAPI["/api/settings<br/><small>Profile + pipeline CRUD</small>"]
+    subgraph Middleware["src/middleware.ts"]
+        Resolver["Host → tenantId resolver<br/><small>subdomains/{slug} lookup<br/>+ cookie tenant guard</small>"]
+    end
+
+    subgraph NextAPI["Next.js API (Vercel)"]
+        CronCadences["/api/cron/run-cadences<br/><small>Daily 7am UK</small>"]
+        CronBrevo["/api/cron/sync-brevo<br/><small>Every 6h</small>"]
+        Provision["/api/onboarding/provision<br/><small>Tenant + claim setup</small>"]
+        ImportAPI["/api/import<br/><small>CSV/XLS upload + dedup</small>"]
+        BrevoConnect["/api/integrations/brevo/connect<br/><small>API-key validate</small>"]
+        BrevoWebhook["/api/integrations/brevo/webhook<br/><small>Open/click events</small>"]
     end
 
     subgraph Firebase["Firebase (GCP)"]
-        FireAuth["Firebase Auth<br/><small>Email/password</small>"]
-        Firestore["Cloud Firestore<br/><small>leads, tasks, activities,<br/>users, notifications</small>"]
-        Storage["Cloud Storage<br/><small>Document uploads</small>"]
+        FireAuth["Firebase Auth<br/><small>Custom claims:<br/>role, tenantId</small>"]
+        Firestore["Cloud Firestore<br/><small>tenants/{tid}/<br/>leads · cadences · enrollments<br/>templates · integrations · imports</small>"]
     end
 
     subgraph External["External Services"]
-        Resend["Resend<br/><small>Transactional email</small>"]
-        VercelCron["Vercel Cron<br/><small>0 7 * * *</small>"]
-        MAB["MAB Platform<br/><small>CSV/XLS export</small>"]
+        Resend["Resend<br/><small>All outbound email</small>"]
+        Brevo["Brevo<br/><small>Optional: contact pull only</small>"]
+        VercelCron["Vercel Cron"]
+        MAB["MAB Platform / other CRM<br/><small>Weekly CSV/XLS export</small>"]
     end
 
-    %% Client connections
-    LP --> Auth
-    Auth --> FireAuth
-    App --> Dash & Pipe & Leads & Cap & Team & Reports & Settings
+    Marketing --> App
+    App --> Vanity
+    Web --> Resolver
+    Resolver -- "tenantId" --> NextAPI
+    Resolver -- "tenantId" --> Firestore
 
-    %% Real-time subscriptions
-    Dash -- "onSnapshot" --> Firestore
-    Pipe -- "onSnapshot" --> Firestore
-    Leads -- "onSnapshot" --> Firestore
-    Cap -- "addDoc" --> Firestore
+    VercelCron --> CronCadences
+    VercelCron --> CronBrevo
+    CronCadences --> Firestore
+    CronCadences --> Resend
+    CronBrevo --> Brevo
+    CronBrevo --> Firestore
 
-    %% API route connections
-    Team --> TeamAPI
-    Reports --> ReportsAPI
-    Settings --> SettingsAPI
-    TeamAPI --> FireAuth
-    TeamAPI --> Resend
-    ReportsAPI --> Firestore
-    SettingsAPI --> Firestore
-    NotifAPI --> Firestore
+    Provision --> FireAuth
+    Provision --> Firestore
+    BrevoConnect --> Firestore
+    BrevoWebhook --> Firestore
     ImportAPI --> Firestore
 
-    %% Cron flow
-    VercelCron -- "HTTP GET" --> CronAPI
-    CronAPI -- "query tasks" --> Firestore
-    CronAPI -- "send emails" --> Resend
+    MAB -. "Manual export" .-> ImportAPI
 
-    %% Import flow
-    MAB -. "CSV/XLS export" .-> ImportAPI
-
-    %% Middleware
-    Auth -- "__session cookie" --> App
-
-    %% Styling
-    classDef client fill:#EFF6FF,stroke:#3B82F6,color:#1E3A5F
+    classDef web fill:#EFF6FF,stroke:#3B82F6,color:#1E3A5F
     classDef api fill:#F0FDF4,stroke:#22C55E,color:#14532D
     classDef firebase fill:#FEF3C7,stroke:#F59E0B,color:#78350F
     classDef external fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95
+    classDef middleware fill:#FFE4E6,stroke:#E11D48,color:#881337
 
-    class LP,Auth,App,Dash,Pipe,Leads,Cap,Team,Reports,Settings client
-    class CronAPI,ImportAPI,TeamAPI,ReportsAPI,NotifAPI,SettingsAPI api
-    class FireAuth,Firestore,Storage firebase
-    class Resend,VercelCron,MAB external
+    class Marketing,App,Vanity web
+    class CronCadences,CronBrevo,Provision,ImportAPI,BrevoConnect,BrevoWebhook api
+    class FireAuth,Firestore firebase
+    class Resend,Brevo,VercelCron,MAB external
+    class Resolver middleware
 ```
 
-### Data Flow: Follow-up Reminder (Core Feature)
+## Cadence run flow
 
 ```mermaid
 sequenceDiagram
-    participant S as Salesperson
-    participant App as Mallard Connect
+    participant Lead as Lead enters stage
+    participant Pipeline as Pipeline UI
     participant FS as Firestore
     participant Cron as Vercel Cron (7am)
-    participant Resend as Resend Email
+    participant Run as run-cadences
+    participant Resend as Resend
 
-    S->>App: Set follow-up date + 3 recipients
-    App->>FS: addDoc("tasks", {dueDate, reminderEmails})
-    Note over FS: Task stored with status: pending
+    Lead->>Pipeline: Stage change → "Not Ready Yet"
+    Pipeline->>FS: Find cadences with trigger.stageId match
+    FS-->>Pipeline: [FTB nurture cadence]
+    Pipeline->>FS: Create cadenceEnrollment {currentStep:0, nextRunAt: now}
 
-    Cron->>App: GET /api/cron/send-reminders
-    App->>FS: Query tasks where dueDate ≤ today
-    FS-->>App: [task1, task2, ...]
-    loop Each due task
-        App->>Resend: Send reminder email to recipients
-        App->>FS: updateDoc(task, {reminderSent: true})
+    Cron->>Run: GET /api/cron/run-cadences
+    Run->>FS: Query enrollments where nextRunAt ≤ now
+    FS-->>Run: [enrollment_1, ...]
+    loop Each due enrollment
+        Run->>FS: Read cadence.steps[currentStep]
+        alt channel = email
+            Run->>Resend: Send rendered template
+        else channel = task / reminder
+            Run->>FS: Create task for adviser
+        end
+        Run->>FS: Append activity row
+        Run->>FS: Advance currentStep, recompute nextRunAt
     end
-    App->>FS: addDoc("auditLog", {action: "reminders_sent"})
 ```
 
-### Data Model
+## Tenant data model
 
 ```mermaid
 erDiagram
-    USERS ||--o{ LEADS : "assignedTo"
-    USERS ||--o{ TASKS : "assignedTo"
-    USERS ||--o{ ACTIVITIES : "performedBy"
-    USERS ||--o{ NOTIFICATIONS : "userId"
-    LEADS ||--o{ ACTIVITIES : "leadId"
-    LEADS ||--o{ TASKS : "leadId"
+    TENANT ||--o{ USER : "has"
+    TENANT ||--o{ LEAD : "owns"
+    TENANT ||--o{ CADENCE : "owns"
+    TENANT ||--o{ TEMPLATE : "owns"
+    TENANT ||--o{ INTEGRATION : "configured"
+    LEAD ||--o{ ACTIVITY : "timeline"
+    LEAD ||--o{ TASK : "scheduled"
+    LEAD ||--o{ ENROLLMENT : "enrolled in"
+    CADENCE ||--o{ ENROLLMENT : "drives"
+    CADENCE ||--o{ STEP : "ordered"
+    STEP }o--|| TEMPLATE : "uses"
 
-    USERS {
+    TENANT {
         string id PK
-        string email
-        string fullName
-        string phone
+        string name
+        string slug "vanity subdomain"
+        string primaryColor
+        string logoUrl
+        string plan
+        int seatLimit
+    }
+
+    USER {
+        string id PK
+        string tenantId FK
         enum role "admin | manager | advisor"
-        boolean isActive
     }
 
-    LEADS {
+    LEAD {
         string id PK
-        string firstName
-        string lastName
-        string phone
-        string email
-        enum source "website | referral | phone | walk-in | social | mab-import"
+        string tenantId FK
         enum status "active | on-hold | lost | converted"
-        string currentStageId FK
+        string currentStageId
         string assignedTo FK
-        enum mortgageType "first-time-buyer | remortgage | self-employed | buy-to-let"
-        enum readiness "ready-now | 1-3-months | 3-6-months | 6-12-months | exploring"
     }
 
-    TASKS {
+    CADENCE {
         string id PK
+        string tenantId FK
+        json trigger "stage_entered | manual | lead_created"
+        bool isActive
+    }
+
+    STEP {
+        int delayDays
+        enum channel "email | sms | task | reminder"
+        string templateId FK
+    }
+
+    ENROLLMENT {
         string leadId FK
-        string assignedTo FK
-        string title
-        timestamp dueDate
-        enum priority "low | normal | high | urgent"
-        enum status "pending | snoozed | completed | cancelled"
-        array reminderEmails "up to 3"
-        boolean reminderSent
+        string cadenceId FK
+        int currentStep
+        timestamp nextRunAt
+        enum status "active | paused | completed | unsubscribed"
     }
 
-    ACTIVITIES {
+    TEMPLATE {
         string id PK
-        string leadId FK
-        string performedBy FK
-        enum activityType "call | email | meeting | note | sms | whatsapp | stage-change"
-        string title
-        string description
+        string tenantId FK
+        enum channel "email | sms"
+        string body "with {{variables}}"
     }
 
-    NOTIFICATIONS {
-        string id PK
-        string userId FK
-        string type
-        string title
-        boolean isRead
+    INTEGRATION {
+        string provider "brevo | mab | other"
+        string apiKey "encrypted at rest"
+        timestamp lastSyncAt
     }
 ```
 
----
+## UK mortgage industry notes
 
-## Phased Delivery
+- UK terminology: deposit (not down payment), remortgage (not refinance), adviser (not agent).
+- Self-employment: years trading, SA302, accountant details — prominent in the qualification view.
+- Credit profile: factual non-judgemental language for CCJs, defaults, IVAs.
+- Long nurture cycles are normal — 6–12 month follow-ups, plus annual remortgage warm-ups, are first-class.
+- FCA: 6-year retention, GDPR/UK DPA 2018, soft delete + hard purge.
 
-### Phase 1: Foundation + Core
-Lead intake form, follow-up scheduler with 3 email recipients, daily reminder cron job, basic dashboard, MAB CSV import with dedup, PWA for mobile.
+## Reference: Mallard case study
 
-### Phase 2: Pipeline + Visibility
-Kanban board, stage change flow, manager dashboard with real-time activity feed, notification system.
-
-### Phase 3: Team + Qualification
-Team management, lead assignment, qualification fields (self-employed, credit profile), quick capture, meeting prep.
-
-### Phase 4: Reports + Polish
-KPI reports, leaderboard, export, onboarding wizard, edge cases (cold leads, duplicates), audit log.
-
----
-
-## Design Files
-
-All 10 UI mockup screens are in `pencil-welcome-desktop.pen`:
+Mallard Mortgages (Sheffield) is the founding tenant. UI mockups for their specific screens live in `pencil-welcome-desktop.pen` (Pencil/Lunaris design system). The screen map below is reference only — Sequence's actual visual design generalises these screens for any firm.
 
 | # | Screen | Node ID | Persona | Layout |
 |---|--------|---------|---------|--------|
-| 1 | Manager Dashboard | `00PCT` | Della | Desktop 1440x900 |
-| 2 | My Day Dashboard | `xLorR` | Salesperson | Desktop 1440x900 |
-| 3 | Pipeline Board (Kanban) | `yuS5D` | Della | Desktop 1440x900 |
-| 4 | My Day | `S14Wd` | Salesperson | Mobile 375x812 |
-| 5 | New Lead Form | `oluoT` | Salesperson | Desktop 1440x900 |
-| 6 | Quick Capture | `gJmkX` | Salesperson (Field) | Mobile 375x812 |
-| 7 | Prospect Detail | `CHnFT` | Salesperson | Desktop 1440x900 |
-| 8 | Pipeline List | `xNuto` | Salesperson (Field) | Mobile 375x812 |
-| 9 | MAB Import | `oaR0H` | Della | Desktop 1440x900 |
-| 10 | Manager Dashboard | `bO6Pj` | Della | Mobile 375x812 |
+| 1 | Manager Dashboard | `00PCT` | Della (owner) | Desktop |
+| 2 | My Day | `xLorR` | Adviser | Desktop |
+| 3 | Pipeline Kanban | `yuS5D` | Della | Desktop |
+| 4 | My Day | `S14Wd` | Adviser | Mobile |
+| 5 | New Lead Form | `oluoT` | Adviser | Desktop |
+| 6 | Quick Capture | `gJmkX` | Adviser (field) | Mobile |
+| 7 | Prospect Detail | `CHnFT` | Adviser | Desktop |
+| 8 | Pipeline List | `xNuto` | Adviser (field) | Mobile |
+| 9 | MAB Import | `oaR0H` | Della | Desktop |
+| 10 | Manager Dashboard | `bO6Pj` | Della | Mobile |
 
 ---
 
-## UK Mortgage Industry Notes
-
-- **UK terminology**: deposit (not down payment), remortgage (not refinance), adviser (not agent)
-- **Self-employment fields**: years trading, SA302, accountant details — prominent in qualification
-- **Credit profile**: non-judgmental language (factual, not warning labels) for CCJs, defaults, IVAs
-- **Long nurture cycles**: 6-12 month follow-ups are normal — the system handles them gracefully
-- **FCA compliance**: 6-year data retention, GDPR/UK DPA 2018, right to erasure (soft delete + hard purge)
-
----
-
-Built for [Mallard Mortgages](https://mallardmortgages.co.uk) by [Storyboard Digital](https://storyboarddigital.co.uk), Sheffield UK.
+Built by Storyboard Digital / Legacy Labs.

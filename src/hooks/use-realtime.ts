@@ -9,7 +9,7 @@ import {
   Timestamp,
   type QueryConstraint,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
+import { db, isFirebaseConfigured } from "@/lib/firebase/client";
 
 type WithId<T> = T & { id: string };
 
@@ -42,7 +42,7 @@ export function useRealtimeCollection<T>(
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (collectionPath === "__skip__") {
+    if (collectionPath === "__skip__" || !isFirebaseConfigured) {
       setData([]);
       setLoading(false);
       return;
@@ -87,6 +87,11 @@ export function useRealtimeDoc<T>(docPath: string): RealtimeDocResult<WithId<T>>
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
+    if (docPath === "__skip__" || !isFirebaseConfigured) {
+      setData(null);
+      setLoading(false);
+      return;
+    }
     const ref = doc(db, docPath);
 
     const unsubscribe = onSnapshot(

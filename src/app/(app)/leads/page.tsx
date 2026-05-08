@@ -3,12 +3,10 @@
 import { useState, useMemo } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
-import { useLeads } from "@/hooks/use-leads";
+import { useLeads, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
 import { formatRelativeDate } from "@/lib/utils";
-import { isDemoUser, MOCK_LEADS, MOCK_USERS } from "@/lib/mock-data";
-import type { User, LeadStatus, Readiness } from "@/types";
+import type { LeadStatus, Readiness } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
   new_enquiry: "bg-indigo-100 text-indigo-700",
@@ -69,24 +67,12 @@ export default function LeadsPage() {
   const [assignedFilter, setAssignedFilter] = useState("");
 
   const isManager = user?.role === "admin" || user?.role === "manager";
-  const demo = user ? isDemoUser(user.id) : false;
 
-  const { leads: firestoreLeads, loading: firestoreLoading } = useLeads({
+  const { leads, loading } = useLeads({
     stageId: stageFilter || undefined,
     status: statusFilter || undefined,
   });
-
-  const { data: firestoreUsers } = useRealtimeCollection<User>(demo ? "__skip__" : "users");
-
-  const leads = demo
-    ? MOCK_LEADS.filter((l) => {
-        if (stageFilter && l.currentStageId !== stageFilter) return false;
-        if (statusFilter && l.status !== statusFilter) return false;
-        return true;
-      })
-    : firestoreLeads;
-  const users = demo ? MOCK_USERS : firestoreUsers;
-  const loading = demo ? false : firestoreLoading;
+  const { users } = useTenantUsers();
 
   const userMap = useMemo(() => {
     const map: Record<string, string> = {};

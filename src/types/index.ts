@@ -105,6 +105,7 @@ export interface Task {
 
 export interface User {
   id: string;
+  tenantId: string;
   email: string;
   fullName: string;
   phone: string | null;
@@ -112,6 +113,95 @@ export interface User {
   avatarUrl: string | null;
   isActive: boolean;
   createdAt: Timestamp;
+}
+
+// ===== Tenant model =====
+
+export type TenantPlan = "trial" | "base" | "growth";
+
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string; // vanity subdomain
+  primaryColor?: string;
+  logoUrl?: string;
+  plan: TenantPlan;
+  seatLimit: number;
+  createdAt: Timestamp;
+}
+
+export interface SubdomainMapping {
+  slug: string; // doc id
+  tenantId: string;
+}
+
+// ===== Cadences =====
+
+export type CadenceTriggerType = "stage_entered" | "manual" | "lead_created";
+export type CadenceChannel = "email" | "sms" | "task" | "reminder";
+export type CadenceEnrollmentStatus = "active" | "paused" | "completed" | "unsubscribed";
+
+export interface CadenceTrigger {
+  type: CadenceTriggerType;
+  stageId?: string; // present when type === "stage_entered"
+}
+
+export interface CadenceStep {
+  delayDays: number;
+  channel: CadenceChannel;
+  templateId?: string;
+  subject?: string;
+  body?: string;
+}
+
+export interface Cadence {
+  id: string;
+  name: string;
+  description?: string;
+  trigger: CadenceTrigger;
+  steps: CadenceStep[];
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface CadenceEnrollment {
+  id: string;
+  leadId: string;
+  cadenceId: string;
+  currentStep: number;
+  nextRunAt: Timestamp | null;
+  status: CadenceEnrollmentStatus;
+  enrolledAt: Timestamp;
+  completedAt: Timestamp | null;
+}
+
+// ===== Templates =====
+
+export type TemplateChannel = "email" | "sms";
+
+export interface Template {
+  id: string;
+  name: string;
+  channel: TemplateChannel;
+  subject?: string;
+  body: string;
+  variables: string[];
+  updatedAt: Timestamp;
+}
+
+// ===== Integrations =====
+
+export type IntegrationProvider = "brevo" | "mab" | "other";
+export type IntegrationStatus = "connected" | "disconnected" | "error";
+
+export interface Integration {
+  provider: IntegrationProvider;
+  apiKey?: string; // encrypted at rest
+  listId?: string;
+  status: IntegrationStatus;
+  lastSyncAt: Timestamp | null;
+  errorMessage?: string;
 }
 
 export interface Notification {

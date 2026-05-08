@@ -1,13 +1,10 @@
 "use client";
 
 import { useAuth } from "@/hooks/useAuth";
-import { useLeads } from "@/hooks/use-leads";
+import { useLeads, useRecentActivities, useTenantUsers } from "@/hooks/use-leads";
 import { useTodayTasks, useOverdueTasks } from "@/hooks/use-tasks";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
-import { orderBy, limit } from "firebase/firestore";
 import { formatDistanceToNow } from "date-fns";
 import { getInitials } from "@/lib/utils";
-import { isDemoUser, MOCK_LEADS, MOCK_TASKS, MOCK_ACTIVITIES, MOCK_USERS } from "@/lib/mock-data";
 import type { Activity, User } from "@/types";
 
 interface KpiCardProps {
@@ -58,54 +55,29 @@ const ACTIVITY_ACTION_LABEL: Record<string, string> = {
 };
 
 function useDashboardData(userId: string, isManager: boolean) {
-  const demo = isDemoUser(userId);
+  const { leads, loading: leadsLoading } = useLeads(
+    isManager ? undefined : { assignedTo: userId }
+  );
+  const { tasks: todayTasks, loading: todayLoading } = useTodayTasks(
+    isManager ? "__manager__" : userId
+  );
+  const { tasks: overdueTasks, loading: overdueLoading } = useOverdueTasks(
+    isManager ? "__manager__" : userId
+  );
+  const { activities, loading: activitiesLoading } = useRecentActivities(10);
+  const { users } = useTenantUsers();
 
-  const { leads: firestoreLeads, loading: leadsLoading } = useLeads(
-    !demo && !isManager ? { assignedTo: userId } : undefined
-  );
-  const { tasks: firestoreTodayTasks, loading: todayLoading } = useTodayTasks(
-    demo ? "__skip__" : isManager ? "__manager__" : userId
-  );
-  const { tasks: firestoreOverdueTasks, loading: overdueLoading } = useOverdueTasks(
-    demo ? "__skip__" : isManager ? "__manager__" : userId
-  );
-  const { data: firestoreActivities, loading: activitiesLoading } = useRealtimeCollection<Activity>(
-    demo ? "__skip__" : "activities",
-    demo ? [] : [orderBy("createdAt", "desc"), limit(10)]
-  );
-  const { data: firestoreUsers } = useRealtimeCollection<User>(
-    demo ? "__skip__" : "users"
-  );
-
-  if (demo) {
-    const leads = isManager ? MOCK_LEADS : MOCK_LEADS.filter((l) => l.assignedTo === userId);
-    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date(); todayEnd.setHours(23, 59, 59, 999);
-    const allPendingTasks = isManager ? MOCK_TASKS : MOCK_TASKS.filter((t) => t.assignedTo === userId);
-    const todayTasks = allPendingTasks.filter((t) => {
-      const d = t.dueDate instanceof Date ? t.dueDate : new Date();
-      return d >= todayStart && d <= todayEnd && t.status === "pending";
-    });
-    const overdueTasks = allPendingTasks.filter((t) => {
-      const d = t.dueDate instanceof Date ? t.dueDate : new Date();
-      return d < todayStart && t.status === "pending";
-    });
-    return {
-      leads,
-      todayTasks,
-      overdueTasks,
-      activities: MOCK_ACTIVITIES,
-      users: MOCK_USERS,
-      loading: false,
-    };
-  }
+  const filteredTodayTasks = isManager ? todayTasks : todayTasks.filter((t) => t.assignedTo === userId);
+  const filteredOverdueTasks = isManager
+    ? overdueTasks
+    : overdueTasks.filter((t) => t.assignedTo === userId);
 
   return {
-    leads: firestoreLeads,
-    todayTasks: firestoreTodayTasks,
-    overdueTasks: firestoreOverdueTasks,
-    activities: firestoreActivities,
-    users: firestoreUsers,
+    leads,
+    todayTasks: filteredTodayTasks,
+    overdueTasks: filteredOverdueTasks,
+    activities,
+    users,
     loading: leadsLoading || todayLoading || overdueLoading || activitiesLoading,
   };
 }

@@ -1,7 +1,7 @@
-import { getApp, getApps, initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
+import { getApp, getApps, initializeApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
+import { getFirestore, type Firestore } from "firebase/firestore";
+import { getStorage, type FirebaseStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -12,10 +12,28 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
-const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+// Sequence supports running entirely without Firebase config — the demo path
+// uses local mock data, so dev environments without a `.env.local` should boot
+// cleanly. Real auth/db calls only happen when the user is signed in via
+// Firebase, and useAuth/use-realtime guard those paths via isFirebaseConfigured.
+export const isFirebaseConfigured = Boolean(firebaseConfig.apiKey);
 
-const auth = getAuth(app);
-const db = getFirestore(app);
-const storage = getStorage(app);
+let _app: FirebaseApp | null = null;
+let _auth: Auth | null = null;
+let _db: Firestore | null = null;
+let _storage: FirebaseStorage | null = null;
 
-export { app, auth, db, storage };
+if (isFirebaseConfigured) {
+  _app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
+  _auth = getAuth(_app);
+  _db = getFirestore(_app);
+  _storage = getStorage(_app);
+}
+
+// Cast to non-null so existing callers don't need guards everywhere — but
+// real callers must check isFirebaseConfigured (or be inside demo mode) before
+// using these. Touching them when unconfigured throws.
+export const app = _app as FirebaseApp;
+export const auth = _auth as Auth;
+export const db = _db as Firestore;
+export const storage = _storage as FirebaseStorage;

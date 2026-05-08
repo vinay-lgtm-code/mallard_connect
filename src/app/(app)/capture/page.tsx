@@ -7,6 +7,8 @@ import { ArrowLeft } from "lucide-react";
 import { addDoc, collection, serverTimestamp } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { isDemoUser } from "@/lib/mock-data";
+import { leadsPath } from "@/lib/firebase/paths";
 
 const TYPE_TAGS = [
   { value: "first-time-buyer", label: "First-time buyer" },
@@ -57,9 +59,11 @@ export default function CapturePage() {
       const firstName = parts[0] ?? "";
       const lastName = parts.slice(1).join(" ");
 
-      await addDoc(collection(db, "leads"), {
+      const demo = isDemoUser(user.id);
+      await addDoc(collection(db, leadsPath(user.tenantId, demo)), {
         firstName,
         lastName,
+        tenantId: user.tenantId,
         phone: phone.trim(),
         email: null,
         source: "walk-in",

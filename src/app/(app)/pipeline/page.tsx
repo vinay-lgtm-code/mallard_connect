@@ -13,7 +13,8 @@ import { db } from "@/lib/firebase/client";
 import { useLeads } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { getInitials } from "@/lib/utils";
-import { isDemoUser, MOCK_LEADS } from "@/lib/mock-data";
+import { leadPath, activitiesPath } from "@/lib/firebase/paths";
+import { isDemoUser } from "@/lib/mock-data";
 import type { Lead } from "@/types";
 
 interface StageConfig {
@@ -137,8 +138,7 @@ function StageChangeModal({ stageName, onConfirm, onCancel }: StageChangeModalPr
 export default function PipelinePage() {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
-  const { leads: firestoreLeads, loading: firestoreLoading } = useLeads();
-  const loading = demo ? false : firestoreLoading;
+  const { leads: firestoreLeads, loading } = useLeads();
   // Local state for optimistic UI during drag
   const [localLeads, setLocalLeads] = useState<Lead[] | null>(null);
   const [pendingDrag, setPendingDrag] = useState<{
@@ -148,11 +148,11 @@ export default function PipelinePage() {
     stageName: string;
   } | null>(null);
 
-  const baseLeads = demo ? MOCK_LEADS : firestoreLeads;
+  const baseLeads = firestoreLeads;
   const leads = localLeads ?? baseLeads;
 
   // Sync local state when Firestore updates (but not during a pending drag)
-  if (!demo && !pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
+  if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
     setLocalLeads(null);
   }
 
@@ -185,19 +185,14 @@ export default function PipelinePage() {
     if (!pendingDrag || !user) return;
     const { leadId, toStageId, stageName } = pendingDrag;
 
-    if (demo) {
-      // In demo mode, just keep the optimistic update
-      setPendingDrag(null);
-      return;
-    }
-
     try {
-      await updateDoc(doc(db, "leads", leadId), {
+      await updateDoc(doc(db, leadPath(user.tenantId, leadId, demo)), {
         currentStageId: toStageId,
         updatedAt: serverTimestamp(),
       });
-      await addDoc(collection(db, "activities"), {
+      await addDoc(collection(db, activitiesPath(user.tenantId, leadId, demo)), {
         leadId,
+        tenantId: user.tenantId,
         performedBy: user.id,
         activityType: "stage-change",
         title: `Stage changed to ${stageName}`,
@@ -210,7 +205,6 @@ export default function PipelinePage() {
       setLocalLeads(null);
     } finally {
       setPendingDrag(null);
-      setLocalLeads(null);
     }
   }
 

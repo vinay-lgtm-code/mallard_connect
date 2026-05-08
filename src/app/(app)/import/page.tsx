@@ -301,7 +301,7 @@ export default function ImportPage() {
             <h2 className="text-base font-bold text-gray-900">Map Columns</h2>
             <span className="text-xs text-gray-400">{fileName}</span>
           </div>
-          <p className="text-sm text-gray-500 mb-5">Match each source column to a Mallard Connect field.</p>
+          <p className="text-sm text-gray-500 mb-5">Match each source column to a Sequence field.</p>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">

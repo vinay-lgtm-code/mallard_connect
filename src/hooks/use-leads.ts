@@ -1,8 +1,22 @@
 "use client";
 
-import { orderBy, where, type QueryConstraint } from "firebase/firestore";
+import { useEffect, useState } from "react";
+import {
+  collectionGroup,
+  collection,
+  onSnapshot,
+  orderBy,
+  query,
+  where,
+  limit as fbLimit,
+  type QueryConstraint,
+} from "firebase/firestore";
 import { useRealtimeCollection, useRealtimeDoc } from "@/hooks/use-realtime";
-import type { Lead, Activity, Task } from "@/types";
+import { useAuth } from "@/hooks/useAuth";
+import { isDemoUser } from "@/lib/mock-data";
+import { db, isFirebaseConfigured } from "@/lib/firebase/client";
+import { leadsPath, leadPath, activitiesPath, leadTasksPath, usersPath } from "@/lib/firebase/paths";
+import type { Lead, Activity, Task, User } from "@/types";
 
 interface LeadFilters {
   stageId?: string;
@@ -10,7 +24,13 @@ interface LeadFilters {
   status?: string;
 }
 
+function tenantScoped(tenantId: string | undefined, demo: boolean, builder: (tid: string, demo: boolean) => string): string {
+  return tenantId ? builder(tenantId, demo) : "__skip__";
+}
+
 export function useLeads(filters?: LeadFilters) {
+  const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
   const constraints: QueryConstraint[] = [];
 
   if (filters?.stageId) {
@@ -25,34 +45,116 @@ export function useLeads(filters?: LeadFilters) {
 
   constraints.push(orderBy("updatedAt", "desc"));
 
-  const { data, loading, error } = useRealtimeCollection<Lead>("leads", constraints);
+  const path = tenantScoped(user?.tenantId, demo, leadsPath);
+  const { data, loading, error } = useRealtimeCollection<Lead>(path, constraints);
 
   return { leads: data, loading, error };
 }
 
 export function useLead(leadId: string) {
-  const { data, loading, error } = useRealtimeDoc<Lead>(`leads/${leadId}`);
+  const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
+  const path = user?.tenantId ? leadPath(user.tenantId, leadId, demo) : "__skip__";
+  const { data, loading, error } = useRealtimeDoc<Lead>(path);
   return { lead: data, loading, error };
 }
 
 export function useLeadActivities(leadId: string) {
+  const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
   const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
-
-  const { data, loading, error } = useRealtimeCollection<Activity>(
-    `leads/${leadId}/activities`,
-    constraints
-  );
-
+  const path = user?.tenantId ? activitiesPath(user.tenantId, leadId, demo) : "__skip__";
+  const { data, loading, error } = useRealtimeCollection<Activity>(path, constraints);
   return { activities: data, loading, error };
 }
 
 export function useLeadTasks(leadId: string) {
+  const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
   const constraints: QueryConstraint[] = [orderBy("dueDate", "asc")];
-
-  const { data, loading, error } = useRealtimeCollection<Task>(
-    `leads/${leadId}/tasks`,
-    constraints
-  );
-
+  const path = user?.tenantId ? leadTasksPath(user.tenantId, leadId, demo) : "__skip__";
+  const { data, loading, error } = useRealtimeCollection<Task>(path, constraints);
   return { tasks: data, loading, error };
+}
+
+/**
+ * Recent activities across all leads in the current tenant. Uses a collection-
+ * group query so we don't have to fan out per lead. Activity docs carry a
+ * `tenantId` field — set by both the seeder and the live writers — so the
+ * filter still scopes correctly across both demo and real namespaces.
+ */
+export function useRecentActivities(maxItems = 10) {
+  const { user } = useAuth();
+  const tenantId = user?.tenantId;
+  const [data, setData] = useState<(Activity & { id: string })[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !tenantId) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+    const q = query(
+      collectionGroup(db, "activities"),
+      where("tenantId", "==", tenantId),
+      orderBy("createdAt", "desc"),
+      fbLimit(maxItems),
+    );
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setData(
+          snap.docs.map((d) => {
+            const raw = d.data() as Record<string, unknown>;
+            return {
+              ...(raw as unknown as Activity),
+              id: d.id,
+            };
+          }),
+        );
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [tenantId, maxItems]);
+
+  return { activities: data, loading };
+}
+
+/**
+ * Users belonging to the current tenant. In demo mode reads from
+ * demoTenants/{slug}/users (seeded); in real mode from a top-level `users`
+ * collection filtered by tenantId.
+ */
+export function useTenantUsers() {
+  const { user } = useAuth();
+  const tenantId = user?.tenantId;
+  const demo = user ? isDemoUser(user.id) : false;
+  const [data, setData] = useState<(User & { id: string })[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!isFirebaseConfigured || !tenantId) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+    const path = demo ? usersPath(tenantId, true) : "users";
+    const q = demo
+      ? query(collection(db, path))
+      : query(collection(db, path), where("tenantId", "==", tenantId));
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        setData(snap.docs.map((d) => ({ ...(d.data() as User), id: d.id })));
+        setLoading(false);
+      },
+      () => setLoading(false),
+    );
+    return unsub;
+  }, [tenantId, demo]);
+
+  return { users: data, loading };
 }
