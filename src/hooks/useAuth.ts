@@ -63,6 +63,11 @@ export function useAuth() {
   useEffect(() => {
     if (refreshDemoUser()) return;
 
+    if (!auth) {
+      setLoading(false);
+      return;
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
