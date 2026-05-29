@@ -46,6 +46,10 @@ export function getInitials(name: string): string {
     .slice(0, 2);
 }
 
+export function formatCurrency(value: number): string {
+  return `£${value.toLocaleString("en-GB")}`;
+}
+
 export function slugify(text: string): string {
   return text
     .toLowerCase()

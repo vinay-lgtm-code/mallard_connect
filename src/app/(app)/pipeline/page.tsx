@@ -12,7 +12,8 @@ import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/fi
 import { db } from "@/lib/firebase/client";
 import { useLeads } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
-import { getInitials } from "@/lib/utils";
+import { getInitials, formatCurrency } from "@/lib/utils";
+import { format } from "date-fns";
 import { leadPath, activitiesPath } from "@/lib/firebase/paths";
 import { isDemoUser } from "@/lib/mock-data";
 import type { Lead } from "@/types";
@@ -89,6 +90,31 @@ function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
               <span className="text-white text-[10px] font-bold">{initials}</span>
             </div>
           </div>
+
+          {lead.dealValue != null && (
+            <div className="text-xs mt-2 flex items-center gap-1.5">
+              <span className="text-green-700 font-semibold">{formatCurrency(lead.dealValue)}</span>
+              {lead.confidence != null && (
+                <>
+                  <span className="text-gray-300">&middot;</span>
+                  <span className="text-gray-400">{lead.confidence}%</span>
+                </>
+              )}
+              {lead.estimatedCloseDate && (
+                <>
+                  <span className="text-gray-300">&middot;</span>
+                  <span className="text-gray-400">
+                    {format(
+                      lead.estimatedCloseDate instanceof Date
+                        ? lead.estimatedCloseDate
+                        : (lead.estimatedCloseDate as { toDate: () => Date }).toDate(),
+                      "d MMM"
+                    )}
+                  </span>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </Draggable>
