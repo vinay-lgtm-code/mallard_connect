@@ -13,7 +13,7 @@ import {
 } from "firebase/firestore";
 import { useRealtimeCollection, useRealtimeDoc } from "@/hooks/use-realtime";
 import { useAuth } from "@/hooks/useAuth";
-import { isDemoUser } from "@/lib/mock-data";
+import { isDemoUser, getMockLeads, getMockActivities, getMockTasks, getMockUsers } from "@/lib/mock-data";
 import { db, isFirebaseConfigured } from "@/lib/firebase/client";
 import { leadsPath, leadPath, activitiesPath, leadTasksPath, usersPath } from "@/lib/firebase/paths";
 import type { Lead, Activity, Task, User } from "@/types";
@@ -31,6 +31,15 @@ function tenantScoped(tenantId: string | undefined, demo: boolean, builder: (tid
 export function useLeads(filters?: LeadFilters) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+
+  if (demo && !isFirebaseConfigured) {
+    let leads = getMockLeads() as (Lead & { id: string })[];
+    if (filters?.stageId) leads = leads.filter((l) => l.currentStageId === filters.stageId);
+    if (filters?.assignedTo) leads = leads.filter((l) => l.assignedTo === filters.assignedTo);
+    if (filters?.status) leads = leads.filter((l) => l.status === filters.status);
+    return { leads, loading: false, error: null };
+  }
+
   const constraints: QueryConstraint[] = [];
 
   if (filters?.stageId) {
@@ -54,6 +63,12 @@ export function useLeads(filters?: LeadFilters) {
 export function useLead(leadId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+
+  if (demo && !isFirebaseConfigured) {
+    const lead = (getMockLeads() as (Lead & { id: string })[]).find((l) => l.id === leadId) ?? null;
+    return { lead, loading: false, error: null };
+  }
+
   const path = user?.tenantId ? leadPath(user.tenantId, leadId, demo) : "__skip__";
   const { data, loading, error } = useRealtimeDoc<Lead>(path);
   return { lead: data, loading, error };
@@ -62,6 +77,12 @@ export function useLead(leadId: string) {
 export function useLeadActivities(leadId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+
+  if (demo && !isFirebaseConfigured) {
+    const activities = (getMockActivities() as (Activity & { id: string })[]).filter((a) => a.leadId === leadId);
+    return { activities, loading: false, error: null };
+  }
+
   const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
   const path = user?.tenantId ? activitiesPath(user.tenantId, leadId, demo) : "__skip__";
   const { data, loading, error } = useRealtimeCollection<Activity>(path, constraints);
@@ -71,6 +92,12 @@ export function useLeadActivities(leadId: string) {
 export function useLeadTasks(leadId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+
+  if (demo && !isFirebaseConfigured) {
+    const tasks = (getMockTasks() as (Task & { id: string })[]).filter((t) => t.leadId === leadId);
+    return { tasks, loading: false, error: null };
+  }
+
   const constraints: QueryConstraint[] = [orderBy("dueDate", "asc")];
   const path = user?.tenantId ? leadTasksPath(user.tenantId, leadId, demo) : "__skip__";
   const { data, loading, error } = useRealtimeCollection<Task>(path, constraints);
@@ -85,11 +112,17 @@ export function useLeadTasks(leadId: string) {
  */
 export function useRecentActivities(maxItems = 10) {
   const { user } = useAuth();
+  const demo = user ? isDemoUser(user.id) : false;
   const tenantId = user?.tenantId;
   const [data, setData] = useState<(Activity & { id: string })[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (demo && !isFirebaseConfigured) {
+      setData((getMockActivities() as (Activity & { id: string })[]).slice(0, maxItems));
+      setLoading(false);
+      return;
+    }
     if (!isFirebaseConfigured || !tenantId) {
       setData([]);
       setLoading(false);
@@ -136,6 +169,11 @@ export function useTenantUsers() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (demo && !isFirebaseConfigured) {
+      setData(getMockUsers() as (User & { id: string })[]);
+      setLoading(false);
+      return;
+    }
     if (!isFirebaseConfigured || !tenantId) {
       setData([]);
       setLoading(false);

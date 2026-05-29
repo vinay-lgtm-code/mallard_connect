@@ -4,7 +4,8 @@ import { useMemo } from "react";
 import { orderBy, where, Timestamp, type QueryConstraint } from "firebase/firestore";
 import { useRealtimeCollection } from "@/hooks/use-realtime";
 import { useAuth } from "@/hooks/useAuth";
-import { isDemoUser } from "@/lib/mock-data";
+import { isDemoUser, getMockTasks } from "@/lib/mock-data";
+import { isFirebaseConfigured } from "@/lib/firebase/client";
 import { tasksPath } from "@/lib/firebase/paths";
 import type { Task } from "@/types";
 
@@ -21,6 +22,14 @@ function pathFor(tenantId: string | undefined, demo: boolean): string {
 export function useTasks(filters?: TaskFilters) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+
+  if (demo && !isFirebaseConfigured) {
+    let tasks = getMockTasks() as (Task & { id: string })[];
+    if (filters?.assignedTo) tasks = tasks.filter((t) => t.assignedTo === filters.assignedTo);
+    if (filters?.status) tasks = tasks.filter((t) => t.status === filters.status);
+    return { tasks, loading: false, error: null };
+  }
+
   const constraints: QueryConstraint[] = [];
 
   if (filters?.assignedTo) {
@@ -48,11 +57,16 @@ export function useTasks(filters?: TaskFilters) {
 export function useOverdueTasks(userId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
-  const todayStart = useMemo(() => {
-    const d = new Date();
-    d.setHours(0, 0, 0, 0);
-    return Timestamp.fromDate(d);
-  }, []);
+
+  if (demo && !isFirebaseConfigured) {
+    const now = new Date(); now.setHours(0, 0, 0, 0);
+    let tasks = getMockTasks() as (Task & { id: string })[];
+    tasks = tasks.filter((t) => t.status === "pending" && t.dueDate && (t.dueDate as unknown as Date) < now);
+    if (userId !== "__manager__") tasks = tasks.filter((t) => t.assignedTo === userId);
+    return { tasks, loading: false, error: null };
+  }
+
+  const todayStart = Timestamp.fromDate((() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; })());
 
   const skip = userId === "__skip__" || !user?.tenantId;
   const constraints: QueryConstraint[] = skip ? [] : [
@@ -73,15 +87,24 @@ export function useOverdueTasks(userId: string) {
 export function useTodayTasks(userId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+
+  if (demo && !isFirebaseConfigured) {
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(); end.setHours(23, 59, 59, 999);
+    let tasks = getMockTasks() as (Task & { id: string })[];
+    tasks = tasks.filter((t) => {
+      if (!t.dueDate) return false;
+      const d = t.dueDate as unknown as Date;
+      return d >= start && d <= end;
+    });
+    if (userId !== "__manager__") tasks = tasks.filter((t) => t.assignedTo === userId);
+    return { tasks, loading: false, error: null };
+  }
+
   const { todayStart, todayEnd } = useMemo(() => {
-    const start = new Date();
-    start.setHours(0, 0, 0, 0);
-    const end = new Date();
-    end.setHours(23, 59, 59, 999);
-    return {
-      todayStart: Timestamp.fromDate(start),
-      todayEnd: Timestamp.fromDate(end),
-    };
+    const s = new Date(); s.setHours(0, 0, 0, 0);
+    const e = new Date(); e.setHours(23, 59, 59, 999);
+    return { todayStart: Timestamp.fromDate(s), todayEnd: Timestamp.fromDate(e) };
   }, []);
 
   const skip = userId === "__skip__" || !user?.tenantId;
