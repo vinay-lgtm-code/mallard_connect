@@ -197,6 +197,9 @@ export default function LeadDetailPage() {
   const [qualHasIVA, setQualHasIVA] = useState(false);
   const [qualPropertyValue, setQualPropertyValue] = useState("");
   const [qualDepositAmount, setQualDepositAmount] = useState("");
+  const [qualDealValue, setQualDealValue] = useState("");
+  const [qualEstimatedCloseDate, setQualEstimatedCloseDate] = useState("");
+  const [qualConfidence, setQualConfidence] = useState("");
   const [savingQual, setSavingQual] = useState(false);
   const [qualSaved, setQualSaved] = useState(false);
 
@@ -205,6 +208,16 @@ export default function LeadDetailPage() {
   if (lead && !qualPopulated) {
     setQualPropertyValue(lead.propertyValue ? String(lead.propertyValue) : "");
     setQualDepositAmount(lead.depositAmount ? String(lead.depositAmount) : "");
+    setQualDealValue(lead.dealValue ? String(lead.dealValue) : "");
+    setQualEstimatedCloseDate(
+      lead.estimatedCloseDate
+        ? (lead.estimatedCloseDate instanceof Date
+            ? lead.estimatedCloseDate
+            : (lead.estimatedCloseDate as { toDate: () => Date }).toDate()
+          ).toISOString().split("T")[0]
+        : ""
+    );
+    setQualConfidence(lead.confidence != null ? String(lead.confidence) : "");
     setQualPopulated(true);
   }
 
@@ -238,6 +251,11 @@ export default function LeadDetailPage() {
       await updateDoc(doc(db, "leads", id), {
         propertyValue: qualPropertyValue ? Number(qualPropertyValue) : null,
         depositAmount: qualDepositAmount ? Number(qualDepositAmount) : null,
+        dealValue: qualDealValue ? Number(qualDealValue) : null,
+        estimatedCloseDate: qualEstimatedCloseDate
+          ? Timestamp.fromDate(new Date(qualEstimatedCloseDate))
+          : null,
+        confidence: qualConfidence ? Number(qualConfidence) : null,
         updatedAt: serverTimestamp(),
       });
       setQualSaved(true);
@@ -601,6 +619,43 @@ export default function LeadDetailPage() {
                       value={qualDepositAmount}
                       onChange={(e) => setQualDepositAmount(e.target.value)}
                       placeholder="0"
+                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                </div>
+              </fieldset>
+
+              <fieldset className="border border-gray-200 rounded-lg p-4">
+                <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Deal</legend>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Est. Commission (£)</label>
+                    <input
+                      type="number"
+                      value={qualDealValue}
+                      onChange={(e) => setQualDealValue(e.target.value)}
+                      placeholder="0"
+                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Est. Close Date</label>
+                    <input
+                      type="date"
+                      value={qualEstimatedCloseDate}
+                      onChange={(e) => setQualEstimatedCloseDate(e.target.value)}
+                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600">Confidence (%)</label>
+                    <input
+                      type="number"
+                      value={qualConfidence}
+                      onChange={(e) => setQualConfidence(e.target.value)}
+                      placeholder="0"
+                      min={0}
+                      max={100}
                       className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     />
                   </div>

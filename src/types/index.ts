@@ -64,6 +64,9 @@ export interface Lead {
   propertyValue: number | null;
   depositAmount: number | null;
   loanAmount: number | null;
+  dealValue: number | null;
+  estimatedCloseDate: Timestamp | null;
+  confidence: number | null;
   nextFollowUpDate: Timestamp | null;
   followUpReason: string | null;
   followUpNotes: string | null;

@@ -46,6 +46,9 @@ export const qualificationSchema = z.object({
   propertyValue: z.number().min(0).optional(),
   mortgageType: mortgageTypeEnum.optional(),
   isFirstTimeBuyer: z.boolean().optional(),
+  dealValue: z.number().min(0).optional(),
+  estimatedCloseDate: isoDateString.optional(),
+  confidence: z.number().int().min(0).max(100).optional(),
 });
 
 export type CreateLeadInput = z.infer<typeof createLeadSchema>;
