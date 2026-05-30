@@ -31,8 +31,20 @@ function tenantScoped(tenantId: string | undefined, demo: boolean, builder: (tid
 export function useLeads(filters?: LeadFilters) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+  const useMock = demo && !isFirebaseConfigured;
 
-  if (demo && !isFirebaseConfigured) {
+  const constraints: QueryConstraint[] = [];
+  if (!useMock) {
+    if (filters?.stageId) constraints.push(where("currentStageId", "==", filters.stageId));
+    if (filters?.assignedTo) constraints.push(where("assignedTo", "==", filters.assignedTo));
+    if (filters?.status) constraints.push(where("status", "==", filters.status));
+    constraints.push(orderBy("updatedAt", "desc"));
+  }
+
+  const path = useMock ? "__skip__" : tenantScoped(user?.tenantId, demo, leadsPath);
+  const { data, loading, error } = useRealtimeCollection<Lead>(path, constraints);
+
+  if (useMock) {
     let leads = getMockLeads() as (Lead & { id: string })[];
     if (filters?.stageId) leads = leads.filter((l) => l.currentStageId === filters.stageId);
     if (filters?.assignedTo) leads = leads.filter((l) => l.assignedTo === filters.assignedTo);
@@ -40,76 +52,59 @@ export function useLeads(filters?: LeadFilters) {
     return { leads, loading: false, error: null };
   }
 
-  const constraints: QueryConstraint[] = [];
-
-  if (filters?.stageId) {
-    constraints.push(where("currentStageId", "==", filters.stageId));
-  }
-  if (filters?.assignedTo) {
-    constraints.push(where("assignedTo", "==", filters.assignedTo));
-  }
-  if (filters?.status) {
-    constraints.push(where("status", "==", filters.status));
-  }
-
-  constraints.push(orderBy("updatedAt", "desc"));
-
-  const path = tenantScoped(user?.tenantId, demo, leadsPath);
-  const { data, loading, error } = useRealtimeCollection<Lead>(path, constraints);
-
   return { leads: data, loading, error };
 }
 
 export function useLead(leadId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+  const useMock = demo && !isFirebaseConfigured;
 
-  if (demo && !isFirebaseConfigured) {
+  const path = useMock ? "__skip__" : (user?.tenantId ? leadPath(user.tenantId, leadId, demo) : "__skip__");
+  const { data, loading, error } = useRealtimeDoc<Lead>(path);
+
+  if (useMock) {
     const lead = (getMockLeads() as (Lead & { id: string })[]).find((l) => l.id === leadId) ?? null;
     return { lead, loading: false, error: null };
   }
 
-  const path = user?.tenantId ? leadPath(user.tenantId, leadId, demo) : "__skip__";
-  const { data, loading, error } = useRealtimeDoc<Lead>(path);
   return { lead: data, loading, error };
 }
 
 export function useLeadActivities(leadId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+  const useMock = demo && !isFirebaseConfigured;
 
-  if (demo && !isFirebaseConfigured) {
+  const constraints: QueryConstraint[] = useMock ? [] : [orderBy("createdAt", "desc")];
+  const path = useMock ? "__skip__" : (user?.tenantId ? activitiesPath(user.tenantId, leadId, demo) : "__skip__");
+  const { data, loading, error } = useRealtimeCollection<Activity>(path, constraints);
+
+  if (useMock) {
     const activities = (getMockActivities() as (Activity & { id: string })[]).filter((a) => a.leadId === leadId);
     return { activities, loading: false, error: null };
   }
 
-  const constraints: QueryConstraint[] = [orderBy("createdAt", "desc")];
-  const path = user?.tenantId ? activitiesPath(user.tenantId, leadId, demo) : "__skip__";
-  const { data, loading, error } = useRealtimeCollection<Activity>(path, constraints);
   return { activities: data, loading, error };
 }
 
 export function useLeadTasks(leadId: string) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
+  const useMock = demo && !isFirebaseConfigured;
 
-  if (demo && !isFirebaseConfigured) {
+  const constraints: QueryConstraint[] = useMock ? [] : [orderBy("dueDate", "asc")];
+  const path = useMock ? "__skip__" : (user?.tenantId ? leadTasksPath(user.tenantId, leadId, demo) : "__skip__");
+  const { data, loading, error } = useRealtimeCollection<Task>(path, constraints);
+
+  if (useMock) {
     const tasks = (getMockTasks() as (Task & { id: string })[]).filter((t) => t.leadId === leadId);
     return { tasks, loading: false, error: null };
   }
 
-  const constraints: QueryConstraint[] = [orderBy("dueDate", "asc")];
-  const path = user?.tenantId ? leadTasksPath(user.tenantId, leadId, demo) : "__skip__";
-  const { data, loading, error } = useRealtimeCollection<Task>(path, constraints);
   return { tasks: data, loading, error };
 }
 
-/**
- * Recent activities across all leads in the current tenant. Uses a collection-
- * group query so we don't have to fan out per lead. Activity docs carry a
- * `tenantId` field — set by both the seeder and the live writers — so the
- * filter still scopes correctly across both demo and real namespaces.
- */
 export function useRecentActivities(maxItems = 10) {
   const { user } = useAuth();
   const demo = user ? isDemoUser(user.id) : false;
@@ -151,16 +146,11 @@ export function useRecentActivities(maxItems = 10) {
       () => setLoading(false),
     );
     return unsub;
-  }, [tenantId, maxItems]);
+  }, [tenantId, maxItems, demo]);
 
   return { activities: data, loading };
 }
 
-/**
- * Users belonging to the current tenant. In demo mode reads from
- * demoTenants/{slug}/users (seeded); in real mode from a top-level `users`
- * collection filtered by tenantId.
- */
 export function useTenantUsers() {
   const { user } = useAuth();
   const tenantId = user?.tenantId;
