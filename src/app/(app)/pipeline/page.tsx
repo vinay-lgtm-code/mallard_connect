@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   DragDropContext,
@@ -14,6 +14,16 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { getInitials, formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { isDemoUser } from "@/lib/mock-data";
+import {
+  daysInStage,
+  ragStatus,
+  ragBorderClass,
+  timeInStageLabel,
+  DEMO_STAGE_RAG_CONFIG,
+  type StageRagConfig,
+  type StageRagConfigMap,
+} from "@/lib/stage-timing";
+import { Clock } from "lucide-react";
 import type { Lead } from "@/types";
 
 interface StageConfig {
@@ -46,11 +56,18 @@ interface LeadCardProps {
   lead: Lead;
   index: number;
   isOverdue?: boolean;
+  ragConfig?: StageRagConfig;
 }
 
-function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
+function LeadCard({ lead, index, isOverdue, ragConfig }: LeadCardProps) {
   const mortgageLabel = lead.mortgageType ? MORTGAGE_TYPE_LABELS[lead.mortgageType] : null;
   const initials = getInitials(`${lead.firstName} ${lead.lastName}`);
+
+  const days = daysInStage(lead);
+  // RAG only applies to in-progress leads; closed leads shouldn't show as "stalled".
+  const isClosed = lead.status === "converted" || lead.status === "lost";
+  const rag = isClosed ? null : ragStatus(days, ragConfig);
+  const ragBorder = ragBorderClass(rag);
 
   return (
     <Draggable draggableId={lead.id} index={index}>
@@ -59,7 +76,7 @@ function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`bg-white rounded-[12px] p-3.5 shadow-sm border border-gray-100 cursor-grab select-none transition-shadow ${
+          className={`bg-white rounded-[12px] p-3.5 shadow-sm border border-gray-100 cursor-grab select-none transition-shadow ${ragBorder} ${
             snapshot.isDragging ? "shadow-lg rotate-1" : "hover:shadow-md"
           }`}
         >
@@ -106,6 +123,26 @@ function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
                   </span>
                 </>
               )}
+            </div>
+          )}
+
+          {!isClosed && (
+            <div
+              className={`text-xs mt-2 flex items-center gap-1 ${
+                rag === "red"
+                  ? "text-red-600 font-medium"
+                  : rag === "amber"
+                    ? "text-amber-600"
+                    : "text-gray-400"
+              }`}
+              title={
+                ragConfig?.expectedDays != null
+                  ? `Expected ${ragConfig.expectedDays}d in this stage`
+                  : undefined
+              }
+            >
+              <Clock size={12} />
+              <span>{timeInStageLabel(days)}</span>
             </div>
           )}
         </div>
@@ -171,6 +208,31 @@ export default function PipelinePage() {
   const baseLeads = firestoreLeads;
   const leads = localLeads ?? baseLeads;
 
+  // Per-stage RAG config keyed by slug. Demo mode uses sensible defaults; real mode
+  // fetches expected_days / amber_pct from pipeline_stages. We also keep a slug -> uuid
+  // map so stage-change history can record the real stage_id when available.
+  const [ragConfig, setRagConfig] = useState<StageRagConfigMap>(DEMO_STAGE_RAG_CONFIG);
+  const [stageIdBySlug, setStageIdBySlug] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (demo || !supabase || !user?.tenantId) return;
+    supabase
+      .from("pipeline_stages")
+      .select("id, slug, expected_days, amber_pct")
+      .eq("tenant_id", user.tenantId)
+      .then(({ data }) => {
+        if (!data) return;
+        const config: StageRagConfigMap = {};
+        const ids: Record<string, string> = {};
+        for (const row of data as Array<{ id: string; slug: string; expected_days: number | null; amber_pct: number | null }>) {
+          config[row.slug] = { expectedDays: row.expected_days, amberPct: row.amber_pct ?? 75 };
+          ids[row.slug] = row.id;
+        }
+        setRagConfig(config);
+        setStageIdBySlug(ids);
+      });
+  }, [demo, supabase, user?.tenantId]);
+
   // Sync local state when Firestore updates (but not during a pending drag)
   if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
     setLocalLeads(null);
@@ -183,11 +245,13 @@ export default function PipelinePage() {
 
     const stageName = STAGES.find((s) => s.id === destination.droppableId)?.name ?? destination.droppableId;
 
-    // Optimistically update local state
+    // Optimistically update local state. Reset the stage-entered clock so the card
+    // immediately shows "Today" / green in its new column.
+    const nowIso = new Date().toISOString();
     setLocalLeads(
       (baseLeads).map((lead) =>
         lead.id === draggableId
-          ? { ...lead, currentStageId: destination.droppableId }
+          ? { ...lead, currentStageId: destination.droppableId, currentStageEnteredAt: nowIso }
           : lead
       )
     );
@@ -207,10 +271,34 @@ export default function PipelinePage() {
 
     try {
       if (supabase) {
+        const nowIso = new Date().toISOString();
+        // Resolve the real stage UUID from the slug when we have it (history.stage_id
+        // is a FK to pipeline_stages); fall back to slug-only history otherwise.
+        const stageUuid = stageIdBySlug[toStageId] ?? null;
+
+        // Move the lead and reset its stage-entered clock.
         await supabase.from("leads").update({
           current_stage_id: toStageId,
-          updated_at: new Date().toISOString(),
+          current_stage_entered_at: nowIso,
+          updated_at: nowIso,
         }).eq("id", leadId);
+
+        // Close the previous open stage-history row for this lead.
+        await supabase
+          .from("lead_stage_history")
+          .update({ exited_at: nowIso })
+          .eq("lead_id", leadId)
+          .is("exited_at", null);
+
+        // Open a new stage-history row.
+        await supabase.from("lead_stage_history").insert({
+          tenant_id: user.tenantId,
+          lead_id: leadId,
+          stage_id: stageUuid,
+          stage_slug: toStageId,
+          entered_at: nowIso,
+        });
+
         await supabase.from("activities").insert({
           tenant_id: user.tenantId,
           lead_id: leadId,
@@ -295,7 +383,7 @@ export default function PipelinePage() {
                           }`}
                         >
                           {stageLeads.map((lead, index) => (
-                            <LeadCard key={lead.id} lead={lead} index={index} />
+                            <LeadCard key={lead.id} lead={lead} index={index} ragConfig={ragConfig[stage.id]} />
                           ))}
                           {provided.placeholder}
                         </div>

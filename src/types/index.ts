@@ -45,6 +45,17 @@ export interface PipelineStage {
   position: number;
   color: string;
   isTerminal: boolean;
+  expectedDays: number | null;
+  amberPct: number;
+}
+
+export interface LeadStageHistory {
+  id: string;
+  leadId: string;
+  stageId: string | null;
+  stageSlug: string | null;
+  enteredAt: string;
+  exitedAt: string | null;
 }
 
 export interface Lead {
@@ -56,6 +67,7 @@ export interface Lead {
   source: LeadSource;
   status: LeadStatus;
   currentStageId: string;
+  currentStageEnteredAt: string | null;
   assignedTo: string;
   mortgageType: MortgageType | null;
   readiness: Readiness | null;

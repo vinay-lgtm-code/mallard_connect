@@ -15,6 +15,8 @@ interface PipelineStage {
   color: string;
   position: number;
   isTerminal: boolean;
+  expectedDays: number | null;
+  amberPct: number;
 }
 
 interface NotificationPreferences {
@@ -201,6 +203,9 @@ function PipelineTab() {
   const [newStageName, setNewStageName] = useState("");
   const [newStageColor, setNewStageColor] = useState(PRESET_COLORS[0].value);
   const [addError, setAddError] = useState<string | null>(null);
+  const [savingTiming, setSavingTiming] = useState<string | null>(null);
+  const [savedTiming, setSavedTiming] = useState<string | null>(null);
+  const [timingError, setTimingError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!supabase || !tenantId) { setLoadingStages(false); return; }
@@ -210,7 +215,7 @@ function PipelineTab() {
       .eq("tenant_id", tenantId)
       .order("position")
       .then(({ data }) => {
-        if (data) setStages(data.map((d) => ({ id: d.id, name: d.name, slug: d.slug, position: d.position, color: d.color, isTerminal: d.is_terminal } as PipelineStage)));
+        if (data) setStages(data.map((d) => ({ id: d.id, name: d.name, slug: d.slug, position: d.position, color: d.color, isTerminal: d.is_terminal, expectedDays: d.expected_days ?? null, amberPct: d.amber_pct ?? 75 } as PipelineStage)));
         setLoadingStages(false);
       });
   }, [supabase, tenantId]);
@@ -221,6 +226,35 @@ function PipelineTab() {
     if (targetIndex < 0 || targetIndex >= updated.length) return;
     [updated[index], updated[targetIndex]] = [updated[targetIndex], updated[index]];
     setStages(updated.map((s, i) => ({ ...s, position: i })));
+  }
+
+  function setStageTiming(id: string, field: "expectedDays" | "amberPct", value: number | null) {
+    setStages((prev) => prev.map((s) => (s.id === id ? { ...s, [field]: value } : s)));
+  }
+
+  async function saveTiming(stage: PipelineStage) {
+    if (!supabase) return;
+    setSavingTiming(stage.id);
+    setTimingError(null);
+    try {
+      const expectedDays =
+        stage.expectedDays != null && stage.expectedDays > 0 ? Math.round(stage.expectedDays) : null;
+      const amberPct = Math.min(100, Math.max(0, Math.round(stage.amberPct ?? 75)));
+      const { error } = await supabase
+        .from("pipeline_stages")
+        .update({ expected_days: expectedDays, amber_pct: amberPct })
+        .eq("id", stage.id);
+      if (error) throw new Error(error.message);
+      // Reflect any clamping back into local state.
+      setStages((prev) => prev.map((s) => (s.id === stage.id ? { ...s, expectedDays, amberPct } : s)));
+      setSavedTiming(stage.id);
+      setTimeout(() => setSavedTiming((cur) => (cur === stage.id ? null : cur)), 2000);
+    } catch (err) {
+      console.error("Failed to save stage timing:", err);
+      setTimingError(`Could not save "${stage.name}". Please try again.`);
+    } finally {
+      setSavingTiming(null);
+    }
   }
 
   async function saveOrder() {
@@ -258,6 +292,7 @@ function PipelineTab() {
         color: newStageColor,
         position: newPosition,
         is_terminal: false,
+        amber_pct: 75,
       }).select("id").single();
       setStages((prev) => [
         ...prev,
@@ -268,6 +303,8 @@ function PipelineTab() {
           color: newStageColor,
           position: newPosition,
           isTerminal: false,
+          expectedDays: null,
+          amberPct: 75,
         },
       ]);
       setNewStageName("");
@@ -301,41 +338,101 @@ function PipelineTab() {
           </button>
         </div>
 
+        <p className="text-xs text-gray-500 mb-4 -mt-2">
+          Set how long a lead is expected to sit in each stage. The pipeline board colours each
+          card&rsquo;s border green, amber, or red based on time-in-stage versus the expected duration.
+          Leave &ldquo;Expected days&rdquo; blank to disable the indicator for a stage.
+        </p>
+
         <div className="space-y-2">
           {stages.map((stage, index) => (
             <div
               key={stage.id}
-              className="flex items-center gap-3 px-3 py-3 border border-gray-100 rounded-lg"
+              className="px-3 py-3 border border-gray-100 rounded-lg"
             >
-              <span
-                className="w-3 h-3 rounded-full flex-shrink-0"
-                style={{ backgroundColor: stage.color }}
-              />
-              <span className="flex-1 text-sm text-gray-900 font-medium">{stage.name}</span>
-              {stage.isTerminal && (
-                <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Terminal</span>
-              )}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-3">
+                <span
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: stage.color }}
+                />
+                <span className="flex-1 text-sm text-gray-900 font-medium">{stage.name}</span>
+                {stage.isTerminal && (
+                  <span className="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">Terminal</span>
+                )}
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => moveStage(index, "up")}
+                    disabled={index === 0}
+                    className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
+                    title="Move up"
+                  >
+                    <ChevronUp size={14} className="text-gray-500" />
+                  </button>
+                  <button
+                    onClick={() => moveStage(index, "down")}
+                    disabled={index === stages.length - 1}
+                    className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
+                    title="Move down"
+                  >
+                    <ChevronDown size={14} className="text-gray-500" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-end gap-3 mt-3 pl-6">
+                <div>
+                  <label className="block text-[11px] font-medium text-gray-500 mb-1">
+                    Expected days
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={stage.expectedDays ?? ""}
+                    onChange={(e) =>
+                      setStageTiming(
+                        stage.id,
+                        "expectedDays",
+                        e.target.value === "" ? null : Number(e.target.value)
+                      )
+                    }
+                    placeholder="—"
+                    className="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-medium text-gray-500 mb-1">
+                    Amber threshold (%)
+                  </label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={stage.amberPct}
+                    onChange={(e) =>
+                      setStageTiming(stage.id, "amberPct", e.target.value === "" ? 0 : Number(e.target.value))
+                    }
+                    className="w-24 border border-gray-200 rounded-lg px-2.5 py-1.5 text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent disabled:bg-gray-50 disabled:text-gray-400"
+                    disabled={stage.expectedDays == null}
+                  />
+                </div>
                 <button
-                  onClick={() => moveStage(index, "up")}
-                  disabled={index === 0}
-                  className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-                  title="Move up"
+                  onClick={() => saveTiming(stage)}
+                  disabled={savingTiming === stage.id}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-primary border border-gray-200 rounded-lg px-3 py-2 hover:bg-gray-50 disabled:opacity-50"
                 >
-                  <ChevronUp size={14} className="text-gray-500" />
-                </button>
-                <button
-                  onClick={() => moveStage(index, "down")}
-                  disabled={index === stages.length - 1}
-                  className="p-1 rounded hover:bg-gray-100 disabled:opacity-30"
-                  title="Move down"
-                >
-                  <ChevronDown size={14} className="text-gray-500" />
+                  {savingTiming === stage.id ? (
+                    <span className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  ) : savedTiming === stage.id ? (
+                    <Check size={13} />
+                  ) : null}
+                  {savedTiming === stage.id ? "Saved" : "Save"}
                 </button>
               </div>
             </div>
           ))}
         </div>
+
+        {timingError && <p className="mt-3 text-xs text-destructive">{timingError}</p>}
       </div>
 
       <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
