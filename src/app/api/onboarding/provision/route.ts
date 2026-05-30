@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { seedTenantCadencesAndTemplates } from "@/lib/cadences/seed-tenant";
 
 export async function POST(request: NextRequest) {
   let body: {
@@ -58,6 +59,12 @@ export async function POST(request: NextRequest) {
     full_name: "",
     role: "manager",
   }, { onConflict: "id" });
+
+  try {
+    await seedTenantCadencesAndTemplates(supabase, tenant.id);
+  } catch (e) {
+    console.error("Cadence seed failed (non-blocking):", e);
+  }
 
   return NextResponse.json({ tenantId: tenant.id, slug }, { status: 201 });
 }

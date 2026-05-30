@@ -220,6 +220,12 @@ export default function PipelinePage() {
           description: note || null,
           metadata: null,
         });
+
+        fetch("/api/cadences/enroll", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ leadId, stageId: toStageId }),
+        }).catch((err) => console.error("Cadence enrollment failed:", err));
       }
     } catch (err) {
       console.error("Failed to update stage:", err);

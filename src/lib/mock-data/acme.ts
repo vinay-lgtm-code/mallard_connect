@@ -46,6 +46,9 @@ export const templates: Template[] = SEEDED_TEMPLATES;
 export const enrollments: CadenceEnrollment[] = buildSeededEnrollments({
   "cad-1": ["lead-acme-3", "lead-acme-12"],
   "cad-2": ["lead-acme-2"],
+  "cad-5": ["lead-acme-7"], // Thomas — self-employed nurture
+  "cad-8": ["lead-acme-5", "lead-acme-4"], // Nathan, Charlotte — document chasing
+  "cad-12": ["lead-acme-6"], // Sophie — anniversary and retention (converted)
 });
 
 export const activities: Activity[] = [

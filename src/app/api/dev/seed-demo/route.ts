@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { appToRow } from "@/lib/supabase/mappers";
+import { seedTenantCadencesAndTemplates } from "@/lib/cadences/seed-tenant";
 import * as mallard from "@/lib/mock-data/mallard";
 import * as friendsCapital from "@/lib/mock-data/friends-capital";
 import * as acme from "@/lib/mock-data/acme";
@@ -76,6 +77,9 @@ export async function POST(request: NextRequest) {
           id: act.id,
         }, { onConflict: "id" });
       }
+
+      // Seed cadences + templates (idempotent — skips if already present)
+      await seedTenantCadencesAndTemplates(supabase, tenantId);
 
       results[slug] = { ok: true };
     } catch (err) {

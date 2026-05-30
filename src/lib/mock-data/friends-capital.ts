@@ -47,6 +47,9 @@ export const templates: Template[] = SEEDED_TEMPLATES;
 export const enrollments: CadenceEnrollment[] = buildSeededEnrollments({
   "cad-2": ["lead-fc-2", "lead-fc-9", "lead-fc-11"], // Caroline, Felix, Rupert — remortgage warm-ups
   "cad-3": ["lead-fc-3", "lead-fc-12"], // Geoffrey, Daphne — equity-release cold re-engagement
+  "cad-4": ["lead-fc-1", "lead-fc-6"], // Edward, Isabella — protection follow-up
+  "cad-6": ["lead-fc-4", "lead-fc-8"], // Arabella, Penelope — BTL onboarding
+  "cad-9": ["lead-fc-2", "lead-fc-11"], // Caroline, Rupert — rate expiry monitoring
 });
 
 export const activities: Activity[] = [

@@ -46,9 +46,12 @@ export const templates: Template[] = SEEDED_TEMPLATES;
 
 // Mallard skews FTB-heavy, so the FTB cadence (cad-1) has the most active enrollments.
 export const enrollments: CadenceEnrollment[] = buildSeededEnrollments({
-  "cad-1": ["lead-3", "lead-9", "lead-12"], // Amira, Lisa, Yusuf — all in FTB-nurture
+  "cad-1": ["lead-3", "lead-9", "lead-12"], // Amira, Lisa, Yusuf — FTB nurture
   "cad-2": ["lead-2", "lead-8"], // James, Chris — remortgage warm-ups
   "cad-3": ["lead-10"], // Robert — cold re-engagement
+  "cad-7": ["lead-6", "lead-11"], // David, Hannah — post-completion check-in (converted)
+  "cad-8": ["lead-5"], // Rachel — document chasing (ready to proceed)
+  "cad-10": ["lead-1", "lead-7"], // Sarah, Emma — new enquiry welcome
 });
 
 export const activities: Activity[] = [

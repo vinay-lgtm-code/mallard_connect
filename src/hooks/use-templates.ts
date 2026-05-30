@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
+import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser, getMockTemplates } from "@/lib/mock-data";
 import { rowsToApp } from "@/lib/supabase/mappers";
 import type { Template } from "@/types";
@@ -11,7 +11,7 @@ export function useTemplates() {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Template & { id: string })[]>([]);
