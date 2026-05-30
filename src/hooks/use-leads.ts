@@ -7,6 +7,8 @@ import { isDemoUser, getMockLeads, getMockActivities, getMockTasks, getMockUsers
 import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
 import type { Lead, Activity, Task, User } from "@/types";
 
+type RefetchFn = () => void;
+
 interface LeadFilters {
   stageId?: string;
   assignedTo?: string;
@@ -102,8 +104,8 @@ export function useLeadActivities(leadId: string) {
   const [loading, setLoading] = useState(!useMock);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    if (useMock || !supabase || !tenantId) return;
+  const refetch: RefetchFn = useCallback(() => {
+    if (!supabase || !tenantId || useMock) return;
     supabase
       .from("activities")
       .select("*")
@@ -117,12 +119,14 @@ export function useLeadActivities(leadId: string) {
       });
   }, [supabase, tenantId, leadId, useMock]);
 
+  useEffect(() => { refetch(); }, [refetch]);
+
   if (useMock) {
     const activities = (getMockActivities() as (Activity & { id: string })[]).filter((a) => a.leadId === leadId);
-    return { activities, loading: false, error: null };
+    return { activities, loading: false, error: null, refetch };
   }
 
-  return { activities: data, loading, error };
+  return { activities: data, loading, error, refetch };
 }
 
 export function useLeadTasks(leadId: string) {
@@ -136,8 +140,8 @@ export function useLeadTasks(leadId: string) {
   const [loading, setLoading] = useState(!useMock);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    if (useMock || !supabase || !tenantId) return;
+  const refetch: RefetchFn = useCallback(() => {
+    if (!supabase || !tenantId || useMock) return;
     supabase
       .from("tasks")
       .select("*")
@@ -151,12 +155,14 @@ export function useLeadTasks(leadId: string) {
       });
   }, [supabase, tenantId, leadId, useMock]);
 
+  useEffect(() => { refetch(); }, [refetch]);
+
   if (useMock) {
     const tasks = (getMockTasks() as (Task & { id: string })[]).filter((t) => t.leadId === leadId);
-    return { tasks, loading: false, error: null };
+    return { tasks, loading: false, error: null, refetch };
   }
 
-  return { tasks: data, loading, error };
+  return { tasks: data, loading, error, refetch };
 }
 
 export function useRecentActivities(maxItems = 10) {

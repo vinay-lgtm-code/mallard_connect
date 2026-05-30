@@ -10,6 +10,7 @@ import { getInitials } from "@/lib/utils";
 interface AssignLeadModalProps {
   leadId: string;
   currentAssignee: string | null;
+  demo?: boolean;
   onClose: () => void;
   onAssigned: () => void;
 }
@@ -17,6 +18,7 @@ interface AssignLeadModalProps {
 export function AssignLeadModal({
   leadId,
   currentAssignee,
+  demo,
   onClose,
   onAssigned,
 }: AssignLeadModalProps) {
@@ -39,7 +41,14 @@ export function AssignLeadModal({
   }
 
   async function handleAssign() {
-    if (!selectedUserId || !user || !supabase) return;
+    if (!selectedUserId || !user) return;
+
+    if (demo) {
+      onAssigned();
+      return;
+    }
+
+    if (!supabase) return;
     setSaving(true);
     setError(null);
 

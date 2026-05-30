@@ -1,14 +1,17 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Phone, Mail, Plus, ChevronDown } from "lucide-react";
+import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { useLead, useLeadActivities, useLeadTasks } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { QuickLogBar } from "@/components/leads/quick-log-bar";
+import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
+import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
 import { isDemoUser } from "@/lib/mock-data";
+import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
@@ -177,9 +180,9 @@ export default function LeadDetailPage() {
 
   const demo = user ? isDemoUser(user.id) : false;
 
-  const { lead, loading } = useLead(id);
-  const { activities } = useLeadActivities(id);
-  const { tasks } = useLeadTasks(id);
+  const { lead, loading, refetch: refetchLead } = useLead(id);
+  const { activities, refetch: refetchActivities } = useLeadActivities(id);
+  const { tasks, refetch: refetchTasks } = useLeadTasks(id);
   const supabase = useSupabase();
 
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -187,6 +190,23 @@ export default function LeadDetailPage() {
   const [addingNote, setAddingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
+  const [showCadenceModal, setShowCadenceModal] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+
+  const stageDropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (stageDropdownRef.current && !stageDropdownRef.current.contains(e.target as Node)) {
+        setStageDropdownOpen(false);
+      }
+    }
+    if (stageDropdownOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [stageDropdownOpen]);
 
   // Qualification state — controlled, pre-populated from lead
   const [qualEmployment, setQualEmployment] = useState("");
@@ -233,10 +253,69 @@ export default function LeadDetailPage() {
       });
       setNoteText("");
       setAddingNote(false);
+      refetchActivities();
     } catch (err) {
       console.error("Failed to save note:", err);
     } finally {
       setSavingNote(false);
+    }
+  }
+
+  async function handleStageChange(stageId: string) {
+    setStageDropdownOpen(false);
+    if (!user) return;
+    if (demo) return;
+    if (!supabase) return;
+    try {
+      await supabase.from("leads").update({
+        current_stage_id: stageId,
+        updated_at: new Date().toISOString(),
+      }).eq("id", id);
+      await supabase.from("activities").insert({
+        tenant_id: user.tenantId,
+        lead_id: id,
+        performed_by: user.id,
+        activity_type: "stage-change",
+        title: `Stage changed to ${STAGE_LABELS[stageId] ?? stageId}`,
+        description: null,
+        metadata: null,
+      });
+      refetchLead();
+      refetchActivities();
+    } catch (err) {
+      console.error("Failed to change stage:", err);
+    }
+  }
+
+  async function handleLogActivity(payload: LogActivityPayload) {
+    if (!user) return;
+    if (demo) return;
+    if (!supabase) return;
+    try {
+      await supabase.from("activities").insert({
+        tenant_id: user.tenantId,
+        lead_id: id,
+        performed_by: user.id,
+        activity_type: payload.activityType,
+        title: payload.title,
+        description: payload.description || null,
+        metadata: Object.keys(payload.metadata).length > 0 ? payload.metadata : null,
+      });
+      refetchActivities();
+    } catch (err) {
+      console.error("Failed to log activity:", err);
+    }
+  }
+
+  async function handleToggleTask(taskId: string, currentStatus: string) {
+    const newStatus = currentStatus === "completed" ? "pending" : "completed";
+    if (demo) return;
+    if (!supabase) return;
+    try {
+      await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
+      refetchTasks();
+    } catch (err) {
+      console.error("Failed to update task:", err);
     }
   }
 
@@ -295,7 +374,27 @@ export default function LeadDetailPage() {
           userId={user.id}
           tenantId={user.tenantId}
           demo={demo}
-          onClose={() => setShowFollowUpModal(false)}
+          onClose={() => { setShowFollowUpModal(false); refetchTasks(); }}
+        />
+      )}
+
+      {showCadenceModal && (
+        <EnrollCadenceModal
+          leadId={id}
+          leadName={`${lead.firstName} ${lead.lastName}`}
+          open={showCadenceModal}
+          onClose={() => setShowCadenceModal(false)}
+          onEnrolled={() => { setShowCadenceModal(false); refetchActivities(); }}
+        />
+      )}
+
+      {showAssignModal && (
+        <AssignLeadModal
+          leadId={id}
+          currentAssignee={lead.assignedTo}
+          demo={demo}
+          onClose={() => setShowAssignModal(false)}
+          onAssigned={() => { setShowAssignModal(false); refetchLead(); refetchActivities(); }}
         />
       )}
 
@@ -313,10 +412,31 @@ export default function LeadDetailPage() {
                 {lead.firstName} {lead.lastName}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                <button className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}>
-                  {stageLabel}
-                  <ChevronDown size={12} />
-                </button>
+                <div className="relative" ref={stageDropdownRef}>
+                  <button
+                    onClick={() => setStageDropdownOpen(!stageDropdownOpen)}
+                    className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}
+                  >
+                    {stageLabel}
+                    <ChevronDown size={12} />
+                  </button>
+                  {stageDropdownOpen && (
+                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
+                      {Object.entries(STAGE_LABELS)
+                        .filter(([key]) => key !== lead.currentStageId)
+                        .map(([key, label]) => (
+                          <button
+                            key={key}
+                            onClick={() => handleStageChange(key)}
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                          >
+                            <span className={`w-2 h-2 rounded-full ${STAGE_STYLES[key]?.split(" ")[0] ?? "bg-gray-200"}`} />
+                            {label}
+                          </button>
+                        ))}
+                    </div>
+                  )}
+                </div>
                 {lead.mortgageType && (
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                     {lead.mortgageType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
@@ -350,6 +470,13 @@ export default function LeadDetailPage() {
             >
               <Plus size={15} />
               Log Activity
+            </button>
+            <button
+              onClick={() => setShowCadenceModal(true)}
+              className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+            >
+              <Zap size={15} />
+              Cadence
             </button>
           </div>
         </div>
@@ -401,7 +528,13 @@ export default function LeadDetailPage() {
                 </div>
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Assigned To</p>
-                  <p className="text-gray-700">{lead.assignedTo ?? "Unassigned"}</p>
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="text-primary font-medium hover:underline text-sm flex items-center gap-1"
+                  >
+                    {lead.assignedTo ?? "Unassigned"}
+                    <UserPlus size={12} className="text-gray-400" />
+                  </button>
                 </div>
               </div>
             </div>
@@ -425,7 +558,7 @@ export default function LeadDetailPage() {
 
         {activeTab === "activity" && (
           <div className="space-y-4">
-            <QuickLogBar prospectName={`${lead.firstName} ${lead.lastName}`} />
+            <QuickLogBar prospectName={`${lead.firstName} ${lead.lastName}`} onLogged={handleLogActivity} />
             {addingNote && (
               <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100">
                 <textarea
@@ -687,8 +820,19 @@ export default function LeadDetailPage() {
                   return (
                     <div key={task.id} className={`bg-white rounded-[12px] p-4 shadow-sm border ${isOverdue ? "border-red-200" : "border-gray-100"}`}>
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900">{task.title}</p>
+                        <div className="flex items-start gap-3">
+                          <button
+                            onClick={() => handleToggleTask(task.id, task.status)}
+                            className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
+                              task.status === "completed"
+                                ? "border-green-500 bg-green-500"
+                                : "border-gray-300 hover:border-primary"
+                            }`}
+                          >
+                            {task.status === "completed" && <Check size={12} className="text-white" />}
+                          </button>
+                          <div>
+                          <p className={`text-sm font-semibold ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-900"}`}>{task.title}</p>
                           {due && (
                             <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-600 font-semibold" : "text-gray-500"}`}>
                               Due {format(due, "d MMM yyyy")}
@@ -699,6 +843,7 @@ export default function LeadDetailPage() {
                               Reminders: {(task.reminderEmails as string[]).filter(Boolean).join(", ")}
                             </p>
                           )}
+                          </div>
                         </div>
                         <span
                           className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${
