@@ -195,6 +195,63 @@ export function useRecentActivities(maxItems = 10) {
   return { activities: data, loading };
 }
 
+export interface AnalyticsSnapshot {
+  id: string;
+  periodMonth: string; // YYYY-MM-DD (first of month, UTC)
+  metrics: {
+    schemaVersion?: number;
+    createdLeadCount?: number;
+    convertedInPeriod?: number;
+    totalLeads?: number;
+    convertedTotal?: number;
+    conversionRate?: number;
+    leadsByStage?: Record<string, number>;
+    leadsBySource?: Record<string, number>;
+    perAdviser?: Record<string, { leadCount: number; convertedCount: number }>;
+  };
+}
+
+/**
+ * Historical analytics snapshots for the current tenant, written nightly by
+ * the snapshot-analytics cron. RLS scopes reads to the tenant (and demo
+ * tenants for anon). Demo mock data has no snapshots, so the reports UI falls
+ * back to live computation for those rows.
+ */
+export function useAnalyticsSnapshots() {
+  const { user } = useAuth();
+  const supabase = useSupabase();
+  const demo = user ? isDemoUser(user.id) : false;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
+
+  const [data, setData] = useState<AnalyticsSnapshot[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+
+  useEffect(() => {
+    if (useMock) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+    if (!supabase || !tenantId) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
+    supabase
+      .from("analytics_snapshots")
+      .select("id, period_month, metrics")
+      .eq("tenant_id", tenantId)
+      .order("period_month", { ascending: false })
+      .then(({ data: rows }) => {
+        setData(rowsToApp<AnalyticsSnapshot>(rows ?? []));
+        setLoading(false);
+      });
+  }, [supabase, tenantId, useMock]);
+
+  return { snapshots: data, loading };
+}
+
 export function useTenantUsers() {
   const { user } = useAuth();
   const supabase = useSupabase();

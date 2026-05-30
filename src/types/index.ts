@@ -25,6 +25,12 @@ export type Readiness =
 
 export type LeadStatus = "active" | "on-hold" | "lost" | "converted";
 
+// Outcome snapshotted onto a lead when it closes (status -> converted | lost).
+// Written by the `capture_confidence_at_close` BEFORE UPDATE trigger; see
+// supabase/migrations/00006_forecast_accuracy.sql and
+// docs/forecast-accuracy-data-model.md.
+export type ClosedOutcome = "converted" | "lost";
+
 export type ActivityType =
   | "call"
   | "email"
@@ -45,6 +51,17 @@ export interface PipelineStage {
   position: number;
   color: string;
   isTerminal: boolean;
+  expectedDays: number | null;
+  amberPct: number;
+}
+
+export interface LeadStageHistory {
+  id: string;
+  leadId: string;
+  stageId: string | null;
+  stageSlug: string | null;
+  enteredAt: string;
+  exitedAt: string | null;
 }
 
 export interface Lead {
@@ -56,6 +73,7 @@ export interface Lead {
   source: LeadSource;
   status: LeadStatus;
   currentStageId: string;
+  currentStageEnteredAt: string | null;
   assignedTo: string;
   mortgageType: MortgageType | null;
   readiness: Readiness | null;
@@ -76,6 +94,12 @@ export interface Lead {
   convertedAt: string | null;
   lostAt: string | null;
   lostReason: string | null;
+  // Forecast-accuracy snapshot fields (data model only; feature parked).
+  // Populated by the DB trigger when status transitions to converted/lost.
+  // confidenceAtClose mirrors `confidence` (0-100) at close time;
+  // closedOutcome mirrors the closing `status`.
+  confidenceAtClose: number | null;
+  closedOutcome: ClosedOutcome | null;
 }
 
 export interface Activity {

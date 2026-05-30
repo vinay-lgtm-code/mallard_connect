@@ -119,7 +119,7 @@ function ManagerDashboard({ userId }: { userId: string }) {
           <p className="text-sm text-gray-400 text-center py-4">No leads in pipeline yet.</p>
         ) : (
           <>
-            <div className="flex rounded-lg overflow-hidden h-6">
+            <div className="flex w-full rounded-lg overflow-hidden h-6" aria-hidden="true">
               {pipelineStages.filter((s) => s.count > 0).map((stage) => (
                 <div
                   key={stage.id}
@@ -129,11 +129,11 @@ function ManagerDashboard({ userId }: { userId: string }) {
                 />
               ))}
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
               {pipelineStages.map((stage) => (
-                <div key={stage.id} className="flex items-center gap-1.5">
+                <div key={stage.id} className="flex items-center gap-2">
                   <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-                  <span className="text-xs text-gray-600">{stage.name} <span className="font-semibold">{stage.count}</span></span>
+                  <span className="text-sm text-gray-600">{stage.name} <span className="font-semibold text-gray-900">{stage.count}</span></span>
                 </div>
               ))}
             </div>
@@ -262,7 +262,7 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
           <p className="text-sm text-gray-400 text-center py-2">No leads assigned yet.</p>
         ) : (
           <>
-            <div className="flex rounded-lg overflow-hidden h-4">
+            <div className="flex w-full rounded-lg overflow-hidden h-6" aria-hidden="true">
               {pipelineStages.filter((s) => s.count > 0).map((stage) => (
                 <div
                   key={stage.id}
@@ -272,11 +272,11 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
                 />
               ))}
             </div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1.5 mt-3">
+            <div className="flex flex-wrap gap-x-4 gap-y-2 mt-4">
               {pipelineStages.map((stage) => (
-                <div key={stage.id} className="flex items-center gap-1.5">
-                  <div className={`w-2 h-2 rounded-full ${stage.color}`} />
-                  <span className="text-xs text-gray-600">{stage.name} <span className="font-semibold">{stage.count}</span></span>
+                <div key={stage.id} className="flex items-center gap-2">
+                  <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
+                  <span className="text-sm text-gray-600">{stage.name} <span className="font-semibold text-gray-900">{stage.count}</span></span>
                 </div>
               ))}
             </div>

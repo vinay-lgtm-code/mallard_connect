@@ -4,9 +4,10 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeads } from "@/hooks/use-leads";
-import { useTenantUsers } from "@/hooks/use-leads";
+import { useTenantUsers, useAnalyticsSnapshots } from "@/hooks/use-leads";
 import { ExportButton } from "@/components/export-button";
 import type { Lead, User } from "@/types";
+import { periodMonthFor, monthBoundsUTC } from "@/lib/analytics/compute";
 import { TrendingUp, Users, Clock, Target } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -32,12 +33,12 @@ const SOURCE_COLORS: Record<string, string> = {
 };
 
 const STAGE_COLORS: Record<string, string> = {
-  "new-enquiry": "#6366f1",
-  "initial-contact": "#3b82f6",
-  "not-ready-yet": "#f59e0b",
+  new_enquiry: "#6366f1",
+  initial_contact: "#3b82f6",
+  not_ready_yet: "#f59e0b",
   nurturing: "#22c55e",
-  "ready-to-proceed": "#1d4ed8",
-  "referred-to-mab": "#a855f7",
+  ready_to_proceed: "#1d4ed8",
+  referred_to_mab: "#a855f7",
 };
 
 function toDate(ts: unknown): Date | null {
@@ -47,12 +48,8 @@ function toDate(ts: unknown): Date | null {
   return null;
 }
 
-function getMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function getMonthLabel(date: Date): string {
-  return date.toLocaleString("default", { month: "short", year: "2-digit" });
+  return date.toLocaleString("default", { month: "short", year: "2-digit", timeZone: "UTC" });
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -68,14 +65,14 @@ function KpiCard({
   value: string | number;
   sub?: string;
   icon: React.ElementType;
-  color: string;
+  color?: string;
 }) {
   return (
     <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
       <div className="flex items-start justify-between gap-2 mb-3">
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon size={16} className="text-white" />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-400">
+          <Icon size={16} />
         </div>
       </div>
       <p className="text-3xl font-bold text-gray-900">{value}</p>
@@ -121,20 +118,54 @@ function HorizontalBar({
 
 // ─── Monthly Trend ────────────────────────────────────────────────────────────
 
-function MonthlyTrend({ trend }: { trend: { month: string; count: number }[] }) {
+type TrendSource = "snapshot" | "live-estimate" | "live-current";
+
+interface TrendPoint {
+  month: string;
+  count: number;
+  source: TrendSource;
+}
+
+function MonthlyTrend({ trend }: { trend: TrendPoint[] }) {
   const maxCount = Math.max(...trend.map((t) => t.count), 1);
   return (
     <div className="flex items-end gap-3 h-32">
       {trend.map((item) => {
         const heightPct = (item.count / maxCount) * 100;
+        // Visual language:
+        //   snapshot      -> solid faded fill (a frozen, recorded figure)
+        //   live-estimate -> outlined + hatched fill (a best-effort reconstruction)
+        //   live-current  -> solid full-strength fill (current month, still changing)
+        const isEstimate = item.source === "live-estimate";
+        const barClass =
+          item.source === "snapshot"
+            ? "bg-primary/60"
+            : item.source === "live-current"
+              ? "bg-primary"
+              : "border border-primary/50 bg-transparent";
+        const tooltip =
+          item.source === "snapshot"
+            ? `${item.month}: ${item.count} (recorded snapshot)`
+            : item.source === "live-current"
+              ? `${item.month}: ${item.count} (current month, live)`
+              : `${item.month}: ${item.count} (live estimate — no snapshot recorded for this month)`;
         return (
           <div key={item.month} className="flex-1 flex flex-col items-center gap-1.5">
             <span className="text-xs font-semibold text-gray-600">{item.count > 0 ? item.count : ""}</span>
             <div className="w-full flex items-end" style={{ height: "80px" }}>
               <div
-                className="w-full rounded-t-md bg-primary transition-all duration-500"
-                style={{ height: `${Math.max(heightPct, 4)}%` }}
-                title={`${item.month}: ${item.count}`}
+                className={`w-full rounded-t-md transition-all duration-500 ${barClass}`}
+                style={{
+                  height: `${Math.max(heightPct, 4)}%`,
+                  ...(isEstimate
+                    ? {
+                        backgroundImage:
+                          "repeating-linear-gradient(45deg, var(--color-primary,#6366f1) 0, var(--color-primary,#6366f1) 2px, transparent 2px, transparent 5px)",
+                        opacity: 0.55,
+                      }
+                    : {}),
+                }}
+                title={tooltip}
               />
             </div>
             <span className="text-xs text-gray-400 text-center leading-tight">{item.month}</span>
@@ -277,12 +308,12 @@ function TeamLeaderboard({ rows }: { rows: TeamRow[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const KNOWN_STAGES: { id: string; name: string }[] = [
-  { id: "new-enquiry", name: "New Enquiry" },
-  { id: "initial-contact", name: "Initial Contact" },
-  { id: "not-ready-yet", name: "Not Ready Yet" },
+  { id: "new_enquiry", name: "New Enquiry" },
+  { id: "initial_contact", name: "Initial Contact" },
+  { id: "not_ready_yet", name: "Not Ready Yet" },
   { id: "nurturing", name: "Nurturing" },
-  { id: "ready-to-proceed", name: "Ready to Proceed" },
-  { id: "referred-to-mab", name: "Referred to MAB" },
+  { id: "ready_to_proceed", name: "Ready to Proceed" },
+  { id: "referred_to_mab", name: "Referred to MAB" },
 ];
 
 export default function ReportsPage() {
@@ -291,6 +322,7 @@ export default function ReportsPage() {
 
   const { leads, loading: leadsLoading } = useLeads();
   const { users, loading: usersLoading } = useTenantUsers();
+  const { snapshots } = useAnalyticsSnapshots();
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -298,6 +330,17 @@ export default function ReportsPage() {
   }, [user, loading, router]);
 
   // ── Computed KPIs ────────────────────────────────────────────────────────────
+
+  // Snapshotted lead-intake counts keyed by UTC first-of-month (YYYY-MM-01).
+  const snapshotIntakeByMonth = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const snap of snapshots) {
+      const key = (snap.periodMonth ?? "").slice(0, 10);
+      const count = snap.metrics?.createdLeadCount;
+      if (key && typeof count === "number") map[key] = count;
+    }
+    return map;
+  }, [snapshots]);
 
   const stats = useMemo(() => {
     if (!leads || leads.length === 0) {
@@ -307,7 +350,7 @@ export default function ReportsPage() {
         avgDaysInPipeline: 0,
         leadsBySource: {} as Record<string, number>,
         stageData: [] as StageCount[],
-        monthlyTrend: [] as { month: string; count: number }[],
+        monthlyTrend: [] as TrendPoint[],
       };
     }
 
@@ -354,23 +397,39 @@ export default function ReportsPage() {
       }
     }
 
-    // Monthly trend — last 6 months
+    // Monthly trend — last 6 months. Month bucketing is UTC throughout (the
+    // snapshot cron keys periods by UTC first-of-month), so the snapshot lookup
+    // key and the live-count bucket always agree.
+    //
+    // PAST months prefer a recorded snapshot ("snapshot"); if none exists they
+    // fall back to a live recompute and are flagged "live-estimate" so the UI
+    // never presents a reconstructed number as a recorded one. The current
+    // month is always live ("live-current").
     const nowDate = new Date();
-    const monthlyTrend: { month: string; count: number }[] = [];
+    const monthlyTrend: TrendPoint[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
-      const key = getMonthKey(d);
+      const d = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth() - i, 1));
       const label = getMonthLabel(d);
-      const count = leads.filter((lead) => {
+      const utcKey = periodMonthFor(d); // YYYY-MM-DD (UTC, first of month)
+      const { start, end } = monthBoundsUTC(d);
+      const snapshotCount = i > 0 ? snapshotIntakeByMonth[utcKey] : undefined;
+      const liveCount = leads.filter((lead) => {
         const created = toDate(lead.createdAt);
         if (!created) return false;
-        return getMonthKey(created) === key;
+        const t = created.getTime();
+        return t >= start.getTime() && t < end.getTime();
       }).length;
-      monthlyTrend.push({ month: label, count });
+      const source: TrendSource =
+        i === 0 ? "live-current" : typeof snapshotCount === "number" ? "snapshot" : "live-estimate";
+      monthlyTrend.push({
+        month: label,
+        count: source === "snapshot" ? snapshotCount! : liveCount,
+        source,
+      });
     }
 
     return { totalLeads, conversionRate, avgDaysInPipeline, leadsBySource, stageData, monthlyTrend };
-  }, [leads]);
+  }, [leads, snapshotIntakeByMonth]);
 
   // ── Team leaderboard ─────────────────────────────────────────────────────────
 
@@ -433,7 +492,10 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-lg font-bold text-gray-900">Reports</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Live data from all leads in the system.</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            KPI cards, the pipeline funnel and the leaderboard reflect current data. Only the
+            historical lead-intake trend uses nightly snapshots.
+          </p>
         </div>
         <ExportButton
           data={exportData as Record<string, unknown>[]}
@@ -505,6 +567,31 @@ export default function ReportsPage() {
               ) : (
                 <p className="text-sm text-gray-400 text-center py-4">No data.</p>
               )}
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-500 leading-snug">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-primary/60" />
+                  Recorded snapshot
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className="inline-block w-3 h-3 rounded-sm border border-primary/50"
+                    style={{
+                      backgroundImage:
+                        "repeating-linear-gradient(45deg, var(--color-primary,#6366f1) 0, var(--color-primary,#6366f1) 2px, transparent 2px, transparent 5px)",
+                      opacity: 0.55,
+                    }}
+                  />
+                  Live estimate (no snapshot)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-primary" />
+                  Current month (live)
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 leading-snug">
+                Hatched bars are reconstructed from today&apos;s leads because no nightly snapshot was
+                recorded for that month yet — treat them as estimates, not recorded figures.
+              </p>
             </div>
           </div>
 
