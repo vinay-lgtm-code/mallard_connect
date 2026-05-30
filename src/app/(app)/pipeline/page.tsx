@@ -271,17 +271,32 @@ export default function PipelinePage() {
             <div className="flex gap-3 p-4 h-full overflow-x-auto">
               {STAGES.map((stage) => {
                 const stageLeads = leadsByStage(stage.id);
+                // Live totals derived from the same leads array the board renders,
+                // so optimistic drag moves and lead edits reflect instantly.
+                const totalValue = stageLeads.reduce((sum, l) => sum + (l.dealValue ?? 0), 0);
+                const weightedValue = stageLeads.reduce(
+                  (sum, l) => sum + (l.dealValue ?? 0) * ((l.confidence ?? 0) / 100),
+                  0
+                );
                 return (
                   <div
                     key={stage.id}
                     className={`flex-none w-64 flex flex-col rounded-[12px] border border-gray-200 bg-gray-50 ${stage.borderAccent ?? ""}`}
                   >
-                    <div className={`flex items-center justify-between px-3 py-2.5 rounded-t-[12px] ${stage.headerBg}`}>
+                    <div className={`flex items-center justify-between px-3 py-2.5 ${stage.headerBg}`}>
                       <h3 className={`text-xs font-bold uppercase tracking-wide ${stage.color}`}>
                         {stage.name}
                       </h3>
                       <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${stage.badgeBg}`}>
-                        {stageLeads.length}
+                        {stageLeads.length} {stageLeads.length === 1 ? "lead" : "leads"}
+                      </span>
+                    </div>
+                    <div className={`flex items-center justify-between px-3 pb-2.5 pt-0 text-xs ${stage.headerBg} rounded-b-[12px]`}>
+                      <span className="font-semibold text-gray-700">
+                        {formatCurrency(totalValue)}
+                      </span>
+                      <span className="text-gray-500" title="Weighted by confidence">
+                        {formatCurrency(Math.round(weightedValue))} weighted
                       </span>
                     </div>
 
