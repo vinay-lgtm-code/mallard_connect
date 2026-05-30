@@ -20,9 +20,9 @@ export function rowsToApp<T>(rows: AnyRecord[]): T[] {
   return rows.map((r) => rowToApp<T>(r));
 }
 
-export function appToRow(data: AnyRecord): AnyRecord {
+export function appToRow(data: AnyRecord | object): AnyRecord {
   const out: AnyRecord = {};
-  for (const [k, v] of Object.entries(data)) {
+  for (const [k, v] of Object.entries(data as AnyRecord)) {
     if (v !== undefined) {
       out[camelToSnake(k)] = v;
     }

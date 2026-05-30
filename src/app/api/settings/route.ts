@@ -1,105 +1,75 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFirestoreAdmin, getAuthAdmin } from "@/lib/firebase/admin";
-import { FieldValue } from "firebase-admin/firestore";
+import { createServiceClient } from "@/lib/supabase/server";
 
-async function verifyToken(request: NextRequest): Promise<{ uid: string; role: string } | null> {
+async function verifyToken(request: NextRequest) {
+  const supabase = createServiceClient();
   const authHeader = request.headers.get("authorization");
   const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
   if (!token) return null;
 
-  try {
-    const auth = getAuthAdmin();
-    const decoded = await auth.verifyIdToken(token);
-    return { uid: decoded.uid, role: (decoded.role as string) ?? "advisor" };
-  } catch {
-    return null;
-  }
+  const { data: { user } } = await supabase.auth.getUser(token);
+  if (!user) return null;
+
+  const { data: profile } = await supabase
+    .from("users")
+    .select("role, tenant_id")
+    .eq("id", user.id)
+    .single();
+
+  return profile ? { uid: user.id, role: profile.role as string, tenantId: profile.tenant_id as string } : null;
 }
 
-function isAdminOrManager(role: string) {
-  return role === "admin" || role === "manager";
-}
-
-// GET /api/settings — returns user profile + notification prefs + pipeline stages
 export async function GET(request: NextRequest) {
   const auth = await verifyToken(request);
-  if (!auth) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const db = getFirestoreAdmin();
+  const supabase = createServiceClient();
 
-  const [userDoc, stagesSnap] = await Promise.all([
-    db.collection("users").doc(auth.uid).get(),
-    db.collection("pipelines").doc("default").collection("stages").orderBy("position").get(),
+  const [userRes, stagesRes] = await Promise.all([
+    supabase.from("users").select("full_name, email, phone").eq("id", auth.uid).single(),
+    supabase.from("pipeline_stages").select("*").eq("tenant_id", auth.tenantId).order("position"),
   ]);
 
-  const userData = userDoc.exists ? userDoc.data() : {};
-  const stages = stagesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  const userData = userRes.data ?? {};
+  const stages = stagesRes.data ?? [];
 
   return NextResponse.json({
     user: {
-      fullName: userData?.fullName ?? "",
-      email: userData?.email ?? "",
-      phone: userData?.phone ?? null,
-      notificationPreferences: userData?.notificationPreferences ?? {
-        reminders: true,
-        assignments: true,
-        stageChanges: false,
-      },
+      fullName: (userData as Record<string, unknown>).full_name ?? "",
+      email: (userData as Record<string, unknown>).email ?? "",
+      phone: (userData as Record<string, unknown>).phone ?? null,
     },
     stages,
   });
 }
 
-// PATCH /api/settings — update profile or notification preferences
 export async function PATCH(request: NextRequest) {
   const auth = await verifyToken(request);
-  if (!auth) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const db = getFirestoreAdmin();
+  const supabase = createServiceClient();
 
-  const allowedProfileFields = ["fullName", "phone"];
-  const update: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
+  const update: Record<string, unknown> = {};
+  if ("fullName" in body) update.full_name = body.fullName;
+  if ("phone" in body) update.phone = body.phone;
 
-  for (const field of allowedProfileFields) {
-    if (field in body) {
-      update[field] = body[field];
-    }
+  if (Object.keys(update).length > 0) {
+    await supabase.from("users").update(update).eq("id", auth.uid);
   }
-
-  if (body.notificationPreferences && typeof body.notificationPreferences === "object") {
-    const prefs = body.notificationPreferences as Record<string, unknown>;
-    update["notificationPreferences"] = {
-      reminders: Boolean(prefs.reminders),
-      assignments: Boolean(prefs.assignments),
-      stageChanges: Boolean(prefs.stageChanges),
-    };
-  }
-
-  await db.collection("users").doc(auth.uid).update(update);
 
   return NextResponse.json({ success: true });
 }
 
-// POST /api/settings — add or update pipeline stages (admin/manager only)
 export async function POST(request: NextRequest) {
   const auth = await verifyToken(request);
-  if (!auth) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!isAdminOrManager(auth.role)) {
+  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (auth.role !== "admin" && auth.role !== "manager") {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   const body = await request.json();
-  const db = getFirestoreAdmin();
-
-  // body.action can be "add", "update", or "reorder"
+  const supabase = createServiceClient();
   const { action } = body;
 
   if (action === "add") {
@@ -107,39 +77,27 @@ export async function POST(request: NextRequest) {
     if (!name || !color || position === undefined) {
       return NextResponse.json({ error: "name, color, and position are required" }, { status: 400 });
     }
-
     const slug = name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
-    const ref = db.collection("pipelines").doc("default").collection("stages").doc();
-    await ref.set({
-      name,
-      slug,
-      color,
+    const { data } = await supabase.from("pipeline_stages").insert({
+      tenant_id: auth.tenantId,
+      name, slug, color,
       position: Number(position),
-      isTerminal: false,
-      createdAt: FieldValue.serverTimestamp(),
-    });
+      is_terminal: false,
+    }).select("id").single();
 
-    return NextResponse.json({ success: true, id: ref.id });
+    return NextResponse.json({ success: true, id: data?.id });
   }
 
   if (action === "update") {
     const { stageId, name, color, position } = body;
-    if (!stageId) {
-      return NextResponse.json({ error: "stageId is required" }, { status: 400 });
-    }
+    if (!stageId) return NextResponse.json({ error: "stageId is required" }, { status: 400 });
 
-    const updateData: Record<string, unknown> = { updatedAt: FieldValue.serverTimestamp() };
-    if (name !== undefined) updateData.name = name;
-    if (color !== undefined) updateData.color = color;
-    if (position !== undefined) updateData.position = Number(position);
+    const update: Record<string, unknown> = {};
+    if (name !== undefined) update.name = name;
+    if (color !== undefined) update.color = color;
+    if (position !== undefined) update.position = Number(position);
 
-    await db
-      .collection("pipelines")
-      .doc("default")
-      .collection("stages")
-      .doc(stageId)
-      .update(updateData);
-
+    await supabase.from("pipeline_stages").update(update).eq("id", stageId).eq("tenant_id", auth.tenantId);
     return NextResponse.json({ success: true });
   }
 
@@ -148,14 +106,9 @@ export async function POST(request: NextRequest) {
     if (!Array.isArray(order)) {
       return NextResponse.json({ error: "order array is required" }, { status: 400 });
     }
-
-    const batch = db.batch();
     for (const item of order) {
-      const ref = db.collection("pipelines").doc("default").collection("stages").doc(item.id);
-      batch.update(ref, { position: item.position });
+      await supabase.from("pipeline_stages").update({ position: item.position }).eq("id", item.id).eq("tenant_id", auth.tenantId);
     }
-    await batch.commit();
-
     return NextResponse.json({ success: true });
   }
 

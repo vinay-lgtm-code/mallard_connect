@@ -1,21 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFirestoreAdmin } from "@/lib/firebase/admin";
+import { createServiceClient } from "@/lib/supabase/server";
 import { sendReminderEmail } from "@/lib/email/client";
-import { Timestamp } from "firebase-admin/firestore";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
 
-/**
- * Daily reminder + cadence runner.
- *
- * Finds tasks across both production (`tenants/{tid}/tasks`) and demo
- * (`demoTenants/{slug}/tasks`) namespaces using a collection-group query,
- * filters to those due now with status pending and no reminder yet sent,
- * and emails each one's reminderEmails recipients via Resend.
- *
- * Authorisation: in production we require `Authorization: Bearer ${CRON_SECRET}`.
- * In development the check is skipped so you can curl-test the demo flow.
- */
 export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV === "production") {
     const auth = request.headers.get("authorization");
@@ -23,82 +11,69 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   } else if (process.env.CRON_SECRET) {
-    // If a CRON_SECRET is configured locally, still enforce it.
     const auth = request.headers.get("authorization");
     if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
   }
 
-  const db = getFirestoreAdmin();
-  const now = Timestamp.now();
+  const supabase = createServiceClient();
+  const now = new Date().toISOString();
 
-  const tasksSnap = await db
-    .collectionGroup("tasks")
-    .where("dueDate", "<=", now)
-    .where("status", "==", "pending")
-    .where("reminderSent", "==", false)
-    .get();
+  const { data: tasks, error } = await supabase
+    .from("tasks")
+    .select("id, lead_id, tenant_id, title, description, reminder_emails, reminder_sent")
+    .lte("due_date", now)
+    .eq("status", "pending")
+    .eq("reminder_sent", false);
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
 
   let sent = 0;
   let errors = 0;
   const log: { taskId: string; recipients: string[]; ok: boolean; error?: string }[] = [];
 
-  await Promise.all(
-    tasksSnap.docs.map(async (taskDoc) => {
-      const task = taskDoc.data() as Record<string, unknown>;
-      const leadId = task.leadId as string | undefined;
-      const reminderEmails = Array.isArray(task.reminderEmails)
-        ? (task.reminderEmails as string[]).filter(Boolean).slice(0, 3)
-        : [];
+  for (const task of tasks ?? []) {
+    const reminderEmails = Array.isArray(task.reminder_emails)
+      ? (task.reminder_emails as string[]).filter(Boolean).slice(0, 3)
+      : [];
 
-      if (!leadId || reminderEmails.length === 0) return;
+    if (!task.lead_id || reminderEmails.length === 0) continue;
 
-      // tenants/{tid}/tasks/{id} or demoTenants/{slug}/tasks/{id}
-      // → parent of taskDoc.ref is the "tasks" collection
-      // → its parent is the tenant root doc
-      const tenantRoot = taskDoc.ref.parent.parent;
-      if (!tenantRoot) return;
+    try {
+      const { data: lead } = await supabase
+        .from("leads")
+        .select("first_name, last_name, phone, follow_up_reason, follow_up_notes")
+        .eq("id", task.lead_id)
+        .single();
 
-      try {
-        const leadDoc = await tenantRoot.collection("leads").doc(leadId).get();
-        if (!leadDoc.exists) return;
-        const lead = leadDoc.data() as Record<string, unknown>;
+      if (!lead) continue;
 
-        const prospectName = `${(lead.firstName as string) ?? ""} ${(lead.lastName as string) ?? ""}`.trim();
+      const prospectName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim();
 
-        await sendReminderEmail({
-          to: reminderEmails,
-          prospectName: prospectName || "Unknown",
-          prospectPhone: (lead.phone as string) ?? "",
-          followUpReason:
-            (task.title as string) ?? (lead.followUpReason as string) ?? "Follow-up due",
-          reminderNote: (task.description as string) ?? (lead.followUpNotes as string) ?? "",
-          leadUrl: `${APP_URL}/leads/${leadId}`,
-        });
+      await sendReminderEmail({
+        to: reminderEmails,
+        prospectName: prospectName || "Unknown",
+        prospectPhone: lead.phone ?? "",
+        followUpReason: task.title ?? lead.follow_up_reason ?? "Follow-up due",
+        reminderNote: task.description ?? lead.follow_up_notes ?? "",
+        leadUrl: `${APP_URL}/leads/${task.lead_id}`,
+      });
 
-        await taskDoc.ref.update({ reminderSent: true });
+      await supabase.from("tasks").update({ reminder_sent: true }).eq("id", task.id);
 
-        await tenantRoot.collection("auditLog").add({
-          type: "reminder_sent",
-          taskId: taskDoc.id,
-          leadId,
-          recipients: reminderEmails,
-          sentAt: Timestamp.now(),
-        });
+      sent++;
+      log.push({ taskId: task.id, recipients: reminderEmails, ok: true });
+    } catch (err) {
+      errors++;
+      const msg = err instanceof Error ? err.message : String(err);
+      log.push({ taskId: task.id, recipients: reminderEmails, ok: false, error: msg });
+    }
+  }
 
-        sent++;
-        log.push({ taskId: taskDoc.id, recipients: reminderEmails, ok: true });
-      } catch (err) {
-        errors++;
-        const msg = err instanceof Error ? err.message : String(err);
-        log.push({ taskId: taskDoc.id, recipients: reminderEmails, ok: false, error: msg });
-      }
-    }),
-  );
-
-  return NextResponse.json({ sent, errors, totalDue: tasksSnap.size, log });
+  return NextResponse.json({ sent, errors, totalDue: (tasks ?? []).length, log });
 }
 
-// Convenience: also accept POST with the same handler so curl -X POST works.
 export const POST = GET;

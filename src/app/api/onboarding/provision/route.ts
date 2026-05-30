@@ -1,15 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getFirestoreAdmin, getAuthAdmin } from "@/lib/firebase/admin";
-import { Timestamp } from "firebase-admin/firestore";
+import { createServiceClient } from "@/lib/supabase/server";
 
-/**
- * Provisions a new tenant from the onboarding wizard.
- * - Creates the tenant doc + subdomain mapping.
- * - Sets the founder's custom claim with role + tenantId.
- * - (Future) seeds starter cadences + templates and queues invite emails.
- *
- * This is a non-demo endpoint — demo onboarding finishes purely client-side.
- */
 export async function POST(request: NextRequest) {
   let body: {
     uid?: string;
@@ -32,31 +23,41 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Slug must be lowercase alphanumeric with dashes" }, { status: 400 });
   }
 
-  const db = getFirestoreAdmin();
-  const auth = getAuthAdmin();
+  const supabase = createServiceClient();
 
-  // Reject if slug already taken.
-  const slugSnap = await db.collection("subdomains").doc(slug).get();
-  if (slugSnap.exists) {
+  const { data: existingTenant } = await supabase
+    .from("tenants")
+    .select("id")
+    .eq("slug", slug)
+    .single();
+
+  if (existingTenant) {
     return NextResponse.json({ error: "That vanity URL is already taken" }, { status: 409 });
   }
 
-  const tenantRef = db.collection("tenants").doc();
-  const now = Timestamp.now();
+  const { data: tenant, error: tenantErr } = await supabase.from("tenants").insert({
+    name: firmName,
+    slug,
+    primary_color: primaryColor ?? "#1A5653",
+    plan: "trial",
+    seat_limit: seatLimit ?? 5,
+  }).select("id").single();
 
-  await Promise.all([
-    tenantRef.set({
-      name: firmName,
-      slug,
-      primaryColor: primaryColor ?? "#1A5653",
-      plan: "trial",
-      seatLimit: seatLimit ?? 5,
-      createdAt: now,
-    }),
-    db.collection("subdomains").doc(slug).set({ tenantId: tenantRef.id }),
-    auth.setCustomUserClaims(uid, { role: "manager", tenantId: tenantRef.id }),
-    db.collection("users").doc(uid).set({ tenantId: tenantRef.id }, { merge: true }),
-  ]);
+  if (tenantErr || !tenant) {
+    return NextResponse.json({ error: tenantErr?.message ?? "Failed to create tenant" }, { status: 500 });
+  }
 
-  return NextResponse.json({ tenantId: tenantRef.id, slug }, { status: 201 });
+  await supabase.auth.admin.updateUserById(uid, {
+    app_metadata: { role: "manager", tenant_id: tenant.id },
+  });
+
+  await supabase.from("users").upsert({
+    id: uid,
+    tenant_id: tenant.id,
+    email: "",
+    full_name: "",
+    role: "manager",
+  }, { onConflict: "id" });
+
+  return NextResponse.json({ tenantId: tenant.id, slug }, { status: 201 });
 }
