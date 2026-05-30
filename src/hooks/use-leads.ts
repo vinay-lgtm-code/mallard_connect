@@ -221,7 +221,7 @@ export function useAnalyticsSnapshots() {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<AnalyticsSnapshot[]>([]);
