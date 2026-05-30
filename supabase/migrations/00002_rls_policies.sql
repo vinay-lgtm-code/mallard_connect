@@ -2,19 +2,19 @@
 -- Supabase has "enforce RLS on all new tables" enabled at project level.
 
 -- ============================================================
--- RLS helper functions
+-- RLS helper functions (in public schema — auth schema is restricted)
 -- ============================================================
 
-CREATE OR REPLACE FUNCTION auth.tenant_id() RETURNS UUID AS $$
+CREATE OR REPLACE FUNCTION public.tenant_id() RETURNS UUID AS $$
   SELECT (auth.jwt() -> 'app_metadata' ->> 'tenant_id')::UUID;
-$$ LANGUAGE sql STABLE;
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION auth.is_manager() RETURNS BOOLEAN AS $$
+CREATE OR REPLACE FUNCTION public.is_manager() RETURNS BOOLEAN AS $$
   SELECT COALESCE(
     (auth.jwt() -> 'app_metadata' ->> 'role') IN ('manager', 'admin'),
     false
   );
-$$ LANGUAGE sql STABLE;
+$$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- ============================================================
 -- Enable RLS on all tables
@@ -39,16 +39,16 @@ ALTER TABLE import_records ENABLE ROW LEVEL SECURITY;
 -- ============================================================
 
 CREATE POLICY tenant_read ON tenants
-  FOR SELECT USING (id = auth.tenant_id() OR is_demo = true);
+  FOR SELECT USING (id = public.tenant_id() OR is_demo = true);
 CREATE POLICY tenant_update ON tenants
-  FOR UPDATE USING (id = auth.tenant_id() AND auth.is_manager());
+  FOR UPDATE USING (id = public.tenant_id() AND public.is_manager());
 
 -- ============================================================
 -- Users: read own tenant, update own profile
 -- ============================================================
 
 CREATE POLICY users_select ON users
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY users_update ON users
   FOR UPDATE USING (id = auth.uid());
 
@@ -57,139 +57,139 @@ CREATE POLICY users_update ON users
 -- ============================================================
 
 CREATE POLICY lead_sources_select ON lead_sources
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY lead_sources_insert ON lead_sources
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY lead_sources_update ON lead_sources
-  FOR UPDATE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR UPDATE USING (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY lead_sources_delete ON lead_sources
-  FOR DELETE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR DELETE USING (tenant_id = public.tenant_id() AND public.is_manager());
 
 -- ============================================================
 -- Pipeline stages: read all in tenant, managers can write
 -- ============================================================
 
 CREATE POLICY stages_select ON pipeline_stages
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY stages_insert ON pipeline_stages
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY stages_update ON pipeline_stages
-  FOR UPDATE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR UPDATE USING (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY stages_delete ON pipeline_stages
-  FOR DELETE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR DELETE USING (tenant_id = public.tenant_id() AND public.is_manager());
 
 -- ============================================================
 -- Leads: full CRUD for all tenant members
 -- ============================================================
 
 CREATE POLICY leads_select ON leads
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY leads_insert ON leads
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id());
 CREATE POLICY leads_update ON leads
-  FOR UPDATE USING (tenant_id = auth.tenant_id());
+  FOR UPDATE USING (tenant_id = public.tenant_id());
 CREATE POLICY leads_delete ON leads
-  FOR DELETE USING (tenant_id = auth.tenant_id());
+  FOR DELETE USING (tenant_id = public.tenant_id());
 
 -- ============================================================
 -- Activities: full CRUD for all tenant members
 -- ============================================================
 
 CREATE POLICY activities_select ON activities
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY activities_insert ON activities
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id());
 CREATE POLICY activities_update ON activities
-  FOR UPDATE USING (tenant_id = auth.tenant_id());
+  FOR UPDATE USING (tenant_id = public.tenant_id());
 CREATE POLICY activities_delete ON activities
-  FOR DELETE USING (tenant_id = auth.tenant_id());
+  FOR DELETE USING (tenant_id = public.tenant_id());
 
 -- ============================================================
 -- Tasks: full CRUD for all tenant members
 -- ============================================================
 
 CREATE POLICY tasks_select ON tasks
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY tasks_insert ON tasks
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id());
 CREATE POLICY tasks_update ON tasks
-  FOR UPDATE USING (tenant_id = auth.tenant_id());
+  FOR UPDATE USING (tenant_id = public.tenant_id());
 CREATE POLICY tasks_delete ON tasks
-  FOR DELETE USING (tenant_id = auth.tenant_id());
+  FOR DELETE USING (tenant_id = public.tenant_id());
 
 -- ============================================================
 -- Templates: read all in tenant, managers can write
 -- ============================================================
 
 CREATE POLICY templates_select ON templates
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY templates_insert ON templates
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY templates_update ON templates
-  FOR UPDATE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR UPDATE USING (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY templates_delete ON templates
-  FOR DELETE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR DELETE USING (tenant_id = public.tenant_id() AND public.is_manager());
 
 -- ============================================================
 -- Cadences: read all in tenant, managers can write
 -- ============================================================
 
 CREATE POLICY cadences_select ON cadences
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY cadences_insert ON cadences
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY cadences_update ON cadences
-  FOR UPDATE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR UPDATE USING (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY cadences_delete ON cadences
-  FOR DELETE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR DELETE USING (tenant_id = public.tenant_id() AND public.is_manager());
 
 -- ============================================================
 -- Cadence enrollments: full CRUD for all tenant members
 -- ============================================================
 
 CREATE POLICY enrollments_select ON cadence_enrollments
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY enrollments_insert ON cadence_enrollments
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id());
 CREATE POLICY enrollments_update ON cadence_enrollments
-  FOR UPDATE USING (tenant_id = auth.tenant_id());
+  FOR UPDATE USING (tenant_id = public.tenant_id());
 CREATE POLICY enrollments_delete ON cadence_enrollments
-  FOR DELETE USING (tenant_id = auth.tenant_id());
+  FOR DELETE USING (tenant_id = public.tenant_id());
 
 -- ============================================================
 -- Integrations: managers only
 -- ============================================================
 
 CREATE POLICY integrations_select ON integrations
-  FOR SELECT USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR SELECT USING (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY integrations_insert ON integrations
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY integrations_update ON integrations
-  FOR UPDATE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR UPDATE USING (tenant_id = public.tenant_id() AND public.is_manager());
 CREATE POLICY integrations_delete ON integrations
-  FOR DELETE USING (tenant_id = auth.tenant_id() AND auth.is_manager());
+  FOR DELETE USING (tenant_id = public.tenant_id() AND public.is_manager());
 
 -- ============================================================
 -- Notifications: user can read/update own, insert by tenant
 -- ============================================================
 
 CREATE POLICY notifications_select ON notifications
-  FOR SELECT USING (tenant_id = auth.tenant_id() AND user_id = auth.uid());
+  FOR SELECT USING (tenant_id = public.tenant_id() AND user_id = auth.uid());
 CREATE POLICY notifications_update ON notifications
-  FOR UPDATE USING (tenant_id = auth.tenant_id() AND user_id = auth.uid());
+  FOR UPDATE USING (tenant_id = public.tenant_id() AND user_id = auth.uid());
 CREATE POLICY notifications_insert ON notifications
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id());
 
 -- ============================================================
 -- Import records: full CRUD for all tenant members
 -- ============================================================
 
 CREATE POLICY imports_select ON import_records
-  FOR SELECT USING (tenant_id = auth.tenant_id());
+  FOR SELECT USING (tenant_id = public.tenant_id());
 CREATE POLICY imports_insert ON import_records
-  FOR INSERT WITH CHECK (tenant_id = auth.tenant_id());
+  FOR INSERT WITH CHECK (tenant_id = public.tenant_id());
 CREATE POLICY imports_update ON import_records
-  FOR UPDATE USING (tenant_id = auth.tenant_id());
+  FOR UPDATE USING (tenant_id = public.tenant_id());
 
 -- ============================================================
 -- Demo access: unauthenticated users can read demo tenant data
