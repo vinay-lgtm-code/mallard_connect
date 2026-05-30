@@ -241,24 +241,36 @@ export default function PipelinePage() {
   // fetches expected_days / amber_pct from pipeline_stages. We also keep a slug -> uuid
   // map so stage-change history can record the real stage_id when available.
   const [ragConfig, setRagConfig] = useState<StageRagConfigMap>(DEMO_STAGE_RAG_CONFIG);
-  const [stageIdBySlug, setStageIdBySlug] = useState<Record<string, string>>({});
+  // idBySlug: slug -> uuid (used to write the real FK on drag and record history).
+  // slugById: uuid -> slug (used to normalize a lead's stored current_stage_id back
+  // to a slug for column grouping). terminalSlugs: slugs whose stage is_terminal.
+  // In demo mode these stay empty, so grouping falls back to slug-only (no regression).
+  const [idBySlug, setIdBySlug] = useState<Record<string, string>>({});
+  const [slugById, setSlugById] = useState<Record<string, string>>({});
+  const [terminalSlugs, setTerminalSlugs] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (demo || !supabase || !user?.tenantId) return;
     supabase
       .from("pipeline_stages")
-      .select("id, slug, expected_days, amber_pct")
+      .select("id, slug, expected_days, amber_pct, is_terminal")
       .eq("tenant_id", user.tenantId)
       .then(({ data }) => {
         if (!data) return;
         const config: StageRagConfigMap = {};
-        const ids: Record<string, string> = {};
-        for (const row of data as Array<{ id: string; slug: string; expected_days: number | null; amber_pct: number | null }>) {
+        const bySlug: Record<string, string> = {};
+        const byId: Record<string, string> = {};
+        const terminals = new Set<string>();
+        for (const row of data as Array<{ id: string; slug: string; expected_days: number | null; amber_pct: number | null; is_terminal: boolean }>) {
           config[row.slug] = { expectedDays: row.expected_days, amberPct: row.amber_pct ?? 75 };
-          ids[row.slug] = row.id;
+          bySlug[row.slug] = row.id;
+          byId[row.id] = row.slug;
+          if (row.is_terminal) terminals.add(row.slug);
         }
         setRagConfig(config);
-        setStageIdBySlug(ids);
+        setIdBySlug(bySlug);
+        setSlugById(byId);
+        setTerminalSlugs(terminals);
       });
   }, [demo, supabase, user?.tenantId]);
 
@@ -282,12 +294,20 @@ export default function PipelinePage() {
     const stageName = STAGES.find((s) => s.id === destination.droppableId)?.name ?? destination.droppableId;
 
     // Optimistically update local state. Reset the stage-entered clock so the card
-    // immediately shows "Today" / green in its new column.
+    // immediately shows "Today" / green in its new column. When we know the real
+    // stage UUID, store that (matches what we'll write); grouping normalizes it back
+    // to the slug.
     const nowIso = new Date().toISOString();
+    const destSlug = destination.droppableId;
+    const optimisticStageId = idBySlug[destSlug] ?? destSlug;
     setLocalLeads(
       (baseLeads).map((lead) =>
         lead.id === draggableId
-          ? { ...lead, currentStageId: destination.droppableId, currentStageEnteredAt: nowIso }
+          ? {
+              ...lead,
+              currentStageId: optimisticStageId,
+              currentStageEnteredAt: nowIso,
+            }
           : lead
       )
     );
@@ -308,16 +328,22 @@ export default function PipelinePage() {
     try {
       if (supabase) {
         const nowIso = new Date().toISOString();
-        // Resolve the real stage UUID from the slug when we have it (history.stage_id
-        // is a FK to pipeline_stages); fall back to slug-only history otherwise.
-        const stageUuid = stageIdBySlug[toStageId] ?? null;
+        // Resolve the real stage UUID from the slug when we have it (current_stage_id
+        // and history.stage_id are FKs to pipeline_stages). In real Supabase mode we
+        // write the UUID; in demo mode (no map) we keep the slug. history.stage_slug
+        // is always set.
+        const stageUuid = idBySlug[toStageId] ?? null;
 
         // Move the lead and reset its stage-entered clock.
-        await supabase.from("leads").update({
-          current_stage_id: toStageId,
-          current_stage_entered_at: nowIso,
-          updated_at: nowIso,
-        }).eq("id", leadId);
+        await supabase
+          .from("leads")
+          .update({
+            current_stage_id: stageUuid ?? toStageId,
+            current_stage_entered_at: nowIso,
+            updated_at: nowIso,
+          })
+          .eq("id", leadId)
+          .eq("tenant_id", user.tenantId);
 
         // Close the previous open stage-history row for this lead.
         await supabase
@@ -359,7 +385,16 @@ export default function PipelinePage() {
     setPendingDrag(null);
   }
 
-  const leadsByStage = (stageId: string) => visibleLeads.filter((l) => l.currentStageId === stageId);
+  // Resolve a lead's stored current_stage_id to a column slug. Real Supabase leads
+  // store a UUID FK; if that UUID is in slugById, map it to its slug. Demo leads (and
+  // any value that isn't a known UUID) are already slugs, so use them as-is.
+  const stageSlugOf = (currentStageId: string | null | undefined): string | null => {
+    if (!currentStageId) return null;
+    return slugById[currentStageId] ?? currentStageId;
+  };
+
+  const leadsByStage = (stageId: string) =>
+    visibleLeads.filter((l) => stageSlugOf(l.currentStageId) === stageId);
 
   return (
     <>
