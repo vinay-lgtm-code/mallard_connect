@@ -14,6 +14,8 @@ export default function SignUpPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const [confirmSent, setConfirmSent] = useState(false);
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -31,13 +33,19 @@ export default function SignUpPage() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const { error: authErr } = await supabase.auth.signUp({
+      const { data, error: authErr } = await supabase.auth.signUp({
         email,
         password,
         options: { data: { full_name: fullName } },
       });
       if (authErr) throw authErr;
-      router.push("/dashboard");
+
+      if (!data.session && data.user?.identities?.length === 0) {
+        setConfirmSent(true);
+        return;
+      }
+
+      router.push("/onboarding");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
       if (msg.includes("already registered")) {
@@ -50,6 +58,29 @@ export default function SignUpPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  if (confirmSent) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-[12px] shadow-lg w-full max-w-md p-8 text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary/10 mb-4">
+            <svg viewBox="0 0 24 24" className="w-8 h-8 text-primary" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
+          <p className="text-sm text-gray-500">
+            We sent a confirmation link to <strong className="text-gray-900">{email}</strong>.
+            Click the link to activate your account.
+          </p>
+          <Link href="/login" className="inline-block mt-6 text-sm text-primary font-medium hover:underline">
+            Back to sign in
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (

@@ -2,8 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight } from "lucide-react";
-import { readOnboarding, writeOnboarding } from "@/lib/onboarding/state";
+import { createClient } from "@/lib/supabase/client";
+import { readOnboarding, writeOnboarding, clearOnboarding } from "@/lib/onboarding/state";
 
 const COLORS = ["#1A5653", "#0F172A", "#7C3AED", "#0369A1", "#B45309", "#BE185D"];
 
@@ -16,12 +16,14 @@ function slugify(s: string) {
     .replace(/-+/g, "-");
 }
 
-export default function OnboardingFirmDetailsPage() {
+export default function OnboardingPage() {
   const router = useRouter();
   const [firmName, setFirmName] = useState("");
   const [slug, setSlug] = useState("");
   const [primaryColor, setPrimaryColor] = useState(COLORS[0]);
   const [slugTouched, setSlugTouched] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const s = readOnboarding();
@@ -37,21 +39,69 @@ export default function OnboardingFirmDetailsPage() {
     if (!slugTouched) setSlug(slugify(firmName));
   }, [firmName, slugTouched]);
 
-  function handleNext(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
+    setLoading(true);
+
     writeOnboarding({ firmName, slug, primaryColor });
-    router.push("/onboarding/invite");
+
+    try {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user) {
+        router.push("/login");
+        return;
+      }
+
+      const res = await fetch("/api/onboarding/provision", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.id,
+          firmName,
+          slug,
+          primaryColor,
+        }),
+      });
+
+      if (!res.ok) {
+        const body = await res.json();
+        if (res.status === 409) {
+          setError("That vanity URL is already taken. Try a different one.");
+        } else {
+          setError(body.error ?? "Something went wrong. Please try again.");
+        }
+        return;
+      }
+
+      await supabase.auth.refreshSession();
+      clearOnboarding();
+      router.push("/dashboard");
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
-    <form onSubmit={handleNext} className="bg-white border border-gray-100 rounded-[16px] p-8">
+    <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-[16px] p-8">
       <div className="mb-6">
-        <p className="text-xs font-semibold text-primary mb-1">Step 1 of 5</p>
-        <h1 className="text-2xl font-bold text-gray-900">Tell us about your firm</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Set up your workspace</h1>
         <p className="mt-1 text-sm text-gray-500">
-          We&apos;ll use these to set up your tenant. You can change them later.
+          Tell us about your firm. You can change these later in Settings.
         </p>
       </div>
+
+      {error && (
+        <div className="mb-5 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          {error}
+        </div>
+      )}
 
       <div className="space-y-5">
         <div>
@@ -89,7 +139,8 @@ export default function OnboardingFirmDetailsPage() {
             </span>
           </div>
           <p className="mt-1.5 text-xs text-gray-500">
-            Your team will sign in at <span className="font-mono">{slug || "your-firm"}.sequence-ai.com</span>.
+            Your team will sign in at{" "}
+            <span className="font-mono">{slug || "your-firm"}.sequence-ai.com</span>.
           </p>
         </div>
 
@@ -115,17 +166,24 @@ export default function OnboardingFirmDetailsPage() {
 
         <div className="rounded-lg bg-gray-50 border border-gray-100 px-4 py-3 text-xs text-gray-600">
           <strong className="text-gray-900">Logo upload</strong> — optional, you can drop in a SVG or
-          PNG later from Settings → Firm.
+          PNG later from Settings.
         </div>
       </div>
 
       <div className="mt-8 flex justify-end">
         <button
           type="submit"
-          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-dark"
+          disabled={loading}
+          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed"
         >
-          Continue
-          <ChevronRight size={14} />
+          {loading ? (
+            <>
+              <span className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              Creating workspace…
+            </>
+          ) : (
+            "Create my workspace"
+          )}
         </button>
       </div>
     </form>

@@ -21,7 +21,14 @@ export default function LoginPage() {
       const supabase = createClient();
       const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
       if (authErr) throw authErr;
-      router.push("/dashboard");
+
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user?.app_metadata?.tenant_id) {
+        const params = new URLSearchParams(window.location.search);
+        router.push(params.get("redirect") ?? "/dashboard");
+      } else {
+        router.push("/onboarding");
+      }
     } catch {
       setError("Invalid email or password. Please try again.");
     } finally {

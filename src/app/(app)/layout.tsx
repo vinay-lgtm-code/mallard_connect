@@ -63,16 +63,19 @@ function getInitials(name: string) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { user, loading } = useAuth();
+  const { user, loading, needsOnboarding } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [userMenuOpen, setUserMenuOpen] = useState(false);
 
   useEffect(() => {
-    if (!loading && !user) {
+    if (loading) return;
+    if (!user) {
       router.push("/login");
+    } else if (needsOnboarding) {
+      router.push("/onboarding");
     }
-  }, [user, loading, router]);
+  }, [user, loading, needsOnboarding, router]);
 
   if (loading || !user) {
     return (

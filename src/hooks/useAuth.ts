@@ -187,5 +187,7 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, [refreshDemoUser]);
 
-  return { user, tenant, loading };
+  const needsOnboarding = !loading && !!user && !user.tenantId;
+
+  return { user, tenant, loading, needsOnboarding };
 }
