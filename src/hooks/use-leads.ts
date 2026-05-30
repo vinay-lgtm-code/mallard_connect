@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
+import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser, getMockLeads, getMockActivities, getMockTasks, getMockUsers } from "@/lib/mock-data";
 import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
 import type { Lead, Activity, Task, User } from "@/types";
@@ -17,7 +17,7 @@ export function useLeads(filters?: LeadFilters) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Lead & { id: string })[]>([]);
@@ -59,7 +59,7 @@ export function useLead(leadId: string) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Lead & { id: string }) | null>(null);
@@ -95,7 +95,7 @@ export function useLeadActivities(leadId: string) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Activity & { id: string })[]>([]);
@@ -129,7 +129,7 @@ export function useLeadTasks(leadId: string) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Task & { id: string })[]>([]);
@@ -163,7 +163,7 @@ export function useRecentActivities(maxItems = 10) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Activity & { id: string })[]>([]);
@@ -256,7 +256,7 @@ export function useTenantUsers() {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(User & { id: string })[]>([]);

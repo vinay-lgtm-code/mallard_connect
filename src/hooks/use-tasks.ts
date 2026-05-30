@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
+import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser, getMockTasks } from "@/lib/mock-data";
 import { rowsToApp } from "@/lib/supabase/mappers";
 import type { Task } from "@/types";
@@ -17,7 +17,7 @@ export function useTasks(filters?: TaskFilters) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Task & { id: string })[]>([]);
@@ -62,7 +62,7 @@ export function useOverdueTasks(userId: string) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Task & { id: string })[]>([]);
@@ -108,7 +108,7 @@ export function useTodayTasks(userId: string) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Task & { id: string })[]>([]);

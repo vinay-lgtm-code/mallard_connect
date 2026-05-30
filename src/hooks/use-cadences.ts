@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
+import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser, getMockCadences, getMockEnrollments } from "@/lib/mock-data";
 import { rowsToApp } from "@/lib/supabase/mappers";
 import type { Cadence, CadenceEnrollment } from "@/types";
@@ -11,7 +11,7 @@ export function useCadences() {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(Cadence & { id: string })[]>([]);
@@ -43,7 +43,7 @@ export function useCadenceEnrollments(cadenceId?: string) {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isSupabaseConfigured;
+  const useMock = demo;
   const tenantId = user?.tenantId;
 
   const [data, setData] = useState<(CadenceEnrollment & { id: string })[]>([]);

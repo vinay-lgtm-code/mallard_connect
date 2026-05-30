@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { seedTenantCadencesAndTemplates } from "@/lib/cadences/seed-tenant";
 
 const DEFAULT_STAGES = [
   { name: "New Enquiry", slug: "new_enquiry", position: 0, color: "#6366f1", is_terminal: false },
@@ -97,6 +98,12 @@ export async function POST(request: NextRequest) {
   await supabase
     .from("lead_sources")
     .insert(DEFAULT_SOURCES.map((s) => ({ ...s, tenant_id: tenant.id })));
+
+  try {
+    await seedTenantCadencesAndTemplates(supabase, tenant.id);
+  } catch (e) {
+    console.error("Cadence seed failed (non-blocking):", e);
+  }
 
   return NextResponse.json({ tenantId: tenant.id, slug }, { status: 201 });
 }

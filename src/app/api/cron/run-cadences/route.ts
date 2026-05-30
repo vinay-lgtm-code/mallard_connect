@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendReminderEmail } from "@/lib/email/client";
+import { runDueCadenceSteps } from "@/lib/cadences/run";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
 
@@ -17,6 +18,7 @@ export async function GET(request: NextRequest) {
     }
   }
 
+  // ── 1. Task reminders ────────────────────────────────────────────────
   const supabase = createServiceClient();
   const now = new Date().toISOString();
 
@@ -32,8 +34,8 @@ export async function GET(request: NextRequest) {
   }
 
   let sent = 0;
-  let errors = 0;
-  const log: { taskId: string; recipients: string[]; ok: boolean; error?: string }[] = [];
+  let reminderErrors = 0;
+  const reminderLog: { taskId: string; recipients: string[]; ok: boolean; error?: string }[] = [];
 
   for (const task of tasks ?? []) {
     const reminderEmails = Array.isArray(task.reminder_emails)
@@ -65,15 +67,27 @@ export async function GET(request: NextRequest) {
       await supabase.from("tasks").update({ reminder_sent: true }).eq("id", task.id);
 
       sent++;
-      log.push({ taskId: task.id, recipients: reminderEmails, ok: true });
+      reminderLog.push({ taskId: task.id, recipients: reminderEmails, ok: true });
     } catch (err) {
-      errors++;
+      reminderErrors++;
       const msg = err instanceof Error ? err.message : String(err);
-      log.push({ taskId: task.id, recipients: reminderEmails, ok: false, error: msg });
+      reminderLog.push({ taskId: task.id, recipients: reminderEmails, ok: false, error: msg });
     }
   }
 
-  return NextResponse.json({ sent, errors, totalDue: (tasks ?? []).length, log });
+  // ── 2. Cadence steps ─────────────────────────────────────────────────
+  let cadenceResult = { processed: 0, errors: 0, log: [] as unknown[] };
+  try {
+    cadenceResult = await runDueCadenceSteps();
+  } catch (err) {
+    cadenceResult.errors = 1;
+    cadenceResult.log = [{ error: err instanceof Error ? err.message : String(err) }];
+  }
+
+  return NextResponse.json({
+    reminders: { sent, errors: reminderErrors, totalDue: (tasks ?? []).length, log: reminderLog },
+    cadences: cadenceResult,
+  });
 }
 
 export const POST = GET;
