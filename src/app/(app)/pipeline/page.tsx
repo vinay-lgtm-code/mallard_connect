@@ -296,10 +296,12 @@ export default function PipelinePage() {
     // Optimistically update local state. Reset the stage-entered clock so the card
     // immediately shows "Today" / green in its new column. When we know the real
     // stage UUID, store that (matches what we'll write); grouping normalizes it back
-    // to the slug.
+    // to the slug. Moving to a terminal stage also closes the lead, so reflect
+    // status=converted optimistically.
     const nowIso = new Date().toISOString();
     const destSlug = destination.droppableId;
     const optimisticStageId = idBySlug[destSlug] ?? destSlug;
+    const isTerminal = terminalSlugs.has(destSlug);
     setLocalLeads(
       (baseLeads).map((lead) =>
         lead.id === draggableId
@@ -307,6 +309,9 @@ export default function PipelinePage() {
               ...lead,
               currentStageId: optimisticStageId,
               currentStageEnteredAt: nowIso,
+              ...(isTerminal
+                ? { status: "converted" as Lead["status"], convertedAt: nowIso }
+                : {}),
             }
           : lead
       )
@@ -333,15 +338,24 @@ export default function PipelinePage() {
         // write the UUID; in demo mode (no map) we keep the slug. history.stage_slug
         // is always set.
         const stageUuid = idBySlug[toStageId] ?? null;
+        const isTerminal = terminalSlugs.has(toStageId);
 
-        // Move the lead and reset its stage-entered clock.
+        // Move the lead and reset its stage-entered clock. A terminal stage closes
+        // the lead: set status=converted + converted_at so the BEFORE UPDATE trigger
+        // (capture_confidence_at_close) fires and records confidence_at_close /
+        // closed_outcome. Non-terminal moves leave status untouched.
+        const leadUpdate: Record<string, unknown> = {
+          current_stage_id: stageUuid ?? toStageId,
+          current_stage_entered_at: nowIso,
+          updated_at: nowIso,
+        };
+        if (isTerminal) {
+          leadUpdate.status = "converted";
+          leadUpdate.converted_at = nowIso;
+        }
         await supabase
           .from("leads")
-          .update({
-            current_stage_id: stageUuid ?? toStageId,
-            current_stage_entered_at: nowIso,
-            updated_at: nowIso,
-          })
+          .update(leadUpdate)
           .eq("id", leadId)
           .eq("tenant_id", user.tenantId);
 
