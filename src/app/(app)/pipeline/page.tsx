@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   DragDropContext,
@@ -8,7 +8,7 @@ import {
   Draggable,
   type DropResult,
 } from "@hello-pangea/dnd";
-import { useLeads } from "@/hooks/use-leads";
+import { useLeads, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { getInitials, formatCurrency } from "@/lib/utils";
@@ -46,11 +46,12 @@ interface LeadCardProps {
   lead: Lead;
   index: number;
   isOverdue?: boolean;
+  adviserName?: string;
 }
 
-function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
+function LeadCard({ lead, index, isOverdue, adviserName }: LeadCardProps) {
   const mortgageLabel = lead.mortgageType ? MORTGAGE_TYPE_LABELS[lead.mortgageType] : null;
-  const initials = getInitials(`${lead.firstName} ${lead.lastName}`);
+  const adviserInitials = adviserName ? getInitials(adviserName) : null;
 
   return (
     <Draggable draggableId={lead.id} index={index}>
@@ -84,9 +85,23 @@ function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
                 {mortgageLabel}
               </span>
             )}
-            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center ml-auto flex-shrink-0">
-              <span className="text-white text-[10px] font-bold">{initials}</span>
-            </div>
+            {adviserInitials ? (
+              <div
+                className="w-6 h-6 rounded-full bg-primary flex items-center justify-center ml-auto flex-shrink-0"
+                title={`Assigned to ${adviserName}`}
+                aria-label={`Assigned to ${adviserName}`}
+              >
+                <span className="text-white text-[10px] font-bold">{adviserInitials}</span>
+              </div>
+            ) : (
+              <div
+                className="w-6 h-6 rounded-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center ml-auto flex-shrink-0"
+                title="Unassigned"
+                aria-label="Unassigned"
+              >
+                <span className="text-gray-400 text-[10px] font-bold">?</span>
+              </div>
+            )}
           </div>
 
           {lead.dealValue != null && (
@@ -159,6 +174,15 @@ export default function PipelinePage() {
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
   const { leads: firestoreLeads, loading } = useLeads();
+  const { users } = useTenantUsers();
+
+  const adviserNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of users) {
+      map[u.id] = u.fullName;
+    }
+    return map;
+  }, [users]);
   // Local state for optimistic UI during drag
   const [localLeads, setLocalLeads] = useState<Lead[] | null>(null);
   const [pendingDrag, setPendingDrag] = useState<{
@@ -295,7 +319,12 @@ export default function PipelinePage() {
                           }`}
                         >
                           {stageLeads.map((lead, index) => (
-                            <LeadCard key={lead.id} lead={lead} index={index} />
+                            <LeadCard
+                              key={lead.id}
+                              lead={lead}
+                              index={index}
+                              adviserName={lead.assignedTo ? adviserNameById[lead.assignedTo] : undefined}
+                            />
                           ))}
                           {provided.placeholder}
                         </div>
