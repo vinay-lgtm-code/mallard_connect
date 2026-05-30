@@ -7,6 +7,7 @@ import { useLeads } from "@/hooks/use-leads";
 import { useTenantUsers, useAnalyticsSnapshots } from "@/hooks/use-leads";
 import { ExportButton } from "@/components/export-button";
 import type { Lead, User } from "@/types";
+import { periodMonthFor, monthBoundsUTC } from "@/lib/analytics/compute";
 import { TrendingUp, Users, Clock, Target } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -47,12 +48,8 @@ function toDate(ts: unknown): Date | null {
   return null;
 }
 
-function getMonthKey(date: Date): string {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
 function getMonthLabel(date: Date): string {
-  return date.toLocaleString("default", { month: "short", year: "2-digit" });
+  return date.toLocaleString("default", { month: "short", year: "2-digit", timeZone: "UTC" });
 }
 
 // ─── KPI Card ─────────────────────────────────────────────────────────────────
@@ -121,22 +118,54 @@ function HorizontalBar({
 
 // ─── Monthly Trend ────────────────────────────────────────────────────────────
 
-function MonthlyTrend({ trend }: { trend: { month: string; count: number; snapshotted: boolean }[] }) {
+type TrendSource = "snapshot" | "live-estimate" | "live-current";
+
+interface TrendPoint {
+  month: string;
+  count: number;
+  source: TrendSource;
+}
+
+function MonthlyTrend({ trend }: { trend: TrendPoint[] }) {
   const maxCount = Math.max(...trend.map((t) => t.count), 1);
   return (
     <div className="flex items-end gap-3 h-32">
       {trend.map((item) => {
         const heightPct = (item.count / maxCount) * 100;
+        // Visual language:
+        //   snapshot      -> solid faded fill (a frozen, recorded figure)
+        //   live-estimate -> outlined + hatched fill (a best-effort reconstruction)
+        //   live-current  -> solid full-strength fill (current month, still changing)
+        const isEstimate = item.source === "live-estimate";
+        const barClass =
+          item.source === "snapshot"
+            ? "bg-primary/60"
+            : item.source === "live-current"
+              ? "bg-primary"
+              : "border border-primary/50 bg-transparent";
+        const tooltip =
+          item.source === "snapshot"
+            ? `${item.month}: ${item.count} (recorded snapshot)`
+            : item.source === "live-current"
+              ? `${item.month}: ${item.count} (current month, live)`
+              : `${item.month}: ${item.count} (live estimate — no snapshot recorded for this month)`;
         return (
           <div key={item.month} className="flex-1 flex flex-col items-center gap-1.5">
             <span className="text-xs font-semibold text-gray-600">{item.count > 0 ? item.count : ""}</span>
             <div className="w-full flex items-end" style={{ height: "80px" }}>
               <div
-                className={`w-full rounded-t-md transition-all duration-500 ${
-                  item.snapshotted ? "bg-primary/60" : "bg-primary"
-                }`}
-                style={{ height: `${Math.max(heightPct, 4)}%` }}
-                title={`${item.month}: ${item.count}${item.snapshotted ? " (snapshot)" : ""}`}
+                className={`w-full rounded-t-md transition-all duration-500 ${barClass}`}
+                style={{
+                  height: `${Math.max(heightPct, 4)}%`,
+                  ...(isEstimate
+                    ? {
+                        backgroundImage:
+                          "repeating-linear-gradient(45deg, var(--color-primary,#6366f1) 0, var(--color-primary,#6366f1) 2px, transparent 2px, transparent 5px)",
+                        opacity: 0.55,
+                      }
+                    : {}),
+                }}
+                title={tooltip}
               />
             </div>
             <span className="text-xs text-gray-400 text-center leading-tight">{item.month}</span>
@@ -321,7 +350,7 @@ export default function ReportsPage() {
         avgDaysInPipeline: 0,
         leadsBySource: {} as Record<string, number>,
         stageData: [] as StageCount[],
-        monthlyTrend: [] as { month: string; count: number; snapshotted: boolean }[],
+        monthlyTrend: [] as TrendPoint[],
       };
     }
 
@@ -368,23 +397,35 @@ export default function ReportsPage() {
       }
     }
 
-    // Monthly trend — last 6 months. PAST months read snapshotted intake when
-    // a snapshot exists; the current month (i === 0) is always computed live.
+    // Monthly trend — last 6 months. Month bucketing is UTC throughout (the
+    // snapshot cron keys periods by UTC first-of-month), so the snapshot lookup
+    // key and the live-count bucket always agree.
+    //
+    // PAST months prefer a recorded snapshot ("snapshot"); if none exists they
+    // fall back to a live recompute and are flagged "live-estimate" so the UI
+    // never presents a reconstructed number as a recorded one. The current
+    // month is always live ("live-current").
     const nowDate = new Date();
-    const monthlyTrend: { month: string; count: number; snapshotted: boolean }[] = [];
+    const monthlyTrend: TrendPoint[] = [];
     for (let i = 5; i >= 0; i--) {
-      const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
-      const key = getMonthKey(d);
+      const d = new Date(Date.UTC(nowDate.getUTCFullYear(), nowDate.getUTCMonth() - i, 1));
       const label = getMonthLabel(d);
-      const utcKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+      const utcKey = periodMonthFor(d); // YYYY-MM-DD (UTC, first of month)
+      const { start, end } = monthBoundsUTC(d);
       const snapshotCount = i > 0 ? snapshotIntakeByMonth[utcKey] : undefined;
       const liveCount = leads.filter((lead) => {
         const created = toDate(lead.createdAt);
         if (!created) return false;
-        return getMonthKey(created) === key;
+        const t = created.getTime();
+        return t >= start.getTime() && t < end.getTime();
       }).length;
-      const snapshotted = typeof snapshotCount === "number";
-      monthlyTrend.push({ month: label, count: snapshotted ? snapshotCount! : liveCount, snapshotted });
+      const source: TrendSource =
+        i === 0 ? "live-current" : typeof snapshotCount === "number" ? "snapshot" : "live-estimate";
+      monthlyTrend.push({
+        month: label,
+        count: source === "snapshot" ? snapshotCount! : liveCount,
+        source,
+      });
     }
 
     return { totalLeads, conversionRate, avgDaysInPipeline, leadsBySource, stageData, monthlyTrend };
@@ -452,7 +493,8 @@ export default function ReportsPage() {
         <div>
           <h1 className="text-lg font-bold text-gray-900">Reports</h1>
           <p className="text-sm text-gray-500 mt-0.5">
-            Live data for the current period. Past months use nightly snapshots.
+            KPI cards, the pipeline funnel and the leaderboard reflect current data. Only the
+            historical lead-intake trend uses nightly snapshots.
           </p>
         </div>
         <ExportButton
@@ -525,9 +567,30 @@ export default function ReportsPage() {
               ) : (
                 <p className="text-sm text-gray-400 text-center py-4">No data.</p>
               )}
-              <p className="text-[11px] text-gray-400 mt-4 leading-snug">
-                Historical figures are snapshotted nightly (shown in a lighter shade). The current
-                month is computed live and will keep changing until month-end.
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-500 leading-snug">
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-primary/60" />
+                  Recorded snapshot
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className="inline-block w-3 h-3 rounded-sm border border-primary/50"
+                    style={{
+                      backgroundImage:
+                        "repeating-linear-gradient(45deg, var(--color-primary,#6366f1) 0, var(--color-primary,#6366f1) 2px, transparent 2px, transparent 5px)",
+                      opacity: 0.55,
+                    }}
+                  />
+                  Live estimate (no snapshot)
+                </span>
+                <span className="inline-flex items-center gap-1.5">
+                  <span className="inline-block w-3 h-3 rounded-sm bg-primary" />
+                  Current month (live)
+                </span>
+              </div>
+              <p className="text-[11px] text-gray-400 mt-2 leading-snug">
+                Hatched bars are reconstructed from today&apos;s leads because no nightly snapshot was
+                recorded for that month yet — treat them as estimates, not recorded figures.
               </p>
             </div>
           </div>

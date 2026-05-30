@@ -70,6 +70,21 @@ export function previousMonth(date: Date): Date {
   return new Date(Date.UTC(y, m - 1, 1, 0, 0, 0, 0));
 }
 
+/**
+ * UTC first-of-month dates for the `count` months ending `count - 1` months
+ * before the one containing `date`, in chronological order. With count = 6 and
+ * a date in June, this returns Jan..Jun (first-of-month, UTC).
+ */
+export function trailingMonths(date: Date, count: number): Date[] {
+  const y = date.getUTCFullYear();
+  const m = date.getUTCMonth();
+  const out: Date[] = [];
+  for (let i = count - 1; i >= 0; i--) {
+    out.push(new Date(Date.UTC(y, m - i, 1, 0, 0, 0, 0)));
+  }
+  return out;
+}
+
 function inPeriod(ts: string | null, start: Date, end: Date): boolean {
   if (!ts) return false;
   const t = new Date(ts).getTime();

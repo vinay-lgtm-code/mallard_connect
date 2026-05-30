@@ -4,6 +4,7 @@ import {
   computeSnapshotMetrics,
   periodMonthFor,
   previousMonth,
+  trailingMonths,
   type SnapshotLead,
 } from "@/lib/analytics/compute";
 
@@ -18,6 +19,9 @@ import {
 
 const TENANT_PAGE_SIZE = 1000;
 const LEAD_PAGE_SIZE = 1000;
+// How many trailing months to seed best-effort snapshots for when no recorded
+// snapshot row exists yet (so /reports has history going forward).
+const BACKFILL_MONTHS = 6;
 
 function authorized(request: NextRequest): boolean {
   const auth = request.headers.get("authorization");
@@ -57,8 +61,15 @@ export async function GET(request: NextRequest) {
   }
 
   let snapshotted = 0;
+  let backfilled = 0;
   let failed = 0;
-  const log: { tenantId: string; ok: boolean; createdLeadCount?: number; error?: string }[] = [];
+  const log: {
+    tenantId: string;
+    ok: boolean;
+    createdLeadCount?: number;
+    backfilledMonths?: string[];
+    error?: string;
+  }[] = [];
 
   for (const tenantId of tenantIds) {
     try {
@@ -87,7 +98,47 @@ export async function GET(request: NextRequest) {
       if (upsertErr) throw upsertErr;
 
       snapshotted++;
-      log.push({ tenantId, ok: true, createdLeadCount: metrics.createdLeadCount });
+
+      // Best-effort backfill: seed snapshots for any of the trailing
+      // BACKFILL_MONTHS that have no recorded row yet, using the CURRENT leads.
+      // These are reconstructions, not point-in-time recordings, but they give
+      // /reports real history going forward instead of silent live recomputes.
+      // The primary period (just upserted) is skipped.
+      const backfillDates = trailingMonths(now, BACKFILL_MONTHS).filter(
+        (d) => periodMonthFor(d) !== periodMonth
+      );
+      const candidateKeys = backfillDates.map((d) => periodMonthFor(d));
+
+      const { data: existing, error: existErr } = await supabase
+        .from("analytics_snapshots")
+        .select("period_month")
+        .eq("tenant_id", tenantId)
+        .in("period_month", candidateKeys);
+      if (existErr) throw existErr;
+      const have = new Set((existing ?? []).map((r) => String(r.period_month).slice(0, 10)));
+
+      const backfilledKeys: string[] = [];
+      for (const d of backfillDates) {
+        const key = periodMonthFor(d);
+        if (have.has(key)) continue;
+        const monthMetrics = computeSnapshotMetrics(leads, d);
+        const { error: bfErr } = await supabase
+          .from("analytics_snapshots")
+          .upsert(
+            { tenant_id: tenantId, period_month: key, metrics: monthMetrics },
+            { onConflict: "tenant_id,period_month" }
+          );
+        if (bfErr) throw bfErr;
+        backfilledKeys.push(key);
+        backfilled++;
+      }
+
+      log.push({
+        tenantId,
+        ok: true,
+        createdLeadCount: metrics.createdLeadCount,
+        ...(backfilledKeys.length ? { backfilledMonths: backfilledKeys } : {}),
+      });
     } catch (err) {
       failed++;
       const msg = err instanceof Error ? err.message : String(err);
@@ -100,6 +151,7 @@ export async function GET(request: NextRequest) {
     periodMonth,
     tenants: tenantIds.length,
     snapshotted,
+    backfilled,
     failed,
     log,
   });
