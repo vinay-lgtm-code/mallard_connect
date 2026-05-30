@@ -1,12 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
-import { orderBy, where, Timestamp, type QueryConstraint } from "firebase/firestore";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
 import { isDemoUser, getMockTasks } from "@/lib/mock-data";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
-import { tasksPath } from "@/lib/firebase/paths";
 import type { Task } from "@/types";
 
 interface TaskFilters {
@@ -15,32 +12,40 @@ interface TaskFilters {
   dueDate?: string;
 }
 
-function pathFor(tenantId: string | undefined, demo: boolean): string {
-  return tenantId ? tasksPath(tenantId, demo) : "__skip__";
-}
-
 export function useTasks(filters?: TaskFilters) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isFirebaseConfigured;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
 
-  const constraints: QueryConstraint[] = [];
-  if (!useMock) {
-    if (filters?.assignedTo) constraints.push(where("assignedTo", "==", filters.assignedTo));
-    if (filters?.status) constraints.push(where("status", "==", filters.status));
+  const [data, setData] = useState<(Task & { id: string })[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
+
+    let query = supabase
+      .from("tasks")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("due_date", { ascending: true });
+
+    if (filters?.assignedTo) query = query.eq("assigned_to", filters.assignedTo);
+    if (filters?.status) query = query.eq("status", filters.status);
     if (filters?.dueDate) {
       const start = new Date(filters.dueDate); start.setHours(0, 0, 0, 0);
       const end = new Date(filters.dueDate); end.setHours(23, 59, 59, 999);
-      constraints.push(where("dueDate", ">=", Timestamp.fromDate(start)));
-      constraints.push(where("dueDate", "<=", Timestamp.fromDate(end)));
+      query = query.gte("due_date", start.toISOString()).lte("due_date", end.toISOString());
     }
-    constraints.push(orderBy("dueDate", "asc"));
-  }
 
-  const { data, loading, error } = useRealtimeCollection<Task>(
-    useMock ? "__skip__" : pathFor(user?.tenantId, demo),
-    constraints
-  );
+    query.then(({ data: rows, error: err }) => {
+      if (err) { setError(new Error(err.message)); }
+      else { setData((rows ?? []) as (Task & { id: string })[]); }
+      setLoading(false);
+    });
+  }, [supabase, tenantId, filters?.assignedTo, filters?.status, filters?.dueDate, useMock]);
 
   if (useMock) {
     let tasks = getMockTasks() as (Task & { id: string })[];
@@ -54,26 +59,38 @@ export function useTasks(filters?: TaskFilters) {
 
 export function useOverdueTasks(userId: string) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isFirebaseConfigured;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
 
-  const todayStart = useMemo(() => {
-    const d = new Date(); d.setHours(0, 0, 0, 0);
-    return Timestamp.fromDate(d);
-  }, []);
+  const [data, setData] = useState<(Task & { id: string })[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
 
-  const skip = useMock || userId === "__skip__" || !user?.tenantId;
-  const constraints: QueryConstraint[] = skip ? [] : [
-    where("assignedTo", "==", userId),
-    where("status", "==", "pending"),
-    where("dueDate", "<", todayStart),
-    orderBy("dueDate", "asc"),
-  ];
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
 
-  const { data, loading, error } = useRealtimeCollection<Task>(
-    skip ? "__skip__" : pathFor(user.tenantId, demo),
-    constraints
-  );
+    const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+
+    let query = supabase
+      .from("tasks")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .eq("status", "pending")
+      .lt("due_date", todayStart.toISOString())
+      .order("due_date", { ascending: true });
+
+    if (userId !== "__manager__") {
+      query = query.eq("assigned_to", userId);
+    }
+
+    query.then(({ data: rows, error: err }) => {
+      if (err) { setError(new Error(err.message)); }
+      else { setData((rows ?? []) as (Task & { id: string })[]); }
+      setLoading(false);
+    });
+  }, [supabase, tenantId, userId, useMock]);
 
   if (useMock) {
     const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -88,27 +105,39 @@ export function useOverdueTasks(userId: string) {
 
 export function useTodayTasks(userId: string) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isFirebaseConfigured;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
 
-  const { todayStart, todayEnd } = useMemo(() => {
-    const s = new Date(); s.setHours(0, 0, 0, 0);
-    const e = new Date(); e.setHours(23, 59, 59, 999);
-    return { todayStart: Timestamp.fromDate(s), todayEnd: Timestamp.fromDate(e) };
-  }, []);
+  const [data, setData] = useState<(Task & { id: string })[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
 
-  const skip = useMock || userId === "__skip__" || !user?.tenantId;
-  const constraints: QueryConstraint[] = skip ? [] : [
-    where("assignedTo", "==", userId),
-    where("dueDate", ">=", todayStart),
-    where("dueDate", "<=", todayEnd),
-    orderBy("dueDate", "asc"),
-  ];
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
 
-  const { data, loading, error } = useRealtimeCollection<Task>(
-    skip ? "__skip__" : pathFor(user.tenantId, demo),
-    constraints
-  );
+    const start = new Date(); start.setHours(0, 0, 0, 0);
+    const end = new Date(); end.setHours(23, 59, 59, 999);
+
+    let query = supabase
+      .from("tasks")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .gte("due_date", start.toISOString())
+      .lte("due_date", end.toISOString())
+      .order("due_date", { ascending: true });
+
+    if (userId !== "__manager__") {
+      query = query.eq("assigned_to", userId);
+    }
+
+    query.then(({ data: rows, error: err }) => {
+      if (err) { setError(new Error(err.message)); }
+      else { setData((rows ?? []) as (Task & { id: string })[]); }
+      setLoading(false);
+    });
+  }, [supabase, tenantId, userId, useMock]);
 
   if (useMock) {
     const start = new Date(); start.setHours(0, 0, 0, 0);

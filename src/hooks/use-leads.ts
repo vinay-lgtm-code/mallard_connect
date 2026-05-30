@@ -1,21 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import {
-  collectionGroup,
-  collection,
-  onSnapshot,
-  orderBy,
-  query,
-  where,
-  limit as fbLimit,
-  type QueryConstraint,
-} from "firebase/firestore";
-import { useRealtimeCollection, useRealtimeDoc } from "@/hooks/use-realtime";
+import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
 import { isDemoUser, getMockLeads, getMockActivities, getMockTasks, getMockUsers } from "@/lib/mock-data";
-import { db, isFirebaseConfigured } from "@/lib/firebase/client";
-import { leadsPath, leadPath, activitiesPath, leadTasksPath, usersPath } from "@/lib/firebase/paths";
 import type { Lead, Activity, Task, User } from "@/types";
 
 interface LeadFilters {
@@ -24,25 +12,36 @@ interface LeadFilters {
   status?: string;
 }
 
-function tenantScoped(tenantId: string | undefined, demo: boolean, builder: (tid: string, demo: boolean) => string): string {
-  return tenantId ? builder(tenantId, demo) : "__skip__";
-}
-
 export function useLeads(filters?: LeadFilters) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isFirebaseConfigured;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
 
-  const constraints: QueryConstraint[] = [];
-  if (!useMock) {
-    if (filters?.stageId) constraints.push(where("currentStageId", "==", filters.stageId));
-    if (filters?.assignedTo) constraints.push(where("assignedTo", "==", filters.assignedTo));
-    if (filters?.status) constraints.push(where("status", "==", filters.status));
-    constraints.push(orderBy("updatedAt", "desc"));
-  }
+  const [data, setData] = useState<(Lead & { id: string })[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
 
-  const path = useMock ? "__skip__" : tenantScoped(user?.tenantId, demo, leadsPath);
-  const { data, loading, error } = useRealtimeCollection<Lead>(path, constraints);
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
+
+    let query = supabase
+      .from("leads")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("updated_at", { ascending: false });
+
+    if (filters?.stageId) query = query.eq("current_stage_id", filters.stageId);
+    if (filters?.assignedTo) query = query.eq("assigned_to", filters.assignedTo);
+    if (filters?.status) query = query.eq("status", filters.status);
+
+    query.then(({ data: rows, error: err }) => {
+      if (err) { setError(new Error(err.message)); }
+      else { setData((rows ?? []) as (Lead & { id: string })[]); }
+      setLoading(false);
+    });
+  }, [supabase, tenantId, filters?.stageId, filters?.assignedTo, filters?.status, useMock]);
 
   if (useMock) {
     let leads = getMockLeads() as (Lead & { id: string })[];
@@ -57,28 +56,65 @@ export function useLeads(filters?: LeadFilters) {
 
 export function useLead(leadId: string) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isFirebaseConfigured;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
 
-  const path = useMock ? "__skip__" : (user?.tenantId ? leadPath(user.tenantId, leadId, demo) : "__skip__");
-  const { data, loading, error } = useRealtimeDoc<Lead>(path);
+  const [data, setData] = useState<(Lead & { id: string }) | null>(null);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
+
+  const refetch = useCallback(() => {
+    if (!supabase || !tenantId || useMock) return;
+    supabase
+      .from("leads")
+      .select("*")
+      .eq("id", leadId)
+      .eq("tenant_id", tenantId)
+      .single()
+      .then(({ data: row, error: err }) => {
+        if (err) { setError(new Error(err.message)); }
+        else { setData(row as (Lead & { id: string }) | null); }
+        setLoading(false);
+      });
+  }, [supabase, tenantId, leadId, useMock]);
+
+  useEffect(() => { refetch(); }, [refetch]);
 
   if (useMock) {
     const lead = (getMockLeads() as (Lead & { id: string })[]).find((l) => l.id === leadId) ?? null;
-    return { lead, loading: false, error: null };
+    return { lead, loading: false, error: null, refetch };
   }
 
-  return { lead: data, loading, error };
+  return { lead: data, loading, error, refetch };
 }
 
 export function useLeadActivities(leadId: string) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isFirebaseConfigured;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
 
-  const constraints: QueryConstraint[] = useMock ? [] : [orderBy("createdAt", "desc")];
-  const path = useMock ? "__skip__" : (user?.tenantId ? activitiesPath(user.tenantId, leadId, demo) : "__skip__");
-  const { data, loading, error } = useRealtimeCollection<Activity>(path, constraints);
+  const [data, setData] = useState<(Activity & { id: string })[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
+    supabase
+      .from("activities")
+      .select("*")
+      .eq("lead_id", leadId)
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .then(({ data: rows, error: err }) => {
+        if (err) { setError(new Error(err.message)); }
+        else { setData((rows ?? []) as (Activity & { id: string })[]); }
+        setLoading(false);
+      });
+  }, [supabase, tenantId, leadId, useMock]);
 
   if (useMock) {
     const activities = (getMockActivities() as (Activity & { id: string })[]).filter((a) => a.leadId === leadId);
@@ -90,12 +126,29 @@ export function useLeadActivities(leadId: string) {
 
 export function useLeadTasks(leadId: string) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const useMock = demo && !isFirebaseConfigured;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
 
-  const constraints: QueryConstraint[] = useMock ? [] : [orderBy("dueDate", "asc")];
-  const path = useMock ? "__skip__" : (user?.tenantId ? leadTasksPath(user.tenantId, leadId, demo) : "__skip__");
-  const { data, loading, error } = useRealtimeCollection<Task>(path, constraints);
+  const [data, setData] = useState<(Task & { id: string })[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
+    supabase
+      .from("tasks")
+      .select("*")
+      .eq("lead_id", leadId)
+      .eq("tenant_id", tenantId)
+      .order("due_date", { ascending: true })
+      .then(({ data: rows, error: err }) => {
+        if (err) { setError(new Error(err.message)); }
+        else { setData((rows ?? []) as (Task & { id: string })[]); }
+        setLoading(false);
+      });
+  }, [supabase, tenantId, leadId, useMock]);
 
   if (useMock) {
     const tasks = (getMockTasks() as (Task & { id: string })[]).filter((t) => t.leadId === leadId);
@@ -107,82 +160,70 @@ export function useLeadTasks(leadId: string) {
 
 export function useRecentActivities(maxItems = 10) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
+  const useMock = demo && !isSupabaseConfigured;
   const tenantId = user?.tenantId;
+
   const [data, setData] = useState<(Activity & { id: string })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!useMock);
 
   useEffect(() => {
-    if (demo && !isFirebaseConfigured) {
+    if (useMock) {
       setData((getMockActivities() as (Activity & { id: string })[]).slice(0, maxItems));
       setLoading(false);
       return;
     }
-    if (!isFirebaseConfigured || !tenantId) {
+    if (!supabase || !tenantId) {
       setData([]);
       setLoading(false);
       return;
     }
-    const q = query(
-      collectionGroup(db, "activities"),
-      where("tenantId", "==", tenantId),
-      orderBy("createdAt", "desc"),
-      fbLimit(maxItems),
-    );
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setData(
-          snap.docs.map((d) => {
-            const raw = d.data() as Record<string, unknown>;
-            return {
-              ...(raw as unknown as Activity),
-              id: d.id,
-            };
-          }),
-        );
+    supabase
+      .from("activities")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("created_at", { ascending: false })
+      .limit(maxItems)
+      .then(({ data: rows }) => {
+        setData((rows ?? []) as (Activity & { id: string })[]);
         setLoading(false);
-      },
-      () => setLoading(false),
-    );
-    return unsub;
-  }, [tenantId, maxItems, demo]);
+      });
+  }, [supabase, tenantId, maxItems, useMock]);
 
   return { activities: data, loading };
 }
 
 export function useTenantUsers() {
   const { user } = useAuth();
-  const tenantId = user?.tenantId;
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
+
   const [data, setData] = useState<(User & { id: string })[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!useMock);
 
   useEffect(() => {
-    if (demo && !isFirebaseConfigured) {
+    if (useMock) {
       setData(getMockUsers() as (User & { id: string })[]);
       setLoading(false);
       return;
     }
-    if (!isFirebaseConfigured || !tenantId) {
+    if (!supabase || !tenantId) {
       setData([]);
       setLoading(false);
       return;
     }
-    const path = demo ? usersPath(tenantId, true) : "users";
-    const q = demo
-      ? query(collection(db, path))
-      : query(collection(db, path), where("tenantId", "==", tenantId));
-    const unsub = onSnapshot(
-      q,
-      (snap) => {
-        setData(snap.docs.map((d) => ({ ...(d.data() as User), id: d.id })));
+    supabase
+      .from("users")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .then(({ data: rows }) => {
+        setData((rows ?? []) as (User & { id: string })[]);
         setLoading(false);
-      },
-      () => setLoading(false),
-    );
-    return unsub;
-  }, [tenantId, demo]);
+      });
+  }, [supabase, tenantId, useMock]);
 
   return { users: data, loading };
 }

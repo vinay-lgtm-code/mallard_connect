@@ -1,17 +1,39 @@
 "use client";
 
-import { orderBy, type QueryConstraint } from "firebase/firestore";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { isDemoUser } from "@/lib/mock-data";
-import { templatesPath } from "@/lib/firebase/paths";
+import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
+import { isDemoUser, getMockTemplates } from "@/lib/mock-data";
 import type { Template } from "@/types";
 
 export function useTemplates() {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const path = user?.tenantId ? templatesPath(user.tenantId, demo) : "__skip__";
-  const constraints: QueryConstraint[] = [orderBy("name", "asc")];
-  const { data, loading, error } = useRealtimeCollection<Template>(path, constraints);
+  const useMock = demo && !isSupabaseConfigured;
+  const tenantId = user?.tenantId;
+
+  const [data, setData] = useState<(Template & { id: string })[]>([]);
+  const [loading, setLoading] = useState(!useMock);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
+    supabase
+      .from("templates")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("name", { ascending: true })
+      .then(({ data: rows, error: err }) => {
+        if (err) { setError(new Error(err.message)); }
+        else { setData((rows ?? []) as (Template & { id: string })[]); }
+        setLoading(false);
+      });
+  }, [supabase, tenantId, useMock]);
+
+  if (useMock) {
+    return { templates: getMockTemplates() as (Template & { id: string })[], loading: false, error: null };
+  }
+
   return { templates: data, loading, error };
 }
