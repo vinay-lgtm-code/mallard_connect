@@ -57,11 +57,12 @@ interface LeadCardProps {
   index: number;
   isOverdue?: boolean;
   ragConfig?: StageRagConfig;
+  adviserName?: string;
 }
 
-function LeadCard({ lead, index, isOverdue, ragConfig }: LeadCardProps) {
+function LeadCard({ lead, index, isOverdue, ragConfig, adviserName }: LeadCardProps) {
   const mortgageLabel = lead.mortgageType ? MORTGAGE_TYPE_LABELS[lead.mortgageType] : null;
-  const initials = getInitials(`${lead.firstName} ${lead.lastName}`);
+  const adviserInitials = adviserName ? getInitials(adviserName) : null;
 
   const days = daysInStage(lead);
   // RAG only applies to in-progress leads; closed leads shouldn't show as "stalled".
@@ -101,9 +102,23 @@ function LeadCard({ lead, index, isOverdue, ragConfig }: LeadCardProps) {
                 {mortgageLabel}
               </span>
             )}
-            <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center ml-auto flex-shrink-0">
-              <span className="text-white text-[10px] font-bold">{initials}</span>
-            </div>
+            {adviserInitials ? (
+              <div
+                className="w-6 h-6 rounded-full bg-primary flex items-center justify-center ml-auto flex-shrink-0"
+                title={`Assigned to ${adviserName}`}
+                aria-label={`Assigned to ${adviserName}`}
+              >
+                <span className="text-white text-[10px] font-bold">{adviserInitials}</span>
+              </div>
+            ) : (
+              <div
+                className="w-6 h-6 rounded-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center ml-auto flex-shrink-0"
+                title="Unassigned"
+                aria-label="Unassigned"
+              >
+                <span className="text-gray-400 text-[10px] font-bold">?</span>
+              </div>
+            )}
           </div>
 
           {lead.dealValue != null && (
@@ -200,6 +215,15 @@ export default function PipelinePage() {
   const isManager = user?.role === "admin" || user?.role === "manager";
   // Adviser filter (manager/admin only) — "" means All advisers
   const [adviserFilter, setAdviserFilter] = useState("");
+
+  // Map of adviser id -> display name, used to render assigned-adviser initials on cards.
+  const adviserNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of users) {
+      map[u.id] = u.fullName;
+    }
+    return map;
+  }, [users]);
   // Local state for optimistic UI during drag
   const [localLeads, setLocalLeads] = useState<Lead[] | null>(null);
   const [pendingDrag, setPendingDrag] = useState<{
@@ -428,7 +452,13 @@ export default function PipelinePage() {
                           }`}
                         >
                           {stageLeads.map((lead, index) => (
-                            <LeadCard key={lead.id} lead={lead} index={index} ragConfig={ragConfig[stage.id]} />
+                            <LeadCard
+                              key={lead.id}
+                              lead={lead}
+                              index={index}
+                              ragConfig={ragConfig[stage.id]}
+                              adviserName={lead.assignedTo ? adviserNameById[lead.assignedTo] : undefined}
+                            />
                           ))}
                           {provided.placeholder}
                         </div>
