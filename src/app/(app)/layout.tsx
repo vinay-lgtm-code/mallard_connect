@@ -16,6 +16,7 @@ import {
   Plus,
   Zap,
   FileText,
+  TrendingUp,
 } from "lucide-react";
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { NotificationDropdown } from "@/components/notifications";
@@ -31,10 +32,13 @@ const NAV_ITEMS = [
   { href: "/templates", label: "Templates", icon: FileText, adminOnly: true },
   { href: "/team", label: "Team", icon: UserPlus, adminOnly: true },
   { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
+  { href: "/reports/forecast", label: "Forecast", icon: TrendingUp, adminOnly: true },
   { href: "/import", label: "Import", icon: Upload, adminOnly: true },
   { href: "/settings", label: "Settings", icon: Settings, adminOnly: false },
 ];
 
+// Order matters: more specific prefixes must come before their parents so the
+// startsWith lookup below resolves the correct title (e.g. /reports/forecast).
 const PAGE_TITLES: Record<string, string> = {
   "/dashboard": "Dashboard",
   "/pipeline": "Pipeline",
@@ -42,6 +46,7 @@ const PAGE_TITLES: Record<string, string> = {
   "/cadences": "Cadences",
   "/templates": "Templates",
   "/team": "Team",
+  "/reports/forecast": "Pipeline Forecast",
   "/reports": "Reports",
   "/import": "Import",
   "/capture": "Quick Capture",
@@ -81,6 +86,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     (item) => !item.adminOnly || user.role === "admin" || user.role === "manager"
   );
 
+  // Active nav = the longest href that prefixes the current path, so nested
+  // routes (e.g. /reports/forecast) don't also light up their parent (/reports).
+  const activeHref = visibleNavItems
+    .filter((item) => pathname === item.href || pathname.startsWith(item.href + "/"))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
+
   const pageTitle =
     Object.entries(PAGE_TITLES).find(([key]) => pathname.startsWith(key))?.[1] ?? "Sequence";
 
@@ -108,7 +119,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
           {visibleNavItems.map((item) => {
             const Icon = item.icon;
-            const active = pathname.startsWith(item.href);
+            const active = activeHref === item.href;
             return (
               <Link
                 key={item.href}
@@ -206,7 +217,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 flex">
         {visibleNavItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
-          const active = pathname.startsWith(item.href);
+          const active = activeHref === item.href;
           return (
             <Link
               key={item.href}
