@@ -32,12 +32,12 @@ const SOURCE_COLORS: Record<string, string> = {
 };
 
 const STAGE_COLORS: Record<string, string> = {
-  "new-enquiry": "#6366f1",
-  "initial-contact": "#3b82f6",
-  "not-ready-yet": "#f59e0b",
+  new_enquiry: "#6366f1",
+  initial_contact: "#3b82f6",
+  not_ready_yet: "#f59e0b",
   nurturing: "#22c55e",
-  "ready-to-proceed": "#1d4ed8",
-  "referred-to-mab": "#a855f7",
+  ready_to_proceed: "#1d4ed8",
+  referred_to_mab: "#a855f7",
 };
 
 function toDate(ts: unknown): Date | null {
@@ -279,12 +279,12 @@ function TeamLeaderboard({ rows }: { rows: TeamRow[] }) {
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 const KNOWN_STAGES: { id: string; name: string }[] = [
-  { id: "new-enquiry", name: "New Enquiry" },
-  { id: "initial-contact", name: "Initial Contact" },
-  { id: "not-ready-yet", name: "Not Ready Yet" },
+  { id: "new_enquiry", name: "New Enquiry" },
+  { id: "initial_contact", name: "Initial Contact" },
+  { id: "not_ready_yet", name: "Not Ready Yet" },
   { id: "nurturing", name: "Nurturing" },
-  { id: "ready-to-proceed", name: "Ready to Proceed" },
-  { id: "referred-to-mab", name: "Referred to MAB" },
+  { id: "ready_to_proceed", name: "Ready to Proceed" },
+  { id: "referred_to_mab", name: "Referred to MAB" },
 ];
 
 export default function ReportsPage() {
