@@ -25,7 +25,9 @@ export default function LoginPage() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.app_metadata?.tenant_id) {
         const params = new URLSearchParams(window.location.search);
-        router.push(params.get("redirect") ?? "/dashboard");
+        const r = params.get("redirect");
+        const safe = r && r.startsWith("/") && !r.startsWith("//") && !r.startsWith("/\\") ? r : "/dashboard";
+        router.push(safe);
       } else {
         router.push("/onboarding");
       }
