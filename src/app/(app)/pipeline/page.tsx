@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
   DragDropContext,
@@ -8,7 +8,7 @@ import {
   Draggable,
   type DropResult,
 } from "@hello-pangea/dnd";
-import { useLeads } from "@/hooks/use-leads";
+import { useLeads, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { getInitials, formatCurrency } from "@/lib/utils";
@@ -159,6 +159,10 @@ export default function PipelinePage() {
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
   const { leads: firestoreLeads, loading } = useLeads();
+  const { users } = useTenantUsers();
+  const isManager = user?.role === "admin" || user?.role === "manager";
+  // Adviser filter (manager/admin only) — "" means All advisers
+  const [adviserFilter, setAdviserFilter] = useState("");
   // Local state for optimistic UI during drag
   const [localLeads, setLocalLeads] = useState<Lead[] | null>(null);
   const [pendingDrag, setPendingDrag] = useState<{
@@ -168,8 +172,16 @@ export default function PipelinePage() {
     stageName: string;
   } | null>(null);
 
+  // baseLeads = full set (drag mutates this); leads = optimistic view used for drag updates.
   const baseLeads = firestoreLeads;
   const leads = localLeads ?? baseLeads;
+
+  // visibleLeads = what the board renders. Filter only applies for managers with a
+  // selection; a stale filter can never hide leads for a non-manager.
+  const visibleLeads = useMemo(() => {
+    if (!isManager || !adviserFilter) return leads;
+    return leads.filter((l) => l.assignedTo === adviserFilter);
+  }, [leads, isManager, adviserFilter]);
 
   // Sync local state when Firestore updates (but not during a pending drag)
   if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
@@ -235,7 +247,7 @@ export default function PipelinePage() {
     setPendingDrag(null);
   }
 
-  const leadsByStage = (stageId: string) => leads.filter((l) => l.currentStageId === stageId);
+  const leadsByStage = (stageId: string) => visibleLeads.filter((l) => l.currentStageId === stageId);
 
   return (
     <>
@@ -261,14 +273,32 @@ export default function PipelinePage() {
       </div>
 
       {/* Desktop Kanban */}
-      <div className="hidden md:block h-full">
+      <div className="hidden md:flex md:flex-col h-full">
+        {isManager && (
+          <div className="flex items-center justify-end gap-2 px-4 pt-4">
+            <label htmlFor="adviser-filter" className="text-sm font-medium text-gray-600">
+              Adviser
+            </label>
+            <select
+              id="adviser-filter"
+              value={adviserFilter}
+              onChange={(e) => setAdviserFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+            >
+              <option value="">All advisers</option>
+              {users.map((u) => (
+                <option key={u.id} value={u.id}>{u.fullName}</option>
+              ))}
+            </select>
+          </div>
+        )}
         {loading ? (
-          <div className="flex justify-center items-center h-full">
+          <div className="flex justify-center items-center flex-1">
             <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <DragDropContext onDragEnd={handleDragEnd}>
-            <div className="flex gap-3 p-4 h-full overflow-x-auto">
+            <div className="flex gap-3 p-4 flex-1 min-h-0 overflow-x-auto">
               {STAGES.map((stage) => {
                 const stageLeads = leadsByStage(stage.id);
                 return (
