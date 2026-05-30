@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
 import { isDemoUser, getMockCadences, getMockEnrollments } from "@/lib/mock-data";
+import { rowsToApp } from "@/lib/supabase/mappers";
 import type { Cadence, CadenceEnrollment } from "@/types";
 
 export function useCadences() {
@@ -26,7 +27,7 @@ export function useCadences() {
       .order("name", { ascending: true })
       .then(({ data: rows, error: err }) => {
         if (err) { setError(new Error(err.message)); }
-        else { setData((rows ?? []) as (Cadence & { id: string })[]); }
+        else { setData(rowsToApp<Cadence & { id: string }>(rows ?? [])); }
         setLoading(false);
       });
   }, [supabase, tenantId, useMock]);
@@ -61,7 +62,7 @@ export function useCadenceEnrollments(cadenceId?: string) {
 
     query.then(({ data: rows, error: err }) => {
       if (err) { setError(new Error(err.message)); }
-      else { setData((rows ?? []) as (CadenceEnrollment & { id: string })[]); }
+      else { setData(rowsToApp<CadenceEnrollment & { id: string }>(rows ?? [])); }
       setLoading(false);
     });
   }, [supabase, tenantId, cadenceId, useMock]);

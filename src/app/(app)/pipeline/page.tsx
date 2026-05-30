@@ -8,13 +8,11 @@ import {
   Draggable,
   type DropResult,
 } from "@hello-pangea/dnd";
-import { doc, updateDoc, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useLeads } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { getInitials, formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
-import { leadPath, activitiesPath } from "@/lib/firebase/paths";
 import { isDemoUser } from "@/lib/mock-data";
 import type { Lead } from "@/types";
 
@@ -163,6 +161,7 @@ function StageChangeModal({ stageName, onConfirm, onCancel }: StageChangeModalPr
 
 export default function PipelinePage() {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
   const { leads: firestoreLeads, loading } = useLeads();
   // Local state for optimistic UI during drag
@@ -212,20 +211,21 @@ export default function PipelinePage() {
     const { leadId, toStageId, stageName } = pendingDrag;
 
     try {
-      await updateDoc(doc(db, leadPath(user.tenantId, leadId, demo)), {
-        currentStageId: toStageId,
-        updatedAt: serverTimestamp(),
-      });
-      await addDoc(collection(db, activitiesPath(user.tenantId, leadId, demo)), {
-        leadId,
-        tenantId: user.tenantId,
-        performedBy: user.id,
-        activityType: "stage-change",
-        title: `Stage changed to ${stageName}`,
-        description: note || null,
-        metadata: null,
-        createdAt: serverTimestamp(),
-      });
+      if (supabase) {
+        await supabase.from("leads").update({
+          current_stage_id: toStageId,
+          updated_at: new Date().toISOString(),
+        }).eq("id", leadId);
+        await supabase.from("activities").insert({
+          tenant_id: user.tenantId,
+          lead_id: leadId,
+          performed_by: user.id,
+          activity_type: "stage-change",
+          title: `Stage changed to ${stageName}`,
+          description: note || null,
+          metadata: null,
+        });
+      }
     } catch (err) {
       console.error("Failed to update stage:", err);
       setLocalLeads(null);

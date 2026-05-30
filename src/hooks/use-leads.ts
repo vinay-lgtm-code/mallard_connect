@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
 import { isDemoUser, getMockLeads, getMockActivities, getMockTasks, getMockUsers } from "@/lib/mock-data";
+import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
 import type { Lead, Activity, Task, User } from "@/types";
 
 interface LeadFilters {
@@ -38,7 +39,7 @@ export function useLeads(filters?: LeadFilters) {
 
     query.then(({ data: rows, error: err }) => {
       if (err) { setError(new Error(err.message)); }
-      else { setData((rows ?? []) as (Lead & { id: string })[]); }
+      else { setData(rowsToApp<Lead & { id: string }>(rows ?? [])); }
       setLoading(false);
     });
   }, [supabase, tenantId, filters?.stageId, filters?.assignedTo, filters?.status, useMock]);
@@ -75,7 +76,7 @@ export function useLead(leadId: string) {
       .single()
       .then(({ data: row, error: err }) => {
         if (err) { setError(new Error(err.message)); }
-        else { setData(row as (Lead & { id: string }) | null); }
+        else { setData(row ? rowToApp<Lead & { id: string }>(row) : null); }
         setLoading(false);
       });
   }, [supabase, tenantId, leadId, useMock]);
@@ -111,7 +112,7 @@ export function useLeadActivities(leadId: string) {
       .order("created_at", { ascending: false })
       .then(({ data: rows, error: err }) => {
         if (err) { setError(new Error(err.message)); }
-        else { setData((rows ?? []) as (Activity & { id: string })[]); }
+        else { setData(rowsToApp<Activity & { id: string }>(rows ?? [])); }
         setLoading(false);
       });
   }, [supabase, tenantId, leadId, useMock]);
@@ -145,7 +146,7 @@ export function useLeadTasks(leadId: string) {
       .order("due_date", { ascending: true })
       .then(({ data: rows, error: err }) => {
         if (err) { setError(new Error(err.message)); }
-        else { setData((rows ?? []) as (Task & { id: string })[]); }
+        else { setData(rowsToApp<Task & { id: string }>(rows ?? [])); }
         setLoading(false);
       });
   }, [supabase, tenantId, leadId, useMock]);
@@ -186,7 +187,7 @@ export function useRecentActivities(maxItems = 10) {
       .order("created_at", { ascending: false })
       .limit(maxItems)
       .then(({ data: rows }) => {
-        setData((rows ?? []) as (Activity & { id: string })[]);
+        setData(rowsToApp<Activity & { id: string }>(rows ?? []));
         setLoading(false);
       });
   }, [supabase, tenantId, maxItems, useMock]);
@@ -220,7 +221,7 @@ export function useTenantUsers() {
       .select("*")
       .eq("tenant_id", tenantId)
       .then(({ data: rows }) => {
-        setData((rows ?? []) as (User & { id: string })[]);
+        setData(rowsToApp<User & { id: string }>(rows ?? []));
         setLoading(false);
       });
   }, [supabase, tenantId, useMock]);

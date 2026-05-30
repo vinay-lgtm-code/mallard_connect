@@ -2,11 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { addDoc, collection, serverTimestamp, Timestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser } from "@/lib/mock-data";
-import { leadsPath, tasksPath } from "@/lib/firebase/paths";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
 
 type FieldErrors = Partial<Record<keyof CreateLeadInput, string>>;
@@ -100,6 +98,7 @@ function SelectField({ label, error, options, placeholder, ...props }: SelectPro
 export default function NewLeadPage() {
   const router = useRouter();
   const { user } = useAuth();
+  const supabase = useSupabase();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -164,58 +163,46 @@ export default function NewLeadPage() {
 
     setSaving(true);
     try {
-      const demo = isDemoUser(user.id);
-      const docRef = await addDoc(collection(db, leadsPath(user.tenantId, demo)), {
-        firstName: form.firstName,
-        lastName: form.lastName,
-        tenantId: user.tenantId,
+      if (!supabase) throw new Error("Database not configured");
+      const { data: newLead, error: insertErr } = await supabase.from("leads").insert({
+        tenant_id: user.tenantId,
+        first_name: form.firstName,
+        last_name: form.lastName,
         phone: form.phone,
         email: form.email || null,
-        source: form.source,
-        mortgageType: form.mortgageType || null,
+        source_id: null,
+        mortgage_type: form.mortgageType || null,
         readiness: form.readiness || null,
         status: "active",
-        currentStageId: "new_enquiry",
-        assignedTo: user.id,
-        notes: form.notes || null,
-        nextFollowUpDate: form.followUpDate ? Timestamp.fromDate(new Date(form.followUpDate)) : null,
-        followUpReason: form.followUpReason || null,
-        followUpNotes: form.reminderNote || null,
+        current_stage_id: null,
+        assigned_to: user.id,
+        next_follow_up_date: form.followUpDate ? new Date(form.followUpDate).toISOString() : null,
+        follow_up_reason: form.followUpReason || null,
+        follow_up_notes: form.reminderNote || null,
         tags: [],
-        referredBy: null,
-        importId: null,
-        propertyValue: null,
-        depositAmount: null,
-        loanAmount: null,
-        dealValue: null,
-        estimatedCloseDate: null,
-        confidence: null,
-        convertedAt: null,
-        lostAt: null,
-        lostReason: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+        referred_by: null,
+      }).select("id").single();
 
-      if (form.followUpDate) {
+      if (insertErr) throw insertErr;
+
+      if (form.followUpDate && newLead) {
         const reminderEmails = [form.reminderEmail1, form.reminderEmail2, form.reminderEmail3].filter(Boolean);
-        await addDoc(collection(db, tasksPath(user.tenantId, demo)), {
-          leadId: docRef.id,
-          tenantId: user.tenantId,
-          assignedTo: user.id,
-          createdBy: user.id,
+        await supabase.from("tasks").insert({
+          tenant_id: user.tenantId,
+          lead_id: newLead.id,
+          assigned_to: user.id,
+          created_by: user.id,
           title: `Follow up: ${form.firstName} ${form.lastName}`,
           description: form.reminderNote || null,
-          dueDate: Timestamp.fromDate(new Date(form.followUpDate)),
+          due_date: new Date(form.followUpDate).toISOString(),
           priority: "normal",
           status: "pending",
-          reminderEmails,
-          reminderSent: false,
-          createdAt: serverTimestamp(),
+          reminder_emails: reminderEmails,
+          reminder_sent: false,
         });
       }
 
-      router.push(`/leads/${docRef.id}`);
+      router.push(`/leads/${newLead?.id}`);
     } catch (err) {
       console.error("Failed to create lead:", err);
       setSubmitError("Failed to save lead. Please try again.");

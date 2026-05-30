@@ -4,11 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser } from "@/lib/mock-data";
-import { leadsPath } from "@/lib/firebase/paths";
 
 const TYPE_TAGS = [
   { value: "first-time-buyer", label: "First-time buyer" },
@@ -21,6 +19,7 @@ const TYPE_TAGS = [
 
 export default function CapturePage() {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const router = useRouter();
 
   const [name, setName] = useState("");
@@ -59,36 +58,21 @@ export default function CapturePage() {
       const firstName = parts[0] ?? "";
       const lastName = parts.slice(1).join(" ");
 
-      const demo = isDemoUser(user.id);
-      await addDoc(collection(db, leadsPath(user.tenantId, demo)), {
-        firstName,
-        lastName,
-        tenantId: user.tenantId,
+      if (!supabase) throw new Error("Database not configured");
+      await supabase.from("leads").insert({
+        tenant_id: user.tenantId,
+        first_name: firstName,
+        last_name: lastName,
         phone: phone.trim(),
         email: null,
-        source: "walk-in",
+        source_id: null,
         status: "active",
-        currentStageId: "new_enquiry",
-        assignedTo: user.id,
-        mortgageType: null,
+        current_stage_id: null,
+        assigned_to: user.id,
+        mortgage_type: null,
         readiness: null,
-        propertyValue: null,
-        depositAmount: null,
-        loanAmount: null,
-        dealValue: null,
-        estimatedCloseDate: null,
-        confidence: null,
-        nextFollowUpDate: null,
-        followUpReason: null,
-        followUpNotes: notes.trim() || null,
+        follow_up_notes: notes.trim() || null,
         tags: selectedTags,
-        referredBy: null,
-        importId: null,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-        convertedAt: null,
-        lostAt: null,
-        lostReason: null,
       });
 
       setShowToast(true);

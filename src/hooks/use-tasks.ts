@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
 import { isDemoUser, getMockTasks } from "@/lib/mock-data";
+import { rowsToApp } from "@/lib/supabase/mappers";
 import type { Task } from "@/types";
 
 interface TaskFilters {
@@ -42,7 +43,7 @@ export function useTasks(filters?: TaskFilters) {
 
     query.then(({ data: rows, error: err }) => {
       if (err) { setError(new Error(err.message)); }
-      else { setData((rows ?? []) as (Task & { id: string })[]); }
+      else { setData(rowsToApp<Task & { id: string }>(rows ?? [])); }
       setLoading(false);
     });
   }, [supabase, tenantId, filters?.assignedTo, filters?.status, filters?.dueDate, useMock]);
@@ -87,7 +88,7 @@ export function useOverdueTasks(userId: string) {
 
     query.then(({ data: rows, error: err }) => {
       if (err) { setError(new Error(err.message)); }
-      else { setData((rows ?? []) as (Task & { id: string })[]); }
+      else { setData(rowsToApp<Task & { id: string }>(rows ?? [])); }
       setLoading(false);
     });
   }, [supabase, tenantId, userId, useMock]);
@@ -134,7 +135,7 @@ export function useTodayTasks(userId: string) {
 
     query.then(({ data: rows, error: err }) => {
       if (err) { setError(new Error(err.message)); }
-      else { setData((rows ?? []) as (Task & { id: string })[]); }
+      else { setData(rowsToApp<Task & { id: string }>(rows ?? [])); }
       setLoading(false);
     });
   }, [supabase, tenantId, userId, useMock]);

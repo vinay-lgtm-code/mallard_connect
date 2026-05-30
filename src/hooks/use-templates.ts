@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase, isSupabaseConfigured } from "@/hooks/use-supabase";
 import { isDemoUser, getMockTemplates } from "@/lib/mock-data";
+import { rowsToApp } from "@/lib/supabase/mappers";
 import type { Template } from "@/types";
 
 export function useTemplates() {
@@ -26,7 +27,7 @@ export function useTemplates() {
       .order("name", { ascending: true })
       .then(({ data: rows, error: err }) => {
         if (err) { setError(new Error(err.message)); }
-        else { setData((rows ?? []) as (Template & { id: string })[]); }
+        else { setData(rowsToApp<Template & { id: string }>(rows ?? [])); }
         setLoading(false);
       });
   }, [supabase, tenantId, useMock]);

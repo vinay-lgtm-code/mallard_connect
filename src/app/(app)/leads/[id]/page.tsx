@@ -4,20 +4,11 @@ import { useState } from "react";
 import { useParams } from "next/navigation";
 import { Phone, Mail, Plus, ChevronDown } from "lucide-react";
 import { format } from "date-fns";
-import {
-  addDoc,
-  updateDoc,
-  doc,
-  collection,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useLead, useLeadActivities, useLeadTasks } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { QuickLogBar } from "@/components/leads/quick-log-bar";
 import { isDemoUser } from "@/lib/mock-data";
-import { tasksPath, leadPath, activitiesPath } from "@/lib/firebase/paths";
 import type { ActivityType } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
@@ -73,6 +64,7 @@ interface FollowUpModalProps {
 }
 
 function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModalProps) {
+  const supabase = useSupabase();
   const [title, setTitle] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [email1, setEmail1] = useState("");
@@ -83,23 +75,22 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !dueDate) return;
+    if (!title.trim() || !dueDate || !supabase) return;
     setSaving(true);
     setError(null);
     try {
-      await addDoc(collection(db, tasksPath(tenantId, demo)), {
-        leadId,
-        tenantId,
-        assignedTo: userId,
-        createdBy: userId,
+      await supabase.from("tasks").insert({
+        tenant_id: tenantId,
+        lead_id: leadId,
+        assigned_to: userId,
+        created_by: userId,
         title: title.trim(),
         description: null,
-        dueDate: Timestamp.fromDate(new Date(dueDate)),
+        due_date: new Date(dueDate).toISOString(),
         priority: "normal",
         status: "pending",
-        reminderEmails: [email1, email2, email3].filter(Boolean),
-        reminderSent: false,
-        createdAt: serverTimestamp(),
+        reminder_emails: [email1, email2, email3].filter(Boolean),
+        reminder_sent: false,
       });
       onClose(true);
     } catch (err) {
@@ -189,6 +180,7 @@ export default function LeadDetailPage() {
   const { lead, loading } = useLead(id);
   const { activities } = useLeadActivities(id);
   const { tasks } = useLeadTasks(id);
+  const supabase = useSupabase();
 
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [noteText, setNoteText] = useState("");
@@ -230,18 +222,17 @@ export default function LeadDetailPage() {
   }
 
   async function handleSaveNote() {
-    if (!noteText.trim() || !user) return;
+    if (!noteText.trim() || !user || !supabase) return;
     setSavingNote(true);
     try {
-      await addDoc(collection(db, activitiesPath(user.tenantId, id, demo)), {
-        leadId: id,
-        tenantId: user.tenantId,
-        performedBy: user.id,
-        activityType: "note",
+      await supabase.from("activities").insert({
+        tenant_id: user.tenantId,
+        lead_id: id,
+        performed_by: user.id,
+        activity_type: "note",
         title: "Note added",
         description: noteText,
         metadata: null,
-        createdAt: serverTimestamp(),
       });
       setNoteText("");
       setAddingNote(false);
@@ -253,20 +244,17 @@ export default function LeadDetailPage() {
   }
 
   async function handleSaveQualification() {
-    if (!user) return;
+    if (!user || !supabase) return;
     setSavingQual(true);
     setQualSaved(false);
     try {
-      await updateDoc(doc(db, leadPath(user.tenantId, id, demo)), {
-        propertyValue: qualPropertyValue ? Number(qualPropertyValue) : null,
-        depositAmount: qualDepositAmount ? Number(qualDepositAmount) : null,
-        dealValue: qualDealValue ? Number(qualDealValue) : null,
-        estimatedCloseDate: qualEstimatedCloseDate
-          ? Timestamp.fromDate(new Date(qualEstimatedCloseDate))
-          : null,
+      await supabase.from("leads").update({
+        property_value: qualPropertyValue ? Number(qualPropertyValue) : null,
+        deposit_amount: qualDepositAmount ? Number(qualDepositAmount) : null,
+        deal_value: qualDealValue ? Number(qualDealValue) : null,
+        estimated_close_date: qualEstimatedCloseDate || null,
         confidence: qualConfidence ? Number(qualConfidence) : null,
-        updatedAt: serverTimestamp(),
-      });
+      }).eq("id", id);
       setQualSaved(true);
       setTimeout(() => setQualSaved(false), 2000);
     } catch (err) {
