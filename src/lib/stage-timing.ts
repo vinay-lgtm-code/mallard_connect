@@ -19,11 +19,14 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
 /**
  * Whole days a lead has spent in its current stage. Uses currentStageEnteredAt when
- * available, otherwise falls back to updatedAt (demo leads have no stage history).
+ * available, otherwise falls back to createdAt. createdAt is stable; updatedAt is
+ * bumped by a trigger on every lead edit and would reset the clock on unrelated
+ * changes. (A server-side trigger now keeps currentStageEnteredAt populated, so the
+ * fallback only matters for legacy/demo rows.)
  * Negative spans (clock skew / future timestamps) clamp to 0.
  */
-export function daysInStage(lead: Pick<Lead, "currentStageEnteredAt" | "updatedAt">, now: Date = new Date()): number {
-  const raw = lead.currentStageEnteredAt ?? lead.updatedAt;
+export function daysInStage(lead: Pick<Lead, "currentStageEnteredAt" | "createdAt">, now: Date = new Date()): number {
+  const raw = lead.currentStageEnteredAt ?? lead.createdAt;
   if (!raw) return 0;
   const entered = new Date(raw);
   if (Number.isNaN(entered.getTime())) return 0;
