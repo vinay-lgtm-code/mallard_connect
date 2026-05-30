@@ -60,4 +60,10 @@ export const activities: Activity[] = [
   { id: "act-acme-6", leadId: "lead-acme-6", performedBy: "demo-sales", activityType: "stage-change", title: "Sophie Allen", description: "Moved to Referred to MAB", metadata: { from: "ready_to_proceed", to: "referred_to_mab" }, createdAt: daysAgo(8) as never },
   { id: "act-acme-7", leadId: "lead-acme-7", performedBy: "acme-4", activityType: "meeting", title: "Thomas Hughes", description: "Walk-in — self-employed contractor, gathering paperwork", metadata: null, createdAt: hoursAgo(8) as never },
   { id: "act-acme-8", leadId: "lead-acme-9", performedBy: "demo-sales", activityType: "whatsapp", title: "Joshua Knight", description: "Sent calculator link", metadata: null, createdAt: daysAgo(4) as never },
+  { id: "act-acme-9", leadId: "lead-acme-4", performedBy: "acme-3", activityType: "email", title: "Charlotte Bell", description: "Sent BTL valuation prep checklist", metadata: null, createdAt: daysAgo(8) as never },
+  { id: "act-acme-10", leadId: "lead-acme-8", performedBy: "acme-4", activityType: "call", title: "Anna Patel", description: "Discussed remortgage timeline", metadata: null, createdAt: daysAgo(9) as never },
+  { id: "act-acme-11", leadId: "lead-acme-9", performedBy: "demo-sales", activityType: "call", title: "Joshua Knight", description: "FTB options review call", metadata: null, createdAt: daysAgo(10) as never },
+  { id: "act-acme-12", leadId: "lead-acme-12", performedBy: "acme-3", activityType: "whatsapp", title: "Lucy Mitchell", description: "Deposit savings check-in", metadata: null, createdAt: daysAgo(11) as never },
+  { id: "act-acme-13", leadId: "lead-acme-7", performedBy: "acme-4", activityType: "email", title: "Thomas Hughes", description: "Requested trading accounts and SA302", metadata: null, createdAt: daysAgo(12) as never },
+  { id: "act-acme-14", leadId: "lead-acme-2", performedBy: "demo-manager", activityType: "note", title: "Megan Reed", description: "Reviewed deal expiry timeline with team", metadata: null, createdAt: daysAgo(10) as never },
 ];

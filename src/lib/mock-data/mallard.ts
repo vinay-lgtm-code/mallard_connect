@@ -63,4 +63,11 @@ export const activities: Activity[] = [
   { id: "act-6", leadId: "lead-6", performedBy: "demo-sales", activityType: "stage-change", title: "David Chen", description: "Moved to Referred to MAB — application submitted", metadata: { from: "ready_to_proceed", to: "referred_to_mab" }, createdAt: daysAgo(7) as never },
   { id: "act-7", leadId: "lead-7", performedBy: "user-4", activityType: "meeting", title: "Emma Wilson", description: "Walk-in meeting — self-employed, needs 2 years of accounts", metadata: null, createdAt: hoursAgo(6) as never },
   { id: "act-8", leadId: "lead-9", performedBy: "demo-sales", activityType: "whatsapp", title: "Lisa Brown", description: "Shared mortgage calculator link", metadata: null, createdAt: daysAgo(3) as never },
+  { id: "act-9", leadId: "lead-4", performedBy: "user-3", activityType: "email", title: "Mark Taylor", description: "Sent BTL product comparison", metadata: null, createdAt: daysAgo(8) as never },
+  { id: "act-10", leadId: "lead-8", performedBy: "user-4", activityType: "call", title: "Chris Moore", description: "Discussed existing deal options", metadata: null, createdAt: daysAgo(9) as never },
+  { id: "act-11", leadId: "lead-9", performedBy: "demo-sales", activityType: "call", title: "Lisa Brown", description: "Quarterly check-in on mortgage plans", metadata: null, createdAt: daysAgo(9) as never },
+  { id: "act-12", leadId: "lead-12", performedBy: "user-3", activityType: "whatsapp", title: "Yusuf Khan", description: "Sent deposit savings progress tracker", metadata: null, createdAt: daysAgo(10) as never },
+  { id: "act-13", leadId: "lead-7", performedBy: "user-4", activityType: "email", title: "Emma Wilson", description: "Requested SA302 and accounts", metadata: null, createdAt: daysAgo(11) as never },
+  { id: "act-14", leadId: "lead-2", performedBy: "demo-sales", activityType: "note", title: "James Whitworth", description: "Logged rate comparison findings", metadata: null, createdAt: daysAgo(12) as never },
+  { id: "act-15", leadId: "lead-3", performedBy: "demo-manager", activityType: "call", title: "Amira Hassan", description: "Checked in on deposit progress", metadata: null, createdAt: daysAgo(10) as never },
 ];

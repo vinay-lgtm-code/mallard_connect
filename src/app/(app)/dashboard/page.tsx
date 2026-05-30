@@ -3,6 +3,7 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useLeads, useRecentActivities, useTenantUsers } from "@/hooks/use-leads";
 import { useTodayTasks, useOverdueTasks } from "@/hooks/use-tasks";
+import { useWeeklyActivitySummary } from "@/hooks/use-weekly-activity-summary";
 import { formatDistanceToNow } from "date-fns";
 import { getInitials } from "@/lib/utils";
 import type { Activity, User } from "@/types";
@@ -82,6 +83,60 @@ function useDashboardData(userId: string, isManager: boolean) {
   };
 }
 
+function WeeklyActivitySummary({ users }: { users: (User & { id: string })[] }) {
+  const { summary, loading } = useWeeklyActivitySummary();
+  const userMap = new Map(users.map((u) => [u.id, u]));
+
+  const rows = users.map((u) => {
+    const counts = summary.find((s) => s.userId === u.id);
+    return { userId: u.id, thisWeek: counts?.thisWeek ?? 0, lastWeek: counts?.lastWeek ?? 0 };
+  }).sort((a, b) => (b.thisWeek + b.lastWeek) - (a.thisWeek + a.lastWeek));
+
+  return (
+    <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+      <h2 className="text-sm font-semibold text-gray-700 mb-4">Weekly Activity</h2>
+      {loading ? (
+        <div className="flex justify-center py-4">
+          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        </div>
+      ) : rows.every((r) => r.thisWeek === 0 && r.lastWeek === 0) ? (
+        <p className="text-sm text-gray-400 text-center py-4">No activity in the last two weeks.</p>
+      ) : (
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
+              <th className="pb-3 font-medium">Team Member</th>
+              <th className="pb-3 font-medium text-right">This Week</th>
+              <th className="pb-3 font-medium text-right">Last Week</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-gray-50">
+            {rows.map((row) => {
+              const u = userMap.get(row.userId);
+              const name = u?.fullName ?? row.userId;
+              const initials = u ? getInitials(u.fullName) : row.userId.slice(0, 2).toUpperCase();
+              return (
+                <tr key={row.userId}>
+                  <td className="py-2.5">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs font-bold">{initials}</span>
+                      </div>
+                      <span className="font-medium text-gray-700">{name}</span>
+                    </div>
+                  </td>
+                  <td className="py-2.5 text-right font-semibold text-gray-900">{row.thisWeek}</td>
+                  <td className="py-2.5 text-right font-semibold text-gray-900">{row.lastWeek}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+
 function ManagerDashboard({ userId }: { userId: string }) {
   const { leads, todayTasks, overdueTasks, activities, users, loading } = useDashboardData(userId, true);
 
@@ -140,6 +195,8 @@ function ManagerDashboard({ userId }: { userId: string }) {
           </>
         )}
       </div>
+
+      <WeeklyActivitySummary users={users} />
 
       <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
         <h2 className="text-sm font-semibold text-gray-700 mb-4">Team Activity</h2>

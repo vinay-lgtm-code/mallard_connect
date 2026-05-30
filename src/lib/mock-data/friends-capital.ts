@@ -61,4 +61,10 @@ export const activities: Activity[] = [
   { id: "act-fc-6", leadId: "lead-fc-11", performedBy: "demo-manager", activityType: "note", title: "Rupert Hawkesbury", description: "Caroline introduced — Westminster property, fixed-rate maturing", metadata: null, createdAt: hoursAgo(20) as never },
   { id: "act-fc-7", leadId: "lead-fc-6", performedBy: "fc-3", activityType: "note", title: "Isabella Quincey", description: "Notting Hill purchase, 40% deposit from parents", metadata: null, createdAt: hoursAgo(2) as never },
   { id: "act-fc-8", leadId: "lead-fc-12", performedBy: "demo-sales", activityType: "call", title: "Daphne Sutherland", description: "Equity release deferred — spouse uncomfortable, revisit Q2", metadata: null, createdAt: daysAgo(11) as never },
+  { id: "act-fc-9", leadId: "lead-fc-4", performedBy: "fc-3", activityType: "email", title: "Olivia Fairchild", description: "Sent Bristol student-let BTL product pack", metadata: null, createdAt: daysAgo(8) as never },
+  { id: "act-fc-10", leadId: "lead-fc-7", performedBy: "fc-4", activityType: "email", title: "Theodore Vance", description: "Requested SA302 from accountant", metadata: null, createdAt: daysAgo(9) as never },
+  { id: "act-fc-11", leadId: "lead-fc-8", performedBy: "demo-sales", activityType: "call", title: "Beatrice Langford", description: "Discussed Manchester BTL LTV options", metadata: null, createdAt: daysAgo(10) as never },
+  { id: "act-fc-12", leadId: "lead-fc-1", performedBy: "demo-manager", activityType: "note", title: "Edward Ashworth", description: "Prepared refinance summary for portfolio review", metadata: null, createdAt: daysAgo(9) as never },
+  { id: "act-fc-13", leadId: "lead-fc-9", performedBy: "fc-4", activityType: "call", title: "Felix Goodwin", description: "Quick check-in — still 10 months until fix matures", metadata: null, createdAt: daysAgo(12) as never },
+  { id: "act-fc-14", leadId: "lead-fc-2", performedBy: "demo-sales", activityType: "whatsapp", title: "Caroline Devereux", description: "Shared offset comparison spreadsheet", metadata: null, createdAt: daysAgo(13) as never },
 ];
