@@ -38,7 +38,7 @@ interface StageConfig {
 const STAGES: StageConfig[] = [
   { id: "new_enquiry", name: "New Enquiry", color: "text-indigo-700", headerBg: "bg-indigo-50", badgeBg: "bg-indigo-100 text-indigo-700" },
   { id: "initial_contact", name: "Initial Contact", color: "text-blue-700", headerBg: "bg-blue-50", badgeBg: "bg-blue-100 text-blue-700" },
-  { id: "not_ready_yet", name: "Not Ready Yet", color: "text-amber-700", headerBg: "bg-amber-50", badgeBg: "bg-amber-100 text-amber-700", borderAccent: "border-l-4 border-l-amber-400" },
+  { id: "not_ready_yet", name: "Not Ready Yet", color: "text-amber-700", headerBg: "bg-amber-50", badgeBg: "bg-amber-100 text-amber-700" },
   { id: "nurturing", name: "Nurturing", color: "text-green-700", headerBg: "bg-green-50", badgeBg: "bg-green-100 text-green-700" },
   { id: "ready_to_proceed", name: "Ready to Proceed", color: "text-blue-700", headerBg: "bg-blue-50", badgeBg: "bg-blue-100 text-blue-700" },
   { id: "referred_to_mab", name: "Referred to MAB", color: "text-purple-700", headerBg: "bg-purple-50", badgeBg: "bg-purple-100 text-purple-700" },
