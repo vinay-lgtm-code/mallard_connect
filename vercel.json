@@ -1,5 +1,5 @@
 {
-  "regions": ["gru1"],
+  "regions": ["lhr1"],
   "crons": [
     {
       "path": "/api/cron/run-cadences",
