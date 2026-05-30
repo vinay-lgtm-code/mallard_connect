@@ -152,7 +152,7 @@ function ManagerDashboard({ userId }: { userId: string }) {
               const name = performer?.fullName ?? item.performedBy;
               const initials = performer ? getInitials(performer.fullName) : item.performedBy.slice(0, 2).toUpperCase();
               const action = ACTIVITY_ACTION_LABEL[item.activityType] ?? item.activityType;
-              const ts = item.createdAt instanceof Date ? item.createdAt : (item.createdAt as { toDate?: () => Date })?.toDate?.() ?? new Date();
+              const ts = item.createdAt ? new Date(item.createdAt) : new Date();
               return (
                 <div key={item.id} className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -186,7 +186,7 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
 
   const fortyEightHoursAgo = new Date(Date.now() - 48 * 60 * 60 * 1000);
   const newAssignments = leads.filter((l) => {
-    const created = l.createdAt instanceof Date ? l.createdAt : (l.createdAt as { toDate?: () => Date })?.toDate?.();
+    const created = l.createdAt ? new Date(l.createdAt) : undefined;
     return created ? created >= fortyEightHoursAgo : false;
   });
 
@@ -293,7 +293,7 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
         ) : (
           <div className="space-y-2">
             {newAssignments.map((lead) => {
-              const created = lead.createdAt instanceof Date ? lead.createdAt : (lead.createdAt as { toDate?: () => Date })?.toDate?.() ?? new Date();
+              const created = lead.createdAt ? new Date(lead.createdAt) : new Date();
               const assignedAt = formatDistanceToNow(created, { addSuffix: true });
               return (
                 <div key={lead.id} className="bg-white rounded-[12px] px-4 py-3 shadow-sm border border-gray-100 flex items-center justify-between gap-3">

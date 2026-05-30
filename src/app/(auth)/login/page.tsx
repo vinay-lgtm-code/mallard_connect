@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { signInWithEmailAndPassword } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { createClient } from "@/lib/supabase/client";
 import { setDemoUser } from "@/hooks/useAuth";
 
 export default function LoginPage() {
@@ -19,7 +18,9 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const supabase = createClient();
+      const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
+      if (authErr) throw authErr;
       router.push("/dashboard");
     } catch {
       setError("Invalid email or password. Please try again.");

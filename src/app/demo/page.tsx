@@ -6,7 +6,7 @@ import Link from "next/link";
 import { ChevronRight, Building2 } from "lucide-react";
 import { setDemoUser, setDemoTenant } from "@/hooks/useAuth";
 import { seedDemoTenantIfNeeded } from "@/lib/demo/seed";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { DemoTenantSlug } from "@/lib/mock-data";
 
 type DemoTenant = {
@@ -57,7 +57,7 @@ export default function DemoPage() {
     if (seeding) return;
     setSeeding({ slug: tenant.slug, persona });
     try {
-      if (isFirebaseConfigured) {
+      if (isSupabaseConfigured) {
         await seedDemoTenantIfNeeded(tenant.slug);
       }
     } catch (err) {

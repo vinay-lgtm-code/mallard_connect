@@ -20,8 +20,7 @@ import {
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { NotificationDropdown } from "@/components/notifications";
 import { DemoBanner } from "@/components/tenant/tenant-switcher";
-import { signOut } from "firebase/auth";
-import { auth } from "@/lib/firebase/client";
+import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 
 const NAV_ITEMS = [
@@ -89,7 +88,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (getDemoUser()) {
       clearDemoUser();
     } else {
-      await signOut(auth);
+      const supabase = createClient();
+      await supabase.auth.signOut();
     }
     router.push("/login");
   }

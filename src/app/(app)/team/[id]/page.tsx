@@ -5,10 +5,11 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Users, RefreshCw } from "lucide-react";
-import { where, orderBy, limit } from "firebase/firestore";
 import { useAuth } from "@/hooks/useAuth";
-import { useRealtimeDoc, useRealtimeCollection } from "@/hooks/use-realtime";
+import { useSupabase } from "@/hooks/use-supabase";
 import { useLeads } from "@/hooks/use-leads";
+import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
+import { useState, useCallback } from "react";
 import { getInitials, formatRelativeDate } from "@/lib/utils";
 import type { User, Activity, UserRole } from "@/types";
 
@@ -58,18 +59,27 @@ export default function TeamMemberPage() {
     }
   }, [currentUser, router]);
 
-  const { data: member, loading: memberLoading } = useRealtimeDoc<User>(`users/${id}`);
-  const { leads, loading: leadsLoading } = useLeads({ assignedTo: id });
+  const supabase = useSupabase();
+  const [member, setMember] = useState<(User & { id: string }) | null>(null);
+  const [memberLoading, setMemberLoading] = useState(true);
+  const [activities, setActivities] = useState<(Activity & { id: string })[]>([]);
+  const [activitiesLoading, setActivitiesLoading] = useState(true);
 
-  const activityConstraints = [
-    where("performedBy", "==", id),
-    orderBy("createdAt", "desc"),
-    limit(20),
-  ];
-  const { data: activities, loading: activitiesLoading } = useRealtimeCollection<Activity>(
-    "activities",
-    activityConstraints
-  );
+  const fetchMember = useCallback(() => {
+    if (!supabase) return;
+    supabase.from("users").select("*").eq("id", id).single().then(({ data }) => {
+      setMember(data ? rowToApp<User & { id: string }>(data) : null);
+      setMemberLoading(false);
+    });
+    supabase.from("activities").select("*").eq("performed_by", id).order("created_at", { ascending: false }).limit(20).then(({ data }) => {
+      setActivities(data ? rowsToApp<Activity & { id: string }>(data) : []);
+      setActivitiesLoading(false);
+    });
+  }, [supabase, id]);
+
+  useEffect(() => { fetchMember(); }, [fetchMember]);
+
+  const { leads, loading: leadsLoading } = useLeads({ assignedTo: id });
 
   const isManager = currentUser?.role === "admin" || currentUser?.role === "manager";
 
@@ -177,7 +187,7 @@ export default function TeamMemberPage() {
             {activeLeads.slice(0, 10).map((lead) => {
               const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-600";
               const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
-              const updatedDate = lead.updatedAt?.toDate?.();
+              const updatedDate = lead.updatedAt ? new Date(lead.updatedAt) : undefined;
               return (
                 <Link
                   key={lead.id}
@@ -226,7 +236,7 @@ export default function TeamMemberPage() {
           <div className="space-y-4">
             {activities.map((activity) => {
               const dotColor = ACTIVITY_DOT[activity.activityType] ?? "bg-gray-400";
-              const date = activity.createdAt?.toDate?.();
+              const date = activity.createdAt ? new Date(activity.createdAt) : undefined;
               return (
                 <div key={activity.id} className="flex gap-3">
                   <div className="flex flex-col items-center">

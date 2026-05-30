@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeads } from "@/hooks/use-leads";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
+import { useTenantUsers } from "@/hooks/use-leads";
 import { ExportButton } from "@/components/export-button";
 import type { Lead, User } from "@/types";
 import { TrendingUp, Users, Clock, Target } from "lucide-react";
@@ -43,11 +43,7 @@ const STAGE_COLORS: Record<string, string> = {
 function toDate(ts: unknown): Date | null {
   if (!ts) return null;
   if (ts instanceof Date) return ts;
-  if (typeof ts === "object" && ts !== null) {
-    const obj = ts as Record<string, unknown>;
-    if (typeof obj.toDate === "function") return (obj.toDate as () => Date)();
-    if (typeof obj.seconds === "number") return new Date(obj.seconds * 1000);
-  }
+  if (typeof ts === "string") return new Date(ts);
   return null;
 }
 
@@ -294,7 +290,7 @@ export default function ReportsPage() {
   const router = useRouter();
 
   const { leads, loading: leadsLoading } = useLeads();
-  const { data: users, loading: usersLoading } = useRealtimeCollection<User>("users");
+  const { users, loading: usersLoading } = useTenantUsers();
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");

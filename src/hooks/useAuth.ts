@@ -1,37 +1,37 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { auth, db, isFirebaseConfigured } from "@/lib/firebase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
+import { rowToApp } from "@/lib/supabase/mappers";
 import type { User, Tenant } from "@/types";
-import { Timestamp } from "firebase/firestore";
 
 const DEMO_TENANT_ID = "mallard";
 const DEMO_TENANT_KEY = "sequence_demo_tenant";
+
+const now = new Date().toISOString();
 
 const DEMO_USERS: Record<string, User> = {
   "demo-manager": {
     id: "demo-manager",
     tenantId: DEMO_TENANT_ID,
-    email: "shankardivya100@gmail.com",
+    email: "della@mallardmortgages.co.uk",
     fullName: "Della Mallard",
     phone: "+44 114 000 0001",
     role: "manager",
     avatarUrl: null,
     isActive: true,
-    createdAt: Timestamp.now(),
+    createdAt: now,
   },
   "demo-sales": {
     id: "demo-sales",
     tenantId: DEMO_TENANT_ID,
-    email: "shankardivya100@gmail.com",
+    email: "alex@mallardmortgages.co.uk",
     fullName: "Alex Rivera",
     phone: "+44 114 000 0002",
     role: "advisor",
     avatarUrl: null,
     isActive: true,
-    createdAt: Timestamp.now(),
+    createdAt: now,
   },
 };
 
@@ -43,7 +43,7 @@ const DEMO_TENANTS: Record<string, Tenant> = {
     primaryColor: "#1A5653",
     plan: "base",
     seatLimit: 5,
-    createdAt: Timestamp.now(),
+    createdAt: now,
   },
   "friends-capital": {
     id: "friends-capital",
@@ -52,7 +52,7 @@ const DEMO_TENANTS: Record<string, Tenant> = {
     primaryColor: "#0F172A",
     plan: "growth",
     seatLimit: 10,
-    createdAt: Timestamp.now(),
+    createdAt: now,
   },
   acme: {
     id: "acme",
@@ -61,7 +61,7 @@ const DEMO_TENANTS: Record<string, Tenant> = {
     primaryColor: "#7C3AED",
     plan: "base",
     seatLimit: 5,
-    createdAt: Timestamp.now(),
+    createdAt: now,
   },
 };
 
@@ -71,7 +71,6 @@ export function getDemoUser(): User | null {
   if (!id) return null;
   const user = DEMO_USERS[id];
   if (!user) return null;
-  // Allow demo tenant override via /demo switcher
   const overrideTenantId = localStorage.getItem(DEMO_TENANT_KEY);
   if (overrideTenantId && DEMO_TENANTS[overrideTenantId]) {
     return { ...user, tenantId: overrideTenantId };
@@ -125,53 +124,67 @@ export function useAuth() {
   useEffect(() => {
     if (refreshDemoUser()) return;
 
-    // Without Firebase config we can still serve marketing + demo routes;
-    // just resolve loading=false with no signed-in user.
-    if (!isFirebaseConfigured) {
+    if (!isSupabaseConfigured) {
       setUser(null);
       setTenant(null);
       setLoading(false);
       return;
     }
 
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        const userDoc = await getDoc(doc(db, "users", firebaseUser.uid));
-        let resolvedUser: User;
-        if (userDoc.exists()) {
-          resolvedUser = { id: firebaseUser.uid, ...userDoc.data() } as User;
-        } else {
-          resolvedUser = {
-            id: firebaseUser.uid,
-            tenantId: "",
-            email: firebaseUser.email ?? "",
-            fullName: firebaseUser.displayName ?? "User",
-            phone: null,
-            role: "advisor",
-            avatarUrl: null,
-            isActive: true,
-            createdAt: null as never,
-          };
-        }
-        setUser(resolvedUser);
+    const supabase = createClient();
 
-        if (resolvedUser.tenantId) {
-          const tenantDoc = await getDoc(doc(db, "tenants", resolvedUser.tenantId));
-          if (tenantDoc.exists()) {
-            setTenant({ id: tenantDoc.id, ...tenantDoc.data() } as Tenant);
-          } else {
-            setTenant(null);
-          }
-        } else {
-          setTenant(null);
-        }
-      } else {
+    supabase.auth.getUser().then(async ({ data: { user: authUser } }) => {
+      if (!authUser) {
         setUser(null);
         setTenant(null);
+        setLoading(false);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("users")
+        .select("*")
+        .eq("id", authUser.id)
+        .single();
+
+      if (profile) {
+        const resolvedUser = rowToApp<User>(profile);
+        setUser({ ...resolvedUser, id: authUser.id });
+
+        if (resolvedUser.tenantId) {
+          const { data: tenantRow } = await supabase
+            .from("tenants")
+            .select("*")
+            .eq("id", resolvedUser.tenantId)
+            .single();
+          setTenant(tenantRow ? rowToApp<Tenant>(tenantRow) : null);
+        }
+      } else {
+        setUser({
+          id: authUser.id,
+          tenantId: (authUser.app_metadata?.tenant_id as string) ?? "",
+          email: authUser.email ?? "",
+          fullName: (authUser.user_metadata?.full_name as string) ?? "User",
+          phone: null,
+          role: "advisor",
+          avatarUrl: null,
+          isActive: true,
+          createdAt: authUser.created_at,
+        });
       }
       setLoading(false);
     });
-    return unsubscribe;
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event) => {
+        if (event === "SIGNED_OUT") {
+          setUser(null);
+          setTenant(null);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, [refreshDemoUser]);
 
   return { user, tenant, loading };

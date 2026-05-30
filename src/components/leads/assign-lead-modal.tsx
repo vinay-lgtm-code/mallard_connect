@@ -2,13 +2,10 @@
 
 import { useState } from "react";
 import { X } from "lucide-react";
-import { updateDoc, doc, addDoc, collection, serverTimestamp } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
 import { useAuth } from "@/hooks/useAuth";
-import { useLeads } from "@/hooks/use-leads";
+import { useSupabase } from "@/hooks/use-supabase";
+import { useTenantUsers, useLeads } from "@/hooks/use-leads";
 import { getInitials } from "@/lib/utils";
-import type { User } from "@/types";
 
 interface AssignLeadModalProps {
   leadId: string;
@@ -24,11 +21,12 @@ export function AssignLeadModal({
   onAssigned,
 }: AssignLeadModalProps) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: users, loading: usersLoading } = useRealtimeCollection<User>("users");
+  const { users, loading: usersLoading } = useTenantUsers();
   const { leads } = useLeads({ status: "active" });
 
   const activeUsers = users.filter((u) => u.isActive);
@@ -41,27 +39,26 @@ export function AssignLeadModal({
   }
 
   async function handleAssign() {
-    if (!selectedUserId || !user) return;
+    if (!selectedUserId || !user || !supabase) return;
     setSaving(true);
     setError(null);
 
     try {
-      await updateDoc(doc(db, "leads", leadId), {
-        assignedTo: selectedUserId,
-        updatedAt: serverTimestamp(),
-      });
+      await supabase.from("leads").update({
+        assigned_to: selectedUserId,
+      }).eq("id", leadId);
 
-      await addDoc(collection(db, "activities"), {
-        leadId,
-        performedBy: user.id,
-        activityType: "assignment",
+      await supabase.from("activities").insert({
+        tenant_id: user.tenantId,
+        lead_id: leadId,
+        performed_by: user.id,
+        activity_type: "stage-change",
         title: `Lead assigned to ${users.find((u) => u.id === selectedUserId)?.fullName ?? selectedUserId}`,
         description: null,
         metadata: {
           previousAssignee: currentAssignee,
           newAssignee: selectedUserId,
         },
-        createdAt: serverTimestamp(),
       });
 
       onAssigned();
@@ -75,7 +72,6 @@ export function AssignLeadModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md overflow-hidden">
-        {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
           <h2 className="text-base font-bold text-gray-900">Assign Lead</h2>
           <button
@@ -86,7 +82,6 @@ export function AssignLeadModal({
           </button>
         </div>
 
-        {/* User list */}
         <div className="max-h-80 overflow-y-auto divide-y divide-gray-50 p-2">
           {usersLoading ? (
             <div className="flex justify-center py-8">
@@ -136,14 +131,12 @@ export function AssignLeadModal({
           )}
         </div>
 
-        {/* Error */}
         {error && (
           <div className="px-5 py-2">
             <p className="text-xs text-destructive">{error}</p>
           </div>
         )}
 
-        {/* Footer */}
         <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-3">
           <button
             onClick={onClose}

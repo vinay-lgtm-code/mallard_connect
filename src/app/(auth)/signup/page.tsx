@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createUserWithEmailAndPassword, updateProfile } from "firebase/auth";
-import { doc, setDoc, Timestamp } from "firebase/firestore";
-import { auth, db } from "@/lib/firebase/client";
+import { createClient } from "@/lib/supabase/client";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -32,23 +30,19 @@ export default function SignUpPage() {
 
     setLoading(true);
     try {
-      const cred = await createUserWithEmailAndPassword(auth, email, password);
-      await updateProfile(cred.user, { displayName: fullName });
-      await setDoc(doc(db, "users", cred.user.uid), {
+      const supabase = createClient();
+      const { error: authErr } = await supabase.auth.signUp({
         email,
-        fullName,
-        phone: null,
-        role: "advisor",
-        avatarUrl: null,
-        isActive: true,
-        createdAt: Timestamp.now(),
+        password,
+        options: { data: { full_name: fullName } },
       });
+      if (authErr) throw authErr;
       router.push("/dashboard");
     } catch (err: unknown) {
-      const code = (err as { code?: string })?.code;
-      if (code === "auth/email-already-in-use") {
+      const msg = err instanceof Error ? err.message : "";
+      if (msg.includes("already registered")) {
         setError("An account with this email already exists.");
-      } else if (code === "auth/weak-password") {
+      } else if (msg.includes("password")) {
         setError("Password is too weak. Use at least 6 characters.");
       } else {
         setError("Something went wrong. Please try again.");

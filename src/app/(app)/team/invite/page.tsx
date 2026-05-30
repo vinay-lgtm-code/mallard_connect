@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { auth } from "@/lib/firebase/client";
+import { createClient } from "@/lib/supabase/client";
 
 const ROLE_OPTIONS = [
   { value: "advisor", label: "Advisor" },
@@ -49,7 +49,9 @@ export default function InviteTeamMemberPage() {
 
     setSaving(true);
     try {
-      const token = await auth.currentUser?.getIdToken();
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
       const res = await fetch("/api/team", {
         method: "POST",
         headers: {

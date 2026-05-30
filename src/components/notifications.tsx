@@ -3,43 +3,36 @@
 import { useState, useRef, useEffect } from "react";
 import { Bell, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import {
-  where,
-  orderBy,
-  limit,
-  updateDoc,
-  doc,
-  writeBatch,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
+import { rowsToApp } from "@/lib/supabase/mappers";
 import { formatRelativeDate } from "@/lib/utils";
 import type { Notification } from "@/types";
 
 export function NotificationDropdown() {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
+  const [notifications, setNotifications] = useState<(Notification & { id: string })[]>([]);
 
-  const constraints = user
-    ? [
-        where("userId", "==", user.id),
-        orderBy("createdAt", "desc"),
-        limit(20),
-      ]
-    : [];
-
-  const { data: notifications } = useRealtimeCollection<Notification>(
-    "notifications",
-    constraints
-  );
+  useEffect(() => {
+    if (!supabase || !user) return;
+    supabase
+      .from("notifications")
+      .select("*")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: false })
+      .limit(20)
+      .then(({ data }) => {
+        if (data) setNotifications(rowsToApp<Notification & { id: string }>(data));
+      });
+  }, [supabase, user]);
 
   const unreadCount = notifications.filter((n) => !n.isRead).length;
 
-  // Close on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (
@@ -57,11 +50,10 @@ export function NotificationDropdown() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  async function handleNotificationClick(notification: Notification) {
-    if (!notification.isRead) {
-      await updateDoc(doc(db, "notifications", notification.id), {
-        isRead: true,
-      });
+  async function handleNotificationClick(notification: Notification & { id: string }) {
+    if (!notification.isRead && supabase) {
+      await supabase.from("notifications").update({ is_read: true }).eq("id", notification.id);
+      setNotifications((prev) => prev.map((n) => n.id === notification.id ? { ...n, isRead: true } : n));
     }
     setOpen(false);
     if (notification.link) {
@@ -71,12 +63,10 @@ export function NotificationDropdown() {
 
   async function markAllRead() {
     const unread = notifications.filter((n) => !n.isRead);
-    if (unread.length === 0) return;
-    const batch = writeBatch(db);
-    for (const n of unread) {
-      batch.update(doc(db, "notifications", n.id), { isRead: true });
-    }
-    await batch.commit();
+    if (unread.length === 0 || !supabase) return;
+    const ids = unread.map((n) => n.id);
+    await supabase.from("notifications").update({ is_read: true }).in("id", ids);
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
   }
 
   return (
@@ -115,35 +105,32 @@ export function NotificationDropdown() {
                 No notifications yet
               </div>
             ) : (
-              notifications.map((notification) => {
-                const createdDate = notification.createdAt?.toDate?.();
-                return (
-                  <button
-                    key={notification.id}
-                    onClick={() => handleNotificationClick(notification)}
-                    className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-start gap-3 ${
-                      !notification.isRead ? "bg-blue-50/50" : ""
-                    }`}
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium text-gray-900 ${!notification.isRead ? "font-semibold" : ""}`}>
-                        {notification.title}
+              notifications.map((notification) => (
+                <button
+                  key={notification.id}
+                  onClick={() => handleNotificationClick(notification)}
+                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-start gap-3 ${
+                    !notification.isRead ? "bg-blue-50/50" : ""
+                  }`}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className={`text-sm font-medium text-gray-900 ${!notification.isRead ? "font-semibold" : ""}`}>
+                      {notification.title}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                      {notification.body}
+                    </p>
+                    {notification.createdAt && (
+                      <p className="text-xs text-gray-400 mt-1">
+                        {formatRelativeDate(notification.createdAt)}
                       </p>
-                      <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                        {notification.body}
-                      </p>
-                      {createdDate && (
-                        <p className="text-xs text-gray-400 mt-1">
-                          {formatRelativeDate(createdDate)}
-                        </p>
-                      )}
-                    </div>
-                    {!notification.isRead && (
-                      <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1.5" />
                     )}
-                  </button>
-                );
-              })
+                  </div>
+                  {!notification.isRead && (
+                    <div className="w-2 h-2 bg-primary rounded-full flex-shrink-0 mt-1.5" />
+                  )}
+                </button>
+              ))
             )}
           </div>
 

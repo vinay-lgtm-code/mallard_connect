@@ -211,10 +211,7 @@ export default function LeadDetailPage() {
     setQualDealValue(lead.dealValue ? String(lead.dealValue) : "");
     setQualEstimatedCloseDate(
       lead.estimatedCloseDate
-        ? (lead.estimatedCloseDate instanceof Date
-            ? lead.estimatedCloseDate
-            : (lead.estimatedCloseDate as { toDate: () => Date }).toDate()
-          ).toISOString().split("T")[0]
+        ? new Date(lead.estimatedCloseDate).toISOString().split("T")[0]
         : ""
     );
     setQualConfidence(lead.confidence != null ? String(lead.confidence) : "");
@@ -413,12 +410,7 @@ export default function LeadDetailPage() {
               <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-5">
                 <h2 className="text-sm font-semibold text-amber-800">Next Follow-up</h2>
                 <p className="text-lg font-bold text-amber-900 mt-1">
-                  {format(
-                    lead.nextFollowUpDate instanceof Date
-                      ? lead.nextFollowUpDate
-                      : (lead.nextFollowUpDate as { toDate: () => Date }).toDate(),
-                    "EEEE, d MMMM yyyy"
-                  )}
+                  {format(new Date(lead.nextFollowUpDate), "EEEE, d MMMM yyyy")}
                 </p>
                 {lead.followUpReason && (
                   <p className="text-sm text-amber-700 mt-1">{lead.followUpReason}</p>
@@ -481,9 +473,7 @@ export default function LeadDetailPage() {
                 {activities.map((activity) => {
                   const dotColor = ACTIVITY_DOT[activity.activityType] ?? "bg-gray-400";
                   const typeLabel = ACTIVITY_LABEL[activity.activityType] ?? activity.activityType;
-                  const date = activity.createdAt instanceof Date
-                    ? activity.createdAt
-                    : (activity.createdAt as { toDate?: () => Date })?.toDate?.();
+                  const date = activity.createdAt ? new Date(activity.createdAt) : undefined;
                   return (
                     <div key={activity.id} className="flex gap-3">
                       <div className="flex flex-col items-center">
@@ -692,9 +682,7 @@ export default function LeadDetailPage() {
             ) : (
               <div className="space-y-3">
                 {tasks.map((task) => {
-                  const due = task.dueDate instanceof Date
-                    ? task.dueDate
-                    : (task.dueDate as { toDate?: () => Date } | null)?.toDate?.();
+                  const due = task.dueDate ? new Date(task.dueDate) : undefined;
                   const isOverdue = due ? due < new Date() && task.status === "pending" : false;
                   return (
                     <div key={task.id} className={`bg-white rounded-[12px] p-4 shadow-sm border ${isOverdue ? "border-red-200" : "border-gray-100"}`}>

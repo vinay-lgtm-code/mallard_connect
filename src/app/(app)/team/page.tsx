@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { UserPlus } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
-import { useRealtimeCollection } from "@/hooks/use-realtime";
+import { useTenantUsers } from "@/hooks/use-leads";
 import { useLeads } from "@/hooks/use-leads";
 import { getInitials } from "@/lib/utils";
 import type { User, UserRole } from "@/types";
@@ -26,7 +26,7 @@ export default function TeamPage() {
     }
   }, [user, router]);
 
-  const { data: users, loading: usersLoading } = useRealtimeCollection<User>("users");
+  const { users, loading: usersLoading } = useTenantUsers();
   const { leads, loading: leadsLoading } = useLeads({ status: "active" });
 
   const leadCountByUser = useMemo(() => {

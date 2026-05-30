@@ -1,5 +1,3 @@
-import { Timestamp } from "firebase/firestore";
-
 export type UserRole = "admin" | "manager" | "advisor";
 
 export type LeadSource =
@@ -65,18 +63,18 @@ export interface Lead {
   depositAmount: number | null;
   loanAmount: number | null;
   dealValue: number | null;
-  estimatedCloseDate: Timestamp | null;
+  estimatedCloseDate: string | null;
   confidence: number | null;
-  nextFollowUpDate: Timestamp | null;
+  nextFollowUpDate: string | null;
   followUpReason: string | null;
   followUpNotes: string | null;
   tags: string[];
   referredBy: string | null;
   importId: string | null;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-  convertedAt: Timestamp | null;
-  lostAt: Timestamp | null;
+  createdAt: string;
+  updatedAt: string;
+  convertedAt: string | null;
+  lostAt: string | null;
   lostReason: string | null;
 }
 
@@ -88,7 +86,7 @@ export interface Activity {
   title: string;
   description: string | null;
   metadata: Record<string, unknown> | null;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 export interface Task {
@@ -98,12 +96,12 @@ export interface Task {
   createdBy: string;
   title: string;
   description: string | null;
-  dueDate: Timestamp | null;
+  dueDate: string | null;
   priority: TaskPriority;
   status: TaskStatus;
   reminderEmails: [string?, string?, string?];
   reminderSent: boolean;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 export interface User {
@@ -115,7 +113,7 @@ export interface User {
   role: UserRole;
   avatarUrl: string | null;
   isActive: boolean;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 // ===== Tenant model =====
@@ -130,7 +128,7 @@ export interface Tenant {
   logoUrl?: string;
   plan: TenantPlan;
   seatLimit: number;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 export interface SubdomainMapping {
@@ -164,8 +162,8 @@ export interface Cadence {
   trigger: CadenceTrigger;
   steps: CadenceStep[];
   isActive: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CadenceEnrollment {
@@ -173,10 +171,10 @@ export interface CadenceEnrollment {
   leadId: string;
   cadenceId: string;
   currentStep: number;
-  nextRunAt: Timestamp | null;
+  nextRunAt: string | null;
   status: CadenceEnrollmentStatus;
-  enrolledAt: Timestamp;
-  completedAt: Timestamp | null;
+  enrolledAt: string;
+  completedAt: string | null;
 }
 
 // ===== Templates =====
@@ -190,7 +188,7 @@ export interface Template {
   subject?: string;
   body: string;
   variables: string[];
-  updatedAt: Timestamp;
+  updatedAt: string;
 }
 
 // ===== Integrations =====
@@ -203,7 +201,7 @@ export interface Integration {
   apiKey?: string; // encrypted at rest
   listId?: string;
   status: IntegrationStatus;
-  lastSyncAt: Timestamp | null;
+  lastSyncAt: string | null;
   errorMessage?: string;
 }
 
@@ -215,7 +213,7 @@ export interface Notification {
   body: string;
   link: string | null;
   isRead: boolean;
-  createdAt: Timestamp;
+  createdAt: string;
 }
 
 export interface ImportRecord {
@@ -230,5 +228,5 @@ export interface ImportRecord {
     failed: number;
   };
   status: "pending" | "processing" | "completed" | "failed";
-  createdAt: Timestamp;
+  createdAt: string;
 }

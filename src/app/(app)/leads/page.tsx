@@ -194,7 +194,7 @@ export default function LeadsPage() {
                 {filtered.map((lead) => {
                   const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-600";
                   const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
-                  const updatedDate = lead.updatedAt?.toDate?.();
+                  const updatedDate = lead.updatedAt ? new Date(lead.updatedAt) : undefined;
                   return (
                     <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-5 py-3.5">
@@ -241,7 +241,7 @@ export default function LeadsPage() {
               const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-600";
               const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
               const statusStyle = STATUS_STYLES[lead.status] ?? "bg-gray-100 text-gray-600";
-              const updatedDate = lead.updatedAt?.toDate?.();
+              const updatedDate = lead.updatedAt ? new Date(lead.updatedAt) : undefined;
               return (
                 <Link
                   key={lead.id}

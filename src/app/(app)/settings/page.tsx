@@ -2,18 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import {
-  doc,
-  updateDoc,
-  serverTimestamp,
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-} from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { User, Bell, GitBranch, ChevronUp, ChevronDown, Plus, Check } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -101,6 +91,7 @@ function ProfileTab({ userId, initialName, email, initialPhone }: {
   email: string;
   initialPhone: string;
 }) {
+  const supabase = useSupabase();
   const [fullName, setFullName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
   const [saving, setSaving] = useState(false);
@@ -108,18 +99,17 @@ function ProfileTab({ userId, initialName, email, initialPhone }: {
   const [error, setError] = useState<string | null>(null);
 
   async function handleSave() {
-    if (!fullName.trim()) {
+    if (!fullName.trim() || !supabase) {
       setError("Full name is required.");
       return;
     }
     setSaving(true);
     setError(null);
     try {
-      await updateDoc(doc(db, "users", userId), {
-        fullName: fullName.trim(),
+      await supabase.from("users").update({
+        full_name: fullName.trim(),
         phone: phone.trim() || null,
-        updatedAt: serverTimestamp(),
-      });
+      }).eq("id", userId);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {
@@ -202,6 +192,9 @@ function ProfileTab({ userId, initialName, email, initialPhone }: {
 // ─── Pipeline Tab ─────────────────────────────────────────────────────────────
 
 function PipelineTab() {
+  const { user } = useAuth();
+  const tenantId = user?.tenantId;
+  const supabase = useSupabase();
   const [stages, setStages] = useState<PipelineStage[]>([]);
   const [loadingStages, setLoadingStages] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -210,25 +203,17 @@ function PipelineTab() {
   const [addError, setAddError] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchStages() {
-      try {
-        const snap = await getDocs(
-          query(
-            collection(db, "pipelines", "default", "stages"),
-            orderBy("position", "asc")
-          )
-        );
-        setStages(
-          snap.docs.map((d) => ({ id: d.id, ...d.data() } as PipelineStage))
-        );
-      } catch (err) {
-        console.error("Failed to load pipeline stages:", err);
-      } finally {
+    if (!supabase || !tenantId) { setLoadingStages(false); return; }
+    supabase
+      .from("pipeline_stages")
+      .select("*")
+      .eq("tenant_id", tenantId)
+      .order("position")
+      .then(({ data }) => {
+        if (data) setStages(data.map((d) => ({ id: d.id, name: d.name, slug: d.slug, position: d.position, color: d.color, isTerminal: d.is_terminal } as PipelineStage)));
         setLoadingStages(false);
-      }
-    }
-    fetchStages();
-  }, []);
+      });
+  }, [supabase, tenantId]);
 
   function moveStage(index: number, direction: "up" | "down") {
     const updated = [...stages];
@@ -241,18 +226,10 @@ function PipelineTab() {
   async function saveOrder() {
     setSaving(true);
     try {
-      const token = await (await import("firebase/auth")).getAuth().currentUser?.getIdToken();
-      await fetch("/api/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          action: "reorder",
-          order: stages.map((s, i) => ({ id: s.id, position: i })),
-        }),
-      });
+      if (!supabase) return;
+      for (const [i, s] of stages.entries()) {
+        await supabase.from("pipeline_stages").update({ position: i }).eq("id", s.id);
+      }
     } catch (err) {
       console.error("Failed to save order:", err);
     } finally {
@@ -273,17 +250,19 @@ function PipelineTab() {
         .replace(/\s+/g, "-")
         .replace(/[^a-z0-9-]/g, "");
       const newPosition = stages.length;
-      const ref = await addDoc(collection(db, "pipelines", "default", "stages"), {
+      if (!supabase || !tenantId) return;
+      const { data: newStage } = await supabase.from("pipeline_stages").insert({
+        tenant_id: tenantId,
         name: newStageName.trim(),
         slug,
         color: newStageColor,
         position: newPosition,
-        isTerminal: false,
-      });
+        is_terminal: false,
+      }).select("id").single();
       setStages((prev) => [
         ...prev,
         {
-          id: ref.id,
+          id: newStage?.id ?? "",
           name: newStageName.trim(),
           slug,
           color: newStageColor,
@@ -415,6 +394,7 @@ function NotificationsTab({ userId, initial }: {
   userId: string;
   initial: NotificationPreferences;
 }) {
+  const supabase = useSupabase();
   const [prefs, setPrefs] = useState<NotificationPreferences>(initial);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -425,13 +405,13 @@ function NotificationsTab({ userId, initial }: {
   }
 
   async function handleSave() {
+    if (!supabase) return;
     setSaving(true);
     setError(null);
     try {
-      await updateDoc(doc(db, "users", userId), {
-        notificationPreferences: prefs,
-        updatedAt: serverTimestamp(),
-      });
+      await supabase.from("users").update({
+        notification_preferences: prefs,
+      } as Record<string, unknown>).eq("id", userId);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
     } catch (err) {

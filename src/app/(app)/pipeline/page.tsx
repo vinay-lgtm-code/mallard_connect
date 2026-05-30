@@ -102,12 +102,7 @@ function LeadCard({ lead, index, isOverdue }: LeadCardProps) {
                 <>
                   <span className="text-gray-300">&middot;</span>
                   <span className="text-gray-400">
-                    {format(
-                      lead.estimatedCloseDate instanceof Date
-                        ? lead.estimatedCloseDate
-                        : (lead.estimatedCloseDate as { toDate: () => Date }).toDate(),
-                      "d MMM"
-                    )}
+                    {format(new Date(lead.estimatedCloseDate), "d MMM")}
                   </span>
                 </>
               )}

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { useTenant } from "./tenant-provider";
 import { resetDemoTenant, isValidDemoSlug } from "@/lib/demo/seed";
-import { isFirebaseConfigured } from "@/lib/firebase/client";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 /**
  * Banner shown at the top of the (app) layout when the user is in demo mode.
@@ -38,7 +38,7 @@ export function DemoBanner({ visible }: { visible: boolean }) {
         <span className="text-amber-700">— viewing {tenant?.name ?? "Sequence"}</span>
       </div>
       <div className="flex items-center gap-3">
-        {isFirebaseConfigured && tenant?.slug && (
+        {isSupabaseConfigured && tenant?.slug && (
           <button
             onClick={handleReset}
             disabled={resetting}
