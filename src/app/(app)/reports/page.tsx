@@ -68,14 +68,14 @@ function KpiCard({
   value: string | number;
   sub?: string;
   icon: React.ElementType;
-  color: string;
+  color?: string;
 }) {
   return (
     <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
       <div className="flex items-start justify-between gap-2 mb-3">
         <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color}`}>
-          <Icon size={16} className="text-white" />
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-400">
+          <Icon size={16} />
         </div>
       </div>
       <p className="text-3xl font-bold text-gray-900">{value}</p>
