@@ -4,7 +4,7 @@ import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeads } from "@/hooks/use-leads";
-import { useTenantUsers } from "@/hooks/use-leads";
+import { useTenantUsers, useAnalyticsSnapshots } from "@/hooks/use-leads";
 import { ExportButton } from "@/components/export-button";
 import type { Lead, User } from "@/types";
 import { TrendingUp, Users, Clock, Target } from "lucide-react";
@@ -121,7 +121,7 @@ function HorizontalBar({
 
 // ─── Monthly Trend ────────────────────────────────────────────────────────────
 
-function MonthlyTrend({ trend }: { trend: { month: string; count: number }[] }) {
+function MonthlyTrend({ trend }: { trend: { month: string; count: number; snapshotted: boolean }[] }) {
   const maxCount = Math.max(...trend.map((t) => t.count), 1);
   return (
     <div className="flex items-end gap-3 h-32">
@@ -132,9 +132,11 @@ function MonthlyTrend({ trend }: { trend: { month: string; count: number }[] }) 
             <span className="text-xs font-semibold text-gray-600">{item.count > 0 ? item.count : ""}</span>
             <div className="w-full flex items-end" style={{ height: "80px" }}>
               <div
-                className="w-full rounded-t-md bg-primary transition-all duration-500"
+                className={`w-full rounded-t-md transition-all duration-500 ${
+                  item.snapshotted ? "bg-primary/60" : "bg-primary"
+                }`}
                 style={{ height: `${Math.max(heightPct, 4)}%` }}
-                title={`${item.month}: ${item.count}`}
+                title={`${item.month}: ${item.count}${item.snapshotted ? " (snapshot)" : ""}`}
               />
             </div>
             <span className="text-xs text-gray-400 text-center leading-tight">{item.month}</span>
@@ -291,6 +293,7 @@ export default function ReportsPage() {
 
   const { leads, loading: leadsLoading } = useLeads();
   const { users, loading: usersLoading } = useTenantUsers();
+  const { snapshots } = useAnalyticsSnapshots();
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -298,6 +301,17 @@ export default function ReportsPage() {
   }, [user, loading, router]);
 
   // ── Computed KPIs ────────────────────────────────────────────────────────────
+
+  // Snapshotted lead-intake counts keyed by UTC first-of-month (YYYY-MM-01).
+  const snapshotIntakeByMonth = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const snap of snapshots) {
+      const key = (snap.periodMonth ?? "").slice(0, 10);
+      const count = snap.metrics?.createdLeadCount;
+      if (key && typeof count === "number") map[key] = count;
+    }
+    return map;
+  }, [snapshots]);
 
   const stats = useMemo(() => {
     if (!leads || leads.length === 0) {
@@ -307,7 +321,7 @@ export default function ReportsPage() {
         avgDaysInPipeline: 0,
         leadsBySource: {} as Record<string, number>,
         stageData: [] as StageCount[],
-        monthlyTrend: [] as { month: string; count: number }[],
+        monthlyTrend: [] as { month: string; count: number; snapshotted: boolean }[],
       };
     }
 
@@ -354,23 +368,27 @@ export default function ReportsPage() {
       }
     }
 
-    // Monthly trend — last 6 months
+    // Monthly trend — last 6 months. PAST months read snapshotted intake when
+    // a snapshot exists; the current month (i === 0) is always computed live.
     const nowDate = new Date();
-    const monthlyTrend: { month: string; count: number }[] = [];
+    const monthlyTrend: { month: string; count: number; snapshotted: boolean }[] = [];
     for (let i = 5; i >= 0; i--) {
       const d = new Date(nowDate.getFullYear(), nowDate.getMonth() - i, 1);
       const key = getMonthKey(d);
       const label = getMonthLabel(d);
-      const count = leads.filter((lead) => {
+      const utcKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+      const snapshotCount = i > 0 ? snapshotIntakeByMonth[utcKey] : undefined;
+      const liveCount = leads.filter((lead) => {
         const created = toDate(lead.createdAt);
         if (!created) return false;
         return getMonthKey(created) === key;
       }).length;
-      monthlyTrend.push({ month: label, count });
+      const snapshotted = typeof snapshotCount === "number";
+      monthlyTrend.push({ month: label, count: snapshotted ? snapshotCount! : liveCount, snapshotted });
     }
 
     return { totalLeads, conversionRate, avgDaysInPipeline, leadsBySource, stageData, monthlyTrend };
-  }, [leads]);
+  }, [leads, snapshotIntakeByMonth]);
 
   // ── Team leaderboard ─────────────────────────────────────────────────────────
 
@@ -433,7 +451,9 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="text-lg font-bold text-gray-900">Reports</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Live data from all leads in the system.</p>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Live data for the current period. Past months use nightly snapshots.
+          </p>
         </div>
         <ExportButton
           data={exportData as Record<string, unknown>[]}
@@ -505,6 +525,10 @@ export default function ReportsPage() {
               ) : (
                 <p className="text-sm text-gray-400 text-center py-4">No data.</p>
               )}
+              <p className="text-[11px] text-gray-400 mt-4 leading-snug">
+                Historical figures are snapshotted nightly (shown in a lighter shade). The current
+                month is computed live and will keep changing until month-end.
+              </p>
             </div>
           </div>
 
