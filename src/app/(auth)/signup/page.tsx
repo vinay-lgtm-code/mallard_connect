@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -172,6 +173,17 @@ export default function SignUpPage() {
             {loading ? "Creating account…" : "Create Account"}
           </button>
         </form>
+
+        <div className="relative my-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-200" />
+          </div>
+          <div className="relative flex justify-center text-xs">
+            <span className="bg-white px-3 text-gray-500">or</span>
+          </div>
+        </div>
+
+        <OAuthButtons />
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Already have an account?{" "}
