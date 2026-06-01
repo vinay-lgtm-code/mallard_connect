@@ -120,8 +120,11 @@ export default function OnboardingPage() {
 
         <div>
           <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
-            Vanity URL
+            Set custom firm URL
           </label>
+          <p className="text-xs text-gray-500 mb-2">
+            e.g. if you are Acme Mortgages, set as acme-mortgages.sequence-ai.com
+          </p>
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary">
             <input
               type="text"
