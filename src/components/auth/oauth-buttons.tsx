@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { clearDemoUser } from "@/hooks/useAuth";
 
 function GoogleIcon() {
   return (
@@ -42,6 +43,7 @@ export function OAuthButtons() {
 
   async function handleOAuth(provider: "google" | "azure") {
     setLoadingProvider(provider);
+    clearDemoUser();
     const supabase = createClient();
     const { error } = await supabase.auth.signInWithOAuth({
       provider,

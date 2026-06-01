@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { clearDemoUser } from "@/hooks/useAuth";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function SignUpPage() {
@@ -40,6 +41,7 @@ export default function SignUpPage() {
         options: { data: { full_name: fullName } },
       });
       if (authErr) throw authErr;
+      clearDemoUser();
 
       if (!data.session && data.user?.identities?.length === 0) {
         setConfirmSent(true);

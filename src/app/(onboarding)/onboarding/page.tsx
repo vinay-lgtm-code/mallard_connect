@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { readOnboarding, writeOnboarding, clearOnboarding } from "@/lib/onboarding/state";
+import { clearDemoUser } from "@/hooks/useAuth";
 
 const COLORS = ["#1A5653", "#0F172A", "#7C3AED", "#0369A1", "#B45309", "#BE185D"];
 
@@ -79,6 +80,7 @@ export default function OnboardingPage() {
       }
 
       await supabase.auth.refreshSession();
+      clearDemoUser();
       clearOnboarding();
       router.push("/dashboard");
     } catch {
@@ -120,8 +122,11 @@ export default function OnboardingPage() {
 
         <div>
           <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
-            Vanity URL
+            Set custom firm URL
           </label>
+          <p className="text-xs text-gray-500 mb-2">
+            e.g. if you are Acme Mortgages, set as acme-mortgages.sequence-ai.com
+          </p>
           <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary">
             <input
               type="text"
