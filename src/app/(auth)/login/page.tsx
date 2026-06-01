@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { setDemoUser } from "@/hooks/useAuth";
+import { setDemoUser, clearDemoUser } from "@/hooks/useAuth";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function LoginPage() {
@@ -22,6 +22,7 @@ export default function LoginPage() {
       const supabase = createClient();
       const { error: authErr } = await supabase.auth.signInWithPassword({ email, password });
       if (authErr) throw authErr;
+      clearDemoUser();
 
       const { data: { user } } = await supabase.auth.getUser();
       if (user?.app_metadata?.tenant_id) {

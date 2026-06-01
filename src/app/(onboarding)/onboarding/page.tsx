@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { readOnboarding, writeOnboarding, clearOnboarding } from "@/lib/onboarding/state";
+import { clearDemoUser } from "@/hooks/useAuth";
 
 const COLORS = ["#1A5653", "#0F172A", "#7C3AED", "#0369A1", "#B45309", "#BE185D"];
 
@@ -79,6 +80,7 @@ export default function OnboardingPage() {
       }
 
       await supabase.auth.refreshSession();
+      clearDemoUser();
       clearOnboarding();
       router.push("/dashboard");
     } catch {
