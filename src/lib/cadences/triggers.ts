@@ -6,6 +6,8 @@ export async function maybeEnrollOnStageChange(
   newStageId: string,
   tenantId: string,
 ): Promise<void> {
+  if (process.env.NEXT_PUBLIC_ENABLE_CADENCES_TEMPLATES !== "true") return;
+
   const { data: cadences } = await supabase
     .from("cadences")
     .select("id, trigger, steps")

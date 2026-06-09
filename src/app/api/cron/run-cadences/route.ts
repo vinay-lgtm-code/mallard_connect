@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendReminderEmail } from "@/lib/email/client";
 import { runDueCadenceSteps } from "@/lib/cadences/run";
+import { isCadencesTemplatesEnabledServer } from "@/lib/feature-flags";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
 
@@ -77,11 +78,15 @@ export async function GET(request: NextRequest) {
 
   // ── 2. Cadence steps ─────────────────────────────────────────────────
   let cadenceResult = { processed: 0, errors: 0, log: [] as unknown[] };
-  try {
-    cadenceResult = await runDueCadenceSteps();
-  } catch (err) {
-    cadenceResult.errors = 1;
-    cadenceResult.log = [{ error: err instanceof Error ? err.message : String(err) }];
+  if (isCadencesTemplatesEnabledServer()) {
+    try {
+      cadenceResult = await runDueCadenceSteps();
+    } catch (err) {
+      cadenceResult.errors = 1;
+      cadenceResult.log = [{ error: err instanceof Error ? err.message : String(err) }];
+    }
+  } else {
+    cadenceResult.log = [{ skipped: "cadences feature flag is off" }];
   }
 
   return NextResponse.json({

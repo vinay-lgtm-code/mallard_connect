@@ -25,3 +25,22 @@ export const CadenceSchema = z.object({
 export type Cadence = z.infer<typeof CadenceSchema>;
 export type CadenceStep = z.infer<typeof CadenceStepSchema>;
 export type CadenceTrigger = z.infer<typeof CadenceTriggerSchema>;
+
+export const CreateCadenceSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+  trigger: CadenceTriggerSchema,
+  steps: z.array(CadenceStepSchema).min(1),
+  isActive: z.boolean().default(true),
+});
+
+export const UpdateCadenceSchema = z.object({
+  name: z.string().min(1).optional(),
+  description: z.string().optional(),
+  trigger: CadenceTriggerSchema.optional(),
+  steps: z.array(CadenceStepSchema).min(1).optional(),
+  isActive: z.boolean().optional(),
+}).refine(
+  (data) => Object.keys(data).length > 0,
+  { message: "At least one field must be provided" },
+);
