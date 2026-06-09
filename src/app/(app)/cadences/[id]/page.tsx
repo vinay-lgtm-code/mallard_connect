@@ -1,10 +1,15 @@
 "use client";
 
-import { use, useMemo } from "react";
+import { use, useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSupabase } from "@/hooks/use-supabase";
+import { isDemoUser } from "@/lib/mock-data";
 import { ArrowLeft, Mail, MessageSquare, CheckSquare, Bell, Clock, Zap, Hand, UserPlus2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCadences, useCadenceEnrollments } from "@/hooks/use-cadences";
+import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
+import { ComingSoon } from "@/components/coming-soon";
 import { useTemplates } from "@/hooks/use-templates";
 import { useLeads } from "@/hooks/use-leads";
 import type { CadenceChannel, CadenceTrigger } from "@/types";
@@ -61,7 +66,24 @@ export default function CadenceDetailPage({ params }: { params: Promise<{ id: st
     [allEnrollments, id]
   );
 
+  const router = useRouter();
+  const supabase = useSupabase();
+  const demo = user ? isDemoUser(user.id) : false;
+  const [toggling, setToggling] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   if (!user) return null;
+
+  if (!isCadencesTemplatesEnabled()) {
+    return (
+      <ComingSoon
+        icon={Zap}
+        title="Cadences"
+        description="Automated multi-step nurture sequences that trigger on stage changes or manual enrollment. This feature is being finalized and will be available soon."
+      />
+    );
+  }
+
   if (!cadence) {
     return (
       <div className="px-6 py-8">
@@ -104,12 +126,62 @@ export default function CadenceDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
-          <button className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">
-            {cadence.isActive ? "Pause" : "Activate"}
+          <button
+            disabled={toggling || demo}
+            onClick={async () => {
+              setToggling(true);
+              try {
+                const { data: { session } } = await supabase!.auth.getSession();
+                const res = await fetch(`/api/cadences/${id}/toggle`, {
+                  method: "PATCH",
+                  headers: { Authorization: `Bearer ${session?.access_token}` },
+                });
+                if (res.ok) router.refresh();
+              } finally {
+                setToggling(false);
+              }
+            }}
+            className="px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            {toggling ? "..." : cadence.isActive ? "Pause" : "Activate"}
           </button>
-          <button className="px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark">
+          <button
+            onClick={() => router.push(`/cadences/${id}/edit`)}
+            className="px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark"
+          >
             Edit cadence
           </button>
+          {(user.role === "admin" || user.role === "manager") && !demo && (
+            <button
+              disabled={deleting}
+              onClick={async () => {
+                if (!window.confirm("Delete this cadence? This cannot be undone.")) return;
+                setDeleting(true);
+                try {
+                  const { data: { session } } = await supabase!.auth.getSession();
+                  const res = await fetch(`/api/cadences/${id}`, {
+                    method: "DELETE",
+                    headers: { Authorization: `Bearer ${session?.access_token}` },
+                  });
+                  if (!res.ok) {
+                    const err = await res.json();
+                    if (res.status === 409) {
+                      alert(`Cannot delete: ${err.error}. ${err.count} active enrollment(s).`);
+                    } else {
+                      alert(err.error ?? "Failed to delete");
+                    }
+                    return;
+                  }
+                  router.push("/cadences");
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+              className="px-3 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50"
+            >
+              {deleting ? "..." : "Delete"}
+            </button>
+          )}
         </div>
       </div>
 

@@ -1,8 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { maybeEnrollOnStageChange } from "@/lib/cadences/triggers";
+import { isCadencesTemplatesEnabledServer } from "@/lib/feature-flags";
 
 export async function POST(request: NextRequest) {
+  if (!isCadencesTemplatesEnabledServer()) {
+    return NextResponse.json({ error: "Cadences feature is not enabled" }, { status: 403 });
+  }
+
   let body: { leadId?: string; stageId?: string };
   try {
     body = await request.json();

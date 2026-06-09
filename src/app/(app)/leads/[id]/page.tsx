@@ -11,6 +11,7 @@ import { QuickLogBar } from "@/components/leads/quick-log-bar";
 import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
 import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
 import { isDemoUser } from "@/lib/mock-data";
+import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType } from "@/types";
 
@@ -471,13 +472,15 @@ export default function LeadDetailPage() {
               <Plus size={15} />
               Log Activity
             </button>
-            <button
-              onClick={() => setShowCadenceModal(true)}
-              className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Zap size={15} />
-              Cadence
-            </button>
+            {isCadencesTemplatesEnabled() && (
+              <button
+                onClick={() => setShowCadenceModal(true)}
+                className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Zap size={15} />
+                Cadence
+              </button>
+            )}
           </div>
         </div>
 
