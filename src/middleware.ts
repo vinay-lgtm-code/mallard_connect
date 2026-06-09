@@ -36,9 +36,15 @@ export async function middleware(request: NextRequest) {
   const host = request.headers.get("host");
   const subdomain = parseSubdomain(host);
 
+  // Public routes (marketing, login, signup, onboarding) must always render —
+  // never block them on a Supabase round-trip. If the auth backend is down,
+  // these pages still need to load so users can sign in once it recovers.
   if (isPublic(pathname)) {
-    const { response } = await updateSession(request);
-    return applySubdomain(response, subdomain);
+    const requestHeaders = new Headers(request.headers);
+    if (subdomain) {
+      requestHeaders.set("x-sequence-tenant-slug", subdomain);
+    }
+    return NextResponse.next({ request: { headers: requestHeaders } });
   }
 
   // Demo mode: __session cookie is set by setDemoUser() — allow through.
