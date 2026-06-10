@@ -2,7 +2,8 @@
 
 import { useState, useRef } from "react";
 import { Upload, Check, RefreshCw } from "lucide-react";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, isDemoMode } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 
 type Step = "upload" | "mapping" | "preview" | "importing" | "done";
 
@@ -19,6 +20,13 @@ interface DuplicateRecord {
   selected: boolean;
 }
 
+interface StoredRow {
+  rawData: Record<string, string>;
+  mappedData: Record<string, string | undefined>;
+  matchedLeadId?: string;
+  matchType?: string;
+}
+
 const TARGET_FIELDS = [
   { value: "", label: "— Skip —" },
   { value: "firstName", label: "First Name" },
@@ -31,6 +39,82 @@ const TARGET_FIELDS = [
   { value: "notes", label: "Notes" },
   { value: "referredBy", label: "Referred By" },
 ];
+
+const AUTO_MAP_PATTERNS: Array<{ patterns: string[]; field: string }> = [
+  { patterns: ["first name", "firstname"], field: "firstName" },
+  { patterns: ["last name", "lastname", "surname"], field: "lastName" },
+  { patterns: ["client name", "name", "full name", "client"], field: "firstName" },
+  { patterns: ["tel number", "phone", "mobile", "telephone", "phone number", "contact number"], field: "phone" },
+  { patterns: ["email address", "email"], field: "email" },
+  { patterns: ["source", "lead source", "enquiry source"], field: "source" },
+  { patterns: ["type", "mortgage type", "product type"], field: "mortgageType" },
+  { patterns: ["readiness", "lead readiness"], field: "readiness" },
+  { patterns: ["notes", "comments", "case notes", "case updates"], field: "notes" },
+  { patterns: ["referred by", "referral", "referrer"], field: "referredBy" },
+];
+
+function autoMapColumnsClient(headers: string[]): Record<string, string> {
+  const result: Record<string, string> = {};
+  for (const header of headers) {
+    const normalized = header.toLowerCase().trim();
+    for (const { patterns, field } of AUTO_MAP_PATTERNS) {
+      if (patterns.includes(normalized)) {
+        result[header] = field;
+        break;
+      }
+    }
+  }
+  return result;
+}
+
+function parseCSVClient(text: string): { columns: string[]; rows: Record<string, string>[] } {
+  const lines = text.split(/\r?\n/).filter((l) => l.trim());
+  if (lines.length === 0) return { columns: [], rows: [] };
+
+  const columns = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+  const rows = lines.slice(1).map((line) => {
+    const values: string[] = [];
+    let current = "";
+    let inQuotes = false;
+    for (const ch of line) {
+      if (ch === '"') {
+        inQuotes = !inQuotes;
+      } else if (ch === "," && !inQuotes) {
+        values.push(current.trim());
+        current = "";
+      } else {
+        current += ch;
+      }
+    }
+    values.push(current.trim());
+
+    const row: Record<string, string> = {};
+    columns.forEach((col, i) => {
+      row[col] = values[i] ?? "";
+    });
+    return row;
+  });
+
+  return { columns, rows };
+}
+
+function remapRows(rows: StoredRow[], mappingList: ColumnMapping[]): StoredRow[] {
+  const mappingMap: Record<string, string> = {};
+  for (const m of mappingList) {
+    if (m.targetField) mappingMap[m.sourceColumn] = m.targetField;
+  }
+
+  return rows.map((row) => {
+    const mappedData: Record<string, string | undefined> = {};
+    for (const [csvCol, targetField] of Object.entries(mappingMap)) {
+      const value = row.rawData[csvCol];
+      if (value !== undefined && value !== "") {
+        mappedData[targetField] = value;
+      }
+    }
+    return { ...row, mappedData };
+  });
+}
 
 function StepIndicator({ current, step, label }: { current: Step; step: Step; label: string }) {
   const steps: Step[] = ["upload", "mapping", "preview", "importing", "done"];
@@ -61,10 +145,11 @@ function StepIndicator({ current, step, label }: { current: Step; step: Step; la
 
 export default function ImportPage() {
   const { user } = useAuth();
+  const supabase = useSupabase();
+  const demo = isDemoMode();
   const [step, setStep] = useState<Step>("upload");
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState<string | null>(null);
-  const [currentFile, setCurrentFile] = useState<File | null>(null);
   const [mappings, setMappings] = useState<ColumnMapping[]>([]);
   const [duplicateUpdates, setDuplicateUpdates] = useState<DuplicateRecord[]>([]);
   const [progress, setProgress] = useState(0);
@@ -72,6 +157,8 @@ export default function ImportPage() {
   const [skipCount, setSkipCount] = useState(0);
   const [importError, setImportError] = useState<string | null>(null);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [storedToCreate, setStoredToCreate] = useState<StoredRow[]>([]);
+  const [storedToUpdate, setStoredToUpdate] = useState<StoredRow[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const updateCount = duplicateUpdates.filter((d) => d.selected).length;
@@ -79,24 +166,49 @@ export default function ImportPage() {
 
   async function handleFile(file: File) {
     setFileName(file.name);
-    setCurrentFile(file);
     setImportError(null);
     setUploadLoading(true);
 
     try {
+      if (demo) {
+        const text = await file.text();
+        const { columns, rows } = parseCSVClient(text);
+        if (columns.length === 0) throw new Error("No columns found in file.");
+
+        const columnMapping = autoMapColumnsClient(columns);
+        const toCreate: StoredRow[] = rows.map((rawData) => {
+          const mappedData: Record<string, string | undefined> = {};
+          for (const [csvCol, field] of Object.entries(columnMapping)) {
+            if (rawData[csvCol]) mappedData[field] = rawData[csvCol];
+          }
+          return { rawData, mappedData };
+        });
+
+        setMappings(columns.map((col) => ({
+          sourceColumn: col,
+          targetField: columnMapping[col] ?? "",
+        })));
+        setNewCount(toCreate.length);
+        setSkipCount(0);
+        setDuplicateUpdates([]);
+        setStoredToCreate(toCreate);
+        setStoredToUpdate([]);
+        setStep("mapping");
+        return;
+      }
+
+      if (!supabase) throw new Error("Database not configured");
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated. Please sign in again.");
+
       const formData = new FormData();
       formData.append("file", file);
-
-      const headers: HeadersInit = {};
-      if (user) {
-        // Pass user ID for server-side auth context
-        headers["x-user-id"] = user.id;
-      }
 
       const res = await fetch("/api/import", {
         method: "POST",
         body: formData,
-        headers,
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) {
@@ -106,19 +218,18 @@ export default function ImportPage() {
 
       const preview = await res.json();
 
-      // Set column mappings from API response, fallback to file columns
-      const sourceColumns: string[] = preview.columns ?? Object.keys(preview.columnMapping ?? {});
+      const sourceColumns: string[] = preview.columns ?? [];
       const autoMapping: Record<string, string> = preview.columnMapping ?? {};
       setMappings(sourceColumns.map((col: string) => ({
         sourceColumn: col,
         targetField: autoMapping[col] ?? "",
       })));
 
-      // Set counts from preview stats
-      setNewCount(preview.stats?.new ?? preview.newCount ?? 0);
-      setSkipCount(preview.stats?.skip ?? preview.skipCount ?? 0);
+      setNewCount(preview.stats?.new ?? 0);
+      setSkipCount(preview.stats?.skip ?? 0);
+      setStoredToCreate(preview.toCreate ?? []);
+      setStoredToUpdate(preview.toUpdate ?? []);
 
-      // Set duplicate update records if provided
       if (Array.isArray(preview.duplicates)) {
         setDuplicateUpdates(
           preview.duplicates.map((d: { id: string; name: string; phone: string }) => ({
@@ -181,22 +292,37 @@ export default function ImportPage() {
     setImportError(null);
 
     try {
-      const selectedUpdates = duplicateUpdates
-        .filter((d) => d.selected)
-        .map((d) => d.id);
-
-      const headers: HeadersInit = { "Content-Type": "application/json" };
-      if (user) {
-        headers["x-user-id"] = user.id;
+      if (demo) {
+        setProgress(100);
+        setStep("done");
+        return;
       }
+
+      if (!supabase) throw new Error("Database not configured");
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Not authenticated. Please sign in again.");
+
+      const selectedUpdateIds = new Set(
+        duplicateUpdates.filter((d) => d.selected).map((d) => d.id)
+      );
+
+      const toCreate = remapRows(storedToCreate, mappings);
+      const toUpdate = remapRows(
+        storedToUpdate.filter((r) => r.matchedLeadId && selectedUpdateIds.has(r.matchedLeadId)),
+        mappings
+      );
 
       const res = await fetch("/api/import", {
         method: "POST",
-        headers,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
         body: JSON.stringify({
           action: "execute",
-          mappings,
-          selectedUpdates,
+          toCreate,
+          toUpdate,
           fileName,
         }),
       });
@@ -207,12 +333,7 @@ export default function ImportPage() {
       }
 
       const result = await res.json();
-
-      // Update counts from execution result
-      if (result.stats) {
-        setNewCount(result.stats.imported ?? newCount);
-        setSkipCount(result.stats.skipped ?? skipCount);
-      }
+      setNewCount(result.created ?? newCount);
 
       setProgress(100);
       setStep("done");
@@ -226,13 +347,14 @@ export default function ImportPage() {
   function resetImport() {
     setStep("upload");
     setFileName(null);
-    setCurrentFile(null);
     setProgress(0);
     setMappings([]);
     setDuplicateUpdates([]);
     setNewCount(0);
     setSkipCount(0);
     setImportError(null);
+    setStoredToCreate([]);
+    setStoredToUpdate([]);
   }
 
   return (

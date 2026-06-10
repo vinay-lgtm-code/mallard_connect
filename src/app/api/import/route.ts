@@ -27,6 +27,30 @@ async function requireAdminOrManager(request: NextRequest) {
   return { uid: user.id, role, tenantId };
 }
 
+function mapToDbRow(mappedData: Record<string, string | undefined>) {
+  const result: Record<string, string | number | null> = {};
+
+  if (mappedData.firstName && !mappedData.lastName) {
+    const parts = mappedData.firstName.trim().split(/\s+/);
+    result.first_name = parts[0];
+    result.last_name = parts.slice(1).join(" ") || null;
+  } else {
+    if (mappedData.firstName) result.first_name = mappedData.firstName;
+    if (mappedData.lastName) result.last_name = mappedData.lastName;
+  }
+
+  if (mappedData.phone) result.phone = mappedData.phone;
+  if (mappedData.email) result.email = mappedData.email;
+  if (mappedData.source) result.source = mappedData.source;
+  if (mappedData.mortgageType) result.mortgage_type = mappedData.mortgageType;
+  if (mappedData.readiness) result.readiness = mappedData.readiness;
+  if (mappedData.notes) result.follow_up_notes = mappedData.notes;
+  if (mappedData.referredBy) result.referred_by = mappedData.referredBy;
+  if (mappedData.assignedTo) result.assigned_to = mappedData.assignedTo;
+
+  return result;
+}
+
 export async function POST(request: NextRequest) {
   const caller = await requireAdminOrManager(request);
   if (!caller) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -45,7 +69,7 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     const mimeType = file.type;
 
-    const parsed = await parseImportFile(buffer, mimeType);
+    const { rows: parsed, columns, columnMapping } = await parseImportFile(buffer, mimeType);
 
     const { data: existing } = await supabase
       .from("leads")
@@ -53,7 +77,22 @@ export async function POST(request: NextRequest) {
       .eq("tenant_id", caller.tenantId);
 
     const dedupResult = findDuplicates(parsed, existing ?? []);
-    return NextResponse.json(dedupResult);
+
+    return NextResponse.json({
+      columns,
+      columnMapping,
+      stats: {
+        new: dedupResult.new.length,
+        skip: dedupResult.duplicateSkip.length,
+      },
+      duplicates: dedupResult.duplicateUpdate.map((r) => ({
+        id: r.matchedLeadId,
+        name: r.mappedData.firstName || r.mappedData.name || "",
+        phone: r.mappedData.phone || "",
+      })),
+      toCreate: dedupResult.new,
+      toUpdate: dedupResult.duplicateUpdate,
+    });
   }
 
   const body = await request.json();
@@ -62,38 +101,42 @@ export async function POST(request: NextRequest) {
   }
 
   const { toCreate, toUpdate }: { toCreate: ImportRow[]; toUpdate: ImportRow[] } = body;
+  let created = 0;
+  let updated = 0;
 
   for (const row of toCreate ?? []) {
-    await supabase.from("leads").insert({
-      ...row.mappedData,
+    const dbRow = mapToDbRow(row.mappedData);
+    const { error } = await supabase.from("leads").insert({
+      ...dbRow,
       tenant_id: caller.tenantId,
       status: "active",
     });
+    if (!error) created++;
   }
 
   for (const row of toUpdate ?? []) {
     if (!row.matchedLeadId) continue;
-    await supabase.from("leads").update({
-      ...row.mappedData,
-    }).eq("id", row.matchedLeadId).eq("tenant_id", caller.tenantId);
+    const dbRow = mapToDbRow(row.mappedData);
+    const { error } = await supabase.from("leads").update(dbRow)
+      .eq("id", row.matchedLeadId)
+      .eq("tenant_id", caller.tenantId);
+    if (!error) updated++;
   }
 
   await supabase.from("import_records").insert({
     tenant_id: caller.tenantId,
     uploaded_by: caller.uid,
-    file_name: "import",
-    column_mapping: {},
+    file_name: body.fileName ?? "import",
+    column_mapping: body.columnMapping ?? {},
     stats: {
       total: (toCreate ?? []).length + (toUpdate ?? []).length,
-      imported: (toCreate ?? []).length,
-      skipped: 0,
+      imported: created,
+      updated,
+      skipped: (toCreate ?? []).length - created,
       failed: 0,
     },
     status: "completed",
   });
 
-  return NextResponse.json({
-    created: (toCreate ?? []).length,
-    updated: (toUpdate ?? []).length,
-  });
+  return NextResponse.json({ created, updated });
 }
