@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { parseImportFile } from "@/lib/import/parser";
+import { parseImportFile, normalizeMortgageType } from "@/lib/import/parser";
 import { findDuplicates } from "@/lib/import/dedup";
 import type { ImportRow } from "@/lib/import/dedup";
 
@@ -63,9 +63,70 @@ export async function POST(request: NextRequest) {
 
   const { toCreate, toUpdate }: { toCreate: ImportRow[]; toUpdate: ImportRow[] } = body;
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function transformMappedData(mappedData: Record<string, any>) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const data: Record<string, any> = { ...mappedData };
+
+    // (a) Normalize mortgage type
+    if (data.mortgageType) {
+      data.mortgageType = normalizeMortgageType(data.mortgageType);
+    }
+
+    // (b) Resolve advisor name to user ID
+    if (data.assignedTo && !/^[0-9a-f]{8}-/.test(data.assignedTo)) {
+      const { data: matchedUser } = await supabase
+        .from("users")
+        .select("id")
+        .eq("tenant_id", caller!.tenantId)
+        .ilike("full_name", data.assignedTo)
+        .single();
+      data.assignedTo = matchedUser?.id ?? null;
+    }
+
+    // (c) Split "name" (Client column) into firstName / lastName
+    if (data.name) {
+      const trimmed = data.name.trim();
+      const lastSpace = trimmed.lastIndexOf(" ");
+      if (lastSpace === -1) {
+        data.firstName = "";
+        data.lastName = trimmed;
+      } else {
+        data.firstName = trimmed.slice(0, lastSpace);
+        data.lastName = trimmed.slice(lastSpace + 1);
+      }
+      delete data.name;
+    }
+
+    // (d) Map notes to follow_up_notes
+    if (data.notes !== undefined) {
+      data.follow_up_notes = data.notes;
+      delete data.notes;
+    }
+
+    // (e) Parse factFindDate (DD/MM/YYYY) into ISO string
+    if (data.factFindDate !== undefined) {
+      let parsed: Date | null = null;
+      const ddmmyyyy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
+      const match = String(data.factFindDate).match(ddmmyyyy);
+      if (match) {
+        const [, dd, mm, yyyy] = match;
+        parsed = new Date(`${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`);
+      } else {
+        const attempt = new Date(data.factFindDate);
+        if (!isNaN(attempt.getTime())) parsed = attempt;
+      }
+      data.fact_find_date = parsed ? parsed.toISOString() : null;
+      delete data.factFindDate;
+    }
+
+    return data;
+  }
+
   for (const row of toCreate ?? []) {
+    const transformed = await transformMappedData(row.mappedData);
     await supabase.from("leads").insert({
-      ...row.mappedData,
+      ...transformed,
       tenant_id: caller.tenantId,
       status: "active",
     });
@@ -73,8 +134,9 @@ export async function POST(request: NextRequest) {
 
   for (const row of toUpdate ?? []) {
     if (!row.matchedLeadId) continue;
+    const transformed = await transformMappedData(row.mappedData);
     await supabase.from("leads").update({
-      ...row.mappedData,
+      ...transformed,
     }).eq("id", row.matchedLeadId).eq("tenant_id", caller.tenantId);
   }
 

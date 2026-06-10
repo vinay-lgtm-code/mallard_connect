@@ -40,12 +40,16 @@ export async function parseImportFile(buffer: Buffer, mimeType: string): Promise
 
 export function autoMapColumns(headers: string[]): Record<string, string> {
   const mappings: Array<{ patterns: string[]; field: string }> = [
-    { patterns: ["client name", "name", "full name"], field: "name" },
+    { patterns: ["client", "client name", "name", "full name"], field: "name" },
     { patterns: ["tel number", "phone", "mobile", "telephone"], field: "phone" },
     { patterns: ["email address", "email"], field: "email" },
     { patterns: ["adviser", "advisor", "assigned to"], field: "assignedTo" },
     { patterns: ["case status", "status"], field: "status" },
     { patterns: ["source", "lead source"], field: "source" },
+    { patterns: ["date", "created", "date added"], field: "createdAt" },
+    { patterns: ["type", "mortgage type", "product type"], field: "mortgageType" },
+    { patterns: ["fact find date", "ff date", "fact find"], field: "factFindDate" },
+    { patterns: ["case updates", "case update", "notes", "case notes"], field: "notes" },
   ];
 
   const result: Record<string, string> = {};
@@ -61,4 +65,14 @@ export function autoMapColumns(headers: string[]): Record<string, string> {
   }
 
   return result;
+}
+
+export function normalizeMortgageType(raw: string): string {
+  const map: Record<string, string> = {
+    "ftb": "first-time-buyer", "first time buyer": "first-time-buyer", "ftb purchase": "first-time-buyer",
+    "btl": "buy-to-let", "buy2let": "buy-to-let", "buy to let": "buy-to-let",
+    "remo": "remortgage", "hmo remo": "remortgage", "remortgage": "remortgage", "remo ltd cp": "remortgage",
+    "purchase": "other", "purchaser": "other", "flips": "other",
+  };
+  return map[raw.toLowerCase().trim()] ?? "other";
 }

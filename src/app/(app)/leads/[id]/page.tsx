@@ -4,12 +4,13 @@ import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus } from "lucide-react";
 import { format } from "date-fns";
-import { useLead, useLeadActivities, useLeadTasks } from "@/hooks/use-leads";
+import { useLead, useLeadActivities, useLeadTasks, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { QuickLogBar } from "@/components/leads/quick-log-bar";
 import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
 import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
+import { EditableField } from "@/components/leads/editable-field";
 import { isDemoUser } from "@/lib/mock-data";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
@@ -95,6 +96,15 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
         status: "pending",
         reminder_emails: [email1, email2, email3].filter(Boolean),
         reminder_sent: false,
+      });
+      supabase?.auth.getSession().then(({ data: { session } }) => {
+        if (session?.access_token) {
+          fetch("/api/notifications/follow-up-scheduled", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+            body: JSON.stringify({ leadId, taskTitle: title.trim(), dueDate }),
+          }).catch(() => {});
+        }
       });
       onClose(true);
     } catch (err) {
@@ -185,6 +195,7 @@ export default function LeadDetailPage() {
   const { activities, refetch: refetchActivities } = useLeadActivities(id);
   const { tasks, refetch: refetchTasks } = useLeadTasks(id);
   const supabase = useSupabase();
+  const { users: tenantUsers } = useTenantUsers();
 
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [noteText, setNoteText] = useState("");
@@ -357,6 +368,7 @@ export default function LeadDetailPage() {
     );
   }
 
+  const assigneeName = tenantUsers.find(u => u.id === lead.assignedTo)?.fullName;
   const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-700";
   const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
 
@@ -507,35 +519,88 @@ export default function LeadDetailPage() {
             <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-3">
               <h2 className="text-sm font-semibold text-gray-700">Contact Info</h2>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Phone</p>
-                  <a href={`tel:${lead.phone}`} className="text-primary font-medium hover:underline">{lead.phone}</a>
-                </div>
-                {lead.email && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Email</p>
-                    <a href={`mailto:${lead.email}`} className="text-primary font-medium hover:underline truncate block">{lead.email}</a>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Source</p>
-                  <p className="text-gray-700 capitalize">{lead.source}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Readiness</p>
-                  <p className="text-gray-700">{lead.readiness ?? "Unknown"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Mortgage Type</p>
-                  <p className="text-gray-700">{lead.mortgageType ?? "Not set"}</p>
-                </div>
+                <EditableField
+                  label="Phone"
+                  value={lead.phone}
+                  field="phone"
+                  type="tel"
+                  linkHref={lead.phone ? `tel:${lead.phone}` : undefined}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Email"
+                  value={lead.email}
+                  field="email"
+                  type="email"
+                  linkHref={lead.email ? `mailto:${lead.email}` : undefined}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Source"
+                  value={lead.source}
+                  field="source"
+                  type="select"
+                  options={[
+                    { value: "website", label: "Website" },
+                    { value: "referral", label: "Referral" },
+                    { value: "phone", label: "Phone" },
+                    { value: "walk-in", label: "Walk-in" },
+                    { value: "social", label: "Social" },
+                    { value: "mab-import", label: "MAB Import" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Readiness"
+                  value={lead.readiness}
+                  field="readiness"
+                  type="select"
+                  options={[
+                    { value: "ready-now", label: "Ready Now" },
+                    { value: "1-3-months", label: "1-3 Months" },
+                    { value: "3-6-months", label: "3-6 Months" },
+                    { value: "6-12-months", label: "6-12 Months" },
+                    { value: "exploring", label: "Exploring" },
+                  ]}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Mortgage Type"
+                  value={lead.mortgageType}
+                  field="mortgage_type"
+                  type="select"
+                  options={[
+                    { value: "first-time-buyer", label: "First Time Buyer" },
+                    { value: "remortgage", label: "Remortgage" },
+                    { value: "self-employed", label: "Self Employed" },
+                    { value: "buy-to-let", label: "Buy to Let" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Assigned To</p>
                   <button
                     onClick={() => setShowAssignModal(true)}
                     className="text-primary font-medium hover:underline text-sm flex items-center gap-1"
                   >
-                    {lead.assignedTo ?? "Unassigned"}
+                    {assigneeName ?? "Unassigned"}
                     <UserPlus size={12} className="text-gray-400" />
                   </button>
                 </div>
