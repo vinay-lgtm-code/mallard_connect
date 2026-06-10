@@ -19,6 +19,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
+import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import { NotificationDropdown } from "@/components/notifications";
 import { DemoBanner } from "@/components/tenant/tenant-switcher";
 import { createClient } from "@/lib/supabase/client";
@@ -28,8 +29,8 @@ const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
   { href: "/pipeline", label: "Pipeline", icon: GitBranch, adminOnly: false },
   { href: "/leads", label: "Leads", icon: Users, adminOnly: false },
-  { href: "/cadences", label: "Cadences", icon: Zap, adminOnly: false },
-  { href: "/templates", label: "Templates", icon: FileText, adminOnly: true },
+  { href: "/cadences", label: "Cadences", icon: Zap, adminOnly: false, comingSoon: true },
+  { href: "/templates", label: "Templates", icon: FileText, adminOnly: true, comingSoon: true },
   { href: "/team", label: "Team", icon: UserPlus, adminOnly: true },
   { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
   { href: "/reports/forecast", label: "Forecast", icon: TrendingUp, adminOnly: true },
@@ -135,6 +136,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               >
                 <Icon className="w-4.5 h-4.5 flex-shrink-0" size={18} />
                 {item.label}
+                {item.comingSoon && !isCadencesTemplatesEnabled() && (
+                  <span className="ml-auto text-[10px] italic text-white/40">Coming Soon</span>
+                )}
               </Link>
             );
           })}
