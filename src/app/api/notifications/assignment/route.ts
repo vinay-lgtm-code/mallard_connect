@@ -24,28 +24,36 @@ export async function POST(request: NextRequest) {
   const auth = await verifyToken(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  let body: { leadId?: string; assigneeId?: string; assignerId?: string };
+  let body: { leadId?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { leadId, assigneeId, assignerId } = body;
-  if (!leadId || !assigneeId || !assignerId) {
-    return NextResponse.json({ error: "leadId, assigneeId, and assignerId are required" }, { status: 400 });
+  const { leadId } = body;
+  if (!leadId) {
+    return NextResponse.json({ error: "leadId is required" }, { status: 400 });
   }
 
   const supabase = createServiceClient();
+  const assignerId = auth.uid;
 
-  // Fetch lead, assignee, assigner, and all managers in parallel
-  const [leadRes, assigneeRes, assignerRes, managersRes] = await Promise.all([
-    supabase
-      .from("leads")
-      .select("first_name, last_name, phone, source, mortgage_type")
-      .eq("id", leadId)
-      .eq("tenant_id", auth.tenantId)
-      .single(),
+  // Fetch lead (server-side source of truth for assignee)
+  const leadRes = await supabase
+    .from("leads")
+    .select("first_name, last_name, phone, source, mortgage_type, assigned_to")
+    .eq("id", leadId)
+    .eq("tenant_id", auth.tenantId)
+    .single();
+
+  if (!leadRes.data) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  const lead = leadRes.data as Record<string, unknown>;
+  const assigneeId = lead.assigned_to as string | null;
+  if (!assigneeId) return NextResponse.json({ error: "Lead has no assignee" }, { status: 400 });
+
+  // Fetch assignee, assigner, and managers in parallel
+  const [assigneeRes, assignerRes, managersRes] = await Promise.all([
     supabase
       .from("users")
       .select("full_name, email")
@@ -66,11 +74,9 @@ export async function POST(request: NextRequest) {
       .eq("is_active", true),
   ]);
 
-  if (!leadRes.data) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   if (!assigneeRes.data) return NextResponse.json({ error: "Assignee not found" }, { status: 404 });
   if (!assignerRes.data) return NextResponse.json({ error: "Assigner not found" }, { status: 404 });
 
-  const lead = leadRes.data as Record<string, unknown>;
   const assignee = assigneeRes.data as Record<string, unknown>;
   const assigner = assignerRes.data as Record<string, unknown>;
   const managers = (managersRes.data ?? []) as Array<Record<string, unknown>>;
