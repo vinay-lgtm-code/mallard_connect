@@ -28,7 +28,9 @@ const TARGET_FIELDS = [
   { value: "source", label: "Lead Source" },
   { value: "mortgageType", label: "Mortgage Type" },
   { value: "readiness", label: "Readiness" },
-  { value: "notes", label: "Notes" },
+  { value: "factFindDate", label: "Fact Find Date" },
+  { value: "notes", label: "Case Notes" },
+  { value: "createdAt", label: "Date Added" },
   { value: "referredBy", label: "Referred By" },
 ];
 
