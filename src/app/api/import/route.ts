@@ -75,11 +75,12 @@ export async function POST(request: NextRequest) {
 
     // (b) Resolve advisor name to user ID
     if (data.assignedTo && !/^[0-9a-f]{8}-/.test(data.assignedTo)) {
+      const safeName = String(data.assignedTo).replace(/[%_\\]/g, "\\$&");
       const { data: matchedUser } = await supabase
         .from("users")
         .select("id")
         .eq("tenant_id", caller!.tenantId)
-        .ilike("full_name", data.assignedTo)
+        .ilike("full_name", safeName)
         .single();
       data.assignedTo = matchedUser?.id ?? null;
     }

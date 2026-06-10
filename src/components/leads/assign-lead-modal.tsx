@@ -77,7 +77,7 @@ export function AssignLeadModal({
           fetch("/api/notifications/assignment", {
             method: "POST",
             headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
-            body: JSON.stringify({ leadId, assigneeId: selectedUserId, assignerId: user!.id }),
+            body: JSON.stringify({ leadId }),
           }).catch(() => {});
         }
       });

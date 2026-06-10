@@ -38,6 +38,23 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
 
+  // Verify a matching task was actually created by this user
+  const { data: task } = await supabase
+    .from("tasks")
+    .select("id")
+    .eq("lead_id", leadId)
+    .eq("created_by", auth.uid)
+    .eq("tenant_id", auth.tenantId)
+    .eq("title", taskTitle)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  if (!task) {
+    return NextResponse.json({ error: "No matching task found" }, { status: 404 });
+  }
+
   // Fetch lead (includes assigned_to), scheduler (auth.uid), and all managers in parallel
   const [leadRes, schedulerRes, managersRes] = await Promise.all([
     supabase
