@@ -5,6 +5,7 @@ import { X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTenantUsers, useLeads } from "@/hooks/use-leads";
+import { createClient } from "@/lib/supabase/client";
 import { getInitials } from "@/lib/utils";
 
 interface AssignLeadModalProps {
@@ -69,6 +70,22 @@ export function AssignLeadModal({
           newAssignee: selectedUserId,
         },
       });
+
+      // Fire assignment notification email (non-blocking)
+      try {
+        const sb = createClient();
+        const { data: { session } } = await sb.auth.getSession();
+        if (session?.access_token) {
+          fetch("/api/notifications/lead-assigned", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({ leadId, assigneeId: selectedUserId }),
+          });
+        }
+      } catch { /* non-fatal */ }
 
       onAssigned();
     } catch (err) {

@@ -180,3 +180,192 @@ export async function sendCadenceEmail({
     idempotencyKey ? { idempotencyKey } : undefined,
   );
 }
+
+// ── Lead assignment notification (internal, sent to assignee + assigner) ─
+
+interface LeadOverview {
+  name: string;
+  phone: string;
+  email: string | null;
+  source: string;
+  mortgageType: string | null;
+  readiness: string | null;
+  propertyValue: number | null;
+  stage: string;
+}
+
+interface SendAssignmentEmailParams {
+  to: string[];
+  assigneeName: string;
+  assignerName: string;
+  lead: LeadOverview;
+  leadUrl: string;
+}
+
+export async function sendLeadAssignmentEmail({
+  to,
+  assigneeName,
+  assignerName,
+  lead,
+  leadUrl,
+}: SendAssignmentEmailParams) {
+  const safeName = esc(lead.name);
+  const rows = [
+    infoRow("Name", safeName),
+    infoRow("Phone", `<a href="tel:${esc(lead.phone)}" style="color:#1A5653;text-decoration:none;">${esc(lead.phone)}</a>`),
+    ...(lead.email ? [infoRow("Email", esc(lead.email))] : []),
+    infoRow("Source", esc(lead.source)),
+    ...(lead.mortgageType ? [infoRow("Mortgage Type", esc(formatLabel(lead.mortgageType)))] : []),
+    ...(lead.readiness ? [infoRow("Readiness", esc(formatLabel(lead.readiness)))] : []),
+    ...(lead.propertyValue ? [infoRow("Property Value", `£${lead.propertyValue.toLocaleString("en-GB")}`)] : []),
+    infoRow("Pipeline Stage", esc(lead.stage)),
+  ];
+
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      <strong>${esc(assignerName)}</strong> assigned <strong>${safeName}</strong> to <strong>${esc(assigneeName)}</strong>.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>
+      </td></tr>
+    </table>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to,
+    subject: `Lead assigned: ${lead.name}`,
+    html: brandedHtml({
+      preheader: `${assignerName} assigned ${lead.name} to ${assigneeName}`,
+      heading: `Lead Assigned — ${lead.name}`,
+      body,
+      ctaLabel: "View Lead in Sequence",
+      ctaUrl: leadUrl,
+    }),
+  });
+}
+
+// ── Daily leads digest (internal, sent Mon-Fri 7 AM BST) ────────────────
+
+interface DigestLead {
+  name: string;
+  phone: string;
+  stage: string;
+  nextFollowUp: string | null;
+  readiness: string | null;
+  leadUrl: string;
+}
+
+interface SendDailyDigestParams {
+  to: string;
+  recipientName: string;
+  leads: DigestLead[];
+  appUrl: string;
+}
+
+export async function sendDailyLeadsDigestEmail({
+  to,
+  recipientName,
+  leads,
+  appUrl,
+}: SendDailyDigestParams) {
+  const leadRows = leads.map((l) => {
+    const followUp = l.nextFollowUp
+      ? new Date(l.nextFollowUp).toLocaleDateString("en-GB", { day: "numeric", month: "short" })
+      : "—";
+    return `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;">
+          <a href="${escUrl(l.leadUrl)}" style="color:#1A5653;font-weight:600;text-decoration:none;font-size:14px;">${esc(l.name)}</a>
+          <br/><span style="color:#6b7280;font-size:12px;">${esc(l.phone)}</span>
+        </td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:13px;">${esc(l.stage)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:13px;">${esc(l.readiness ? formatLabel(l.readiness) : "—")}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#374151;font-size:13px;">${followUp}</td>
+      </tr>`;
+  }).join("");
+
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Good morning ${esc(recipientName.split(" ")[0])} — you have <strong>${leads.length}</strong> active lead${leads.length === 1 ? "" : "s"} assigned to you.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;">
+      <thead>
+        <tr style="background-color:#f9fafb;">
+          <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Lead</th>
+          <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Stage</th>
+          <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Readiness</th>
+          <th style="padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;">Next Follow-up</th>
+        </tr>
+      </thead>
+      <tbody>${leadRows}</tbody>
+    </table>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: `Your leads for today — ${leads.length} active`,
+    html: brandedHtml({
+      preheader: `${leads.length} active lead${leads.length === 1 ? "" : "s"} assigned to you`,
+      heading: "Your Daily Leads Summary",
+      body,
+      ctaLabel: "Open My Dashboard",
+      ctaUrl: appUrl,
+    }),
+  });
+}
+
+// ── Team member invite (sent to new member) ─────────────────────────────
+
+interface SendTeamInviteParams {
+  to: string;
+  fullName: string;
+  role: string;
+  tempPassword: string;
+  loginUrl: string;
+}
+
+export async function sendTeamInviteEmail({
+  to,
+  fullName,
+  role,
+  tempPassword,
+  loginUrl,
+}: SendTeamInviteParams) {
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Welcome, <strong>${esc(fullName)}</strong>! You've been added to Sequence as a <strong>${esc(formatLabel(role))}</strong>.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          ${infoRow("Email", esc(to))}
+          ${infoRow("Temporary Password", `<code style="background:#e5e7eb;padding:2px 8px;border-radius:4px;font-size:14px;">${esc(tempPassword)}</code>`)}
+        </table>
+      </td></tr>
+    </table>
+    <p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Please change your password after your first login.</p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: "You've been invited to Sequence",
+    html: brandedHtml({
+      preheader: "You've been added to Sequence — log in to get started",
+      heading: "Welcome to Sequence",
+      body,
+      ctaLabel: "Log In to Sequence",
+      ctaUrl: loginUrl,
+    }),
+  });
+}
+
+// ── Shared helpers ───────────────────────────────────────────────────────
+
+function infoRow(label: string, value: string) {
+  return `<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">${label}</span><br/><span style="color:#111827;font-size:15px;">${value}</span></td></tr>`;
+}
+
+function formatLabel(slug: string): string {
+  return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}

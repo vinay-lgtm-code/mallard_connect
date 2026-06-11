@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { Resend } from "resend";
+import { sendTeamInviteEmail } from "@/lib/email/client";
 
 type UserRole = "admin" | "manager" | "advisor";
 
@@ -96,16 +96,13 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const resend = new Resend(process.env.RESEND_API_KEY);
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
-    await resend.emails.send({
-      from: process.env.EMAIL_FROM ?? "Sequence <no-reply@sequence-ai.com>",
-      to: [email],
-      subject: "You've been invited to Sequence",
-      html: `<p>Welcome, ${fullName}! You've been added as a <strong>${userRole}</strong>.</p>
-<p>Email: <strong>${email}</strong><br/>Temporary password: <strong>${tempPassword}</strong></p>
-<p><a href="${appUrl}/login">Log in to Sequence</a></p>
-<p>Please change your password after logging in.</p>`,
+    await sendTeamInviteEmail({
+      to: email,
+      fullName,
+      role: userRole,
+      tempPassword,
+      loginUrl: `${appUrl}/login`,
     });
   } catch { /* email failure is non-fatal */ }
 
