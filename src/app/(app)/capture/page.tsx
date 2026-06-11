@@ -59,7 +59,8 @@ export default function CapturePage() {
       const lastName = parts.slice(1).join(" ");
 
       if (!supabase) throw new Error("Database not configured");
-      await supabase.from("leads").insert({
+      await supabase.auth.refreshSession();
+      const { error: insertErr } = await supabase.from("leads").insert({
         tenant_id: user.tenantId,
         first_name: firstName,
         last_name: lastName,
@@ -74,6 +75,7 @@ export default function CapturePage() {
         follow_up_notes: notes.trim() || null,
         tags: selectedTags,
       });
+      if (insertErr) throw insertErr;
 
       setShowToast(true);
       setTimeout(() => {

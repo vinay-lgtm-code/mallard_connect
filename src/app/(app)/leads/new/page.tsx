@@ -175,6 +175,7 @@ export default function NewLeadPage() {
       }
 
       if (!supabase) throw new Error("Database not configured");
+      await supabase.auth.refreshSession();
       const { data: newLead, error: insertErr } = await supabase.from("leads").insert({
         tenant_id: user.tenantId,
         first_name: form.firstName,
@@ -214,9 +215,12 @@ export default function NewLeadPage() {
       }
 
       router.push(`/leads/${newLead?.id}`);
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Failed to create lead:", err);
-      setSubmitError("Failed to save lead. Please try again.");
+      const detail = err instanceof Error ? err.message
+        : typeof err === "object" && err !== null && "message" in err ? String((err as { message: unknown }).message)
+        : "";
+      setSubmitError(detail ? `Failed to save lead: ${detail}` : "Failed to save lead. Please try again.");
     } finally {
       setSaving(false);
     }
