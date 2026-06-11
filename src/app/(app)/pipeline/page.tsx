@@ -405,13 +405,36 @@ export default function PipelinePage() {
     setPendingDrag(null);
   }
 
+  const defaultSlug = STAGES[0].id;
+
   // Resolve a lead's stored current_stage_id to a column slug. Real Supabase leads
   // store a UUID FK; if that UUID is in slugById, map it to its slug. Demo leads (and
   // any value that isn't a known UUID) are already slugs, so use them as-is.
-  const stageSlugOf = (currentStageId: string | null | undefined): string | null => {
-    if (!currentStageId) return null;
+  // Null stages fall into the first column so they're always visible.
+  const stageSlugOf = (currentStageId: string | null | undefined): string => {
+    if (!currentStageId) return defaultSlug;
     return slugById[currentStageId] ?? currentStageId;
   };
+
+  // Backfill leads that have null current_stage_id (created before stage
+  // assignment was added). Runs once when stages and leads are both loaded.
+  useEffect(() => {
+    if (demo || !supabase || !user?.tenantId) return;
+    const firstStageId = idBySlug[defaultSlug];
+    if (!firstStageId) return;
+    const nullLeads = baseLeads.filter((l) => !l.currentStageId);
+    if (nullLeads.length === 0) return;
+    const ids = nullLeads.map((l) => l.id);
+    supabase
+      .from("leads")
+      .update({
+        current_stage_id: firstStageId,
+        current_stage_entered_at: new Date().toISOString(),
+      })
+      .in("id", ids)
+      .eq("tenant_id", user.tenantId)
+      .then(() => {});
+  }, [demo, supabase, user?.tenantId, idBySlug, baseLeads, defaultSlug]);
 
   const leadsByStage = (stageId: string) =>
     visibleLeads.filter((l) => stageSlugOf(l.currentStageId) === stageId);

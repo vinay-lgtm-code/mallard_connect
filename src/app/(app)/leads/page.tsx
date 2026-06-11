@@ -102,7 +102,7 @@ export default function LeadsPage() {
   const { users } = useTenantUsers();
 
   const stageSlugOf = (currentStageId: string | null | undefined): string =>
-    currentStageId ? (idToSlug[currentStageId] ?? currentStageId) : "";
+    currentStageId ? (idToSlug[currentStageId] ?? currentStageId) : "new_enquiry";
 
   const userMap = useMemo(() => {
     const map: Record<string, string> = {};
