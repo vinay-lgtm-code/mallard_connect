@@ -2,13 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus } from "lucide-react";
+import { Phone, Mail, Plus, ChevronDown, Check, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { useLead, useLeadActivities, useLeadTasks } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { QuickLogBar } from "@/components/leads/quick-log-bar";
-import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
 import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
 import { isDemoUser } from "@/lib/mock-data";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
@@ -191,7 +190,6 @@ export default function LeadDetailPage() {
   const [savingNote, setSavingNote] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
-  const [showCadenceModal, setShowCadenceModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
 
   const stageDropdownRef = useRef<HTMLDivElement>(null);
@@ -378,16 +376,6 @@ export default function LeadDetailPage() {
         />
       )}
 
-      {showCadenceModal && (
-        <EnrollCadenceModal
-          leadId={id}
-          leadName={`${lead.firstName} ${lead.lastName}`}
-          open={showCadenceModal}
-          onClose={() => setShowCadenceModal(false)}
-          onEnrolled={() => { setShowCadenceModal(false); refetchActivities(); }}
-        />
-      )}
-
       {showAssignModal && (
         <AssignLeadModal
           leadId={id}
@@ -470,13 +458,6 @@ export default function LeadDetailPage() {
             >
               <Plus size={15} />
               Log Activity
-            </button>
-            <button
-              onClick={() => setShowCadenceModal(true)}
-              className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-            >
-              <Zap size={15} />
-              Cadence
             </button>
           </div>
         </div>
