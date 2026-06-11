@@ -42,12 +42,23 @@ export async function POST(request: NextRequest) {
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("first_name, last_name, phone, email, source, mortgage_type, readiness")
+    .select("first_name, last_name, phone, email, source, mortgage_type, readiness, assigned_to, created_at")
     .eq("id", leadId)
     .eq("tenant_id", auth.tenantId)
     .single();
 
   if (!lead) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+
+  // Only the user who created the lead (assigned_to at creation) can trigger this
+  if (lead.assigned_to !== auth.uid) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
+  // Only send for leads created in the last 5 minutes to prevent re-firing
+  const createdAt = new Date(lead.created_at).getTime();
+  if (Date.now() - createdAt > 5 * 60 * 1000) {
+    return NextResponse.json({ success: true, sent: 0, reason: "Lead is not recent" });
+  }
 
   const { data: managers } = await supabase
     .from("users")
