@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { useLeads, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
+import { isDemoUser } from "@/lib/mock-data";
 import { formatRelativeDate } from "@/lib/utils";
 import type { LeadStatus, Readiness } from "@/types";
 
@@ -61,18 +63,46 @@ const ALL_STATUSES = [
 
 export default function LeadsPage() {
   const { user } = useAuth();
+  const supabase = useSupabase();
+  const demo = user ? isDemoUser(user.id) : false;
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [assignedFilter, setAssignedFilter] = useState("");
 
+  const [slugToId, setSlugToId] = useState<Record<string, string>>({});
+  const [idToSlug, setIdToSlug] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (demo || !supabase || !user?.tenantId) return;
+    supabase
+      .from("pipeline_stages")
+      .select("id, slug")
+      .eq("tenant_id", user.tenantId)
+      .then(({ data }) => {
+        if (!data) return;
+        const s2i: Record<string, string> = {};
+        const i2s: Record<string, string> = {};
+        for (const row of data) {
+          s2i[row.slug] = row.id;
+          i2s[row.id] = row.slug;
+        }
+        setSlugToId(s2i);
+        setIdToSlug(i2s);
+      });
+  }, [demo, supabase, user?.tenantId]);
+
   const isManager = user?.role === "admin" || user?.role === "manager";
 
+  const resolvedStageId = stageFilter ? slugToId[stageFilter] || stageFilter : undefined;
   const { leads, loading } = useLeads({
-    stageId: stageFilter || undefined,
+    stageId: resolvedStageId,
     status: statusFilter || undefined,
   });
   const { users } = useTenantUsers();
+
+  const stageSlugOf = (currentStageId: string | null | undefined): string =>
+    currentStageId ? (idToSlug[currentStageId] ?? currentStageId) : "";
 
   const userMap = useMemo(() => {
     const map: Record<string, string> = {};
@@ -192,8 +222,9 @@ export default function LeadsPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {filtered.map((lead) => {
-                  const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-600";
-                  const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
+                  const slug = stageSlugOf(lead.currentStageId);
+                  const stageStyle = STAGE_STYLES[slug] ?? "bg-gray-100 text-gray-600";
+                  const stageLabel = STAGE_LABELS[slug] ?? (slug || "—");
                   const updatedDate = lead.updatedAt ? new Date(lead.updatedAt) : undefined;
                   return (
                     <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
