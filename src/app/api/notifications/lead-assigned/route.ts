@@ -28,12 +28,16 @@ export async function POST(request: NextRequest) {
 
   const { data: callerProfile } = await supabase
     .from("users")
-    .select("tenant_id, full_name, email")
+    .select("tenant_id, full_name, email, role")
     .eq("id", user.id)
     .single();
 
   if (!callerProfile) {
     return NextResponse.json({ error: "Caller profile not found" }, { status: 404 });
+  }
+
+  if (!["admin", "manager"].includes(callerProfile.role)) {
+    return NextResponse.json({ error: "Only managers and admins can trigger assignment notifications" }, { status: 403 });
   }
 
   const { data: assignee } = await supabase
@@ -48,12 +52,16 @@ export async function POST(request: NextRequest) {
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("first_name, last_name, phone, email, source, mortgage_type, readiness, property_value, current_stage_id, tenant_id")
+    .select("first_name, last_name, phone, email, source, mortgage_type, readiness, property_value, current_stage_id, tenant_id, assigned_to")
     .eq("id", leadId)
     .single();
 
   if (!lead || lead.tenant_id !== callerProfile.tenant_id) {
     return NextResponse.json({ error: "Lead not found" }, { status: 404 });
+  }
+
+  if (lead.assigned_to !== assigneeId) {
+    return NextResponse.json({ error: "Lead is not assigned to this user" }, { status: 409 });
   }
 
   let stageName = "Unknown";
