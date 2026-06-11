@@ -172,28 +172,31 @@ export default function TeamMemberPage() {
     setReassigning(true);
     setReassignError(null);
 
+    const targetName = allUsers.find((u) => u.id === reassignTarget)?.fullName ?? reassignTarget;
+
     try {
       if (!demo && supabase) {
-        for (const lead of activeLeads) {
-          await supabase.from("leads").update({ assigned_to: reassignTarget }).eq("id", lead.id);
-          await supabase.from("activities").insert({
+        const leadIds = activeLeads.map((l) => l.id);
+        await supabase.from("leads").update({ assigned_to: reassignTarget }).in("id", leadIds);
+        await supabase.from("activities").insert(
+          activeLeads.map((lead) => ({
             tenant_id: currentUser.tenantId,
             lead_id: lead.id,
             performed_by: currentUser.id,
-            activity_type: "stage-change",
-            title: `Lead reassigned to ${allUsers.find((u) => u.id === reassignTarget)?.fullName ?? reassignTarget}`,
+            activity_type: "assignment" as const,
+            title: `Lead reassigned to ${targetName}`,
             description: null,
             metadata: {
               previousAssignee: id,
               newAssignee: reassignTarget,
             },
-          });
-        }
+          })),
+        );
       }
       setShowReassignModal(false);
       setReassignTarget(null);
       showSuccessBanner(`${activeLeads.length} lead${activeLeads.length !== 1 ? "s" : ""} reassigned`);
-      setTimeout(() => router.refresh(), 500);
+      setTimeout(() => router.push("/team"), 1000);
     } catch (err) {
       setReassignError(err instanceof Error ? err.message : "Failed to reassign leads");
     } finally {
@@ -235,6 +238,7 @@ export default function TeamMemberPage() {
       setTimeout(() => router.push("/team"), 1000);
     } catch (err) {
       setActionError(err instanceof Error ? err.message : "Failed to remove member");
+    } finally {
       setDeleting(false);
     }
   }
