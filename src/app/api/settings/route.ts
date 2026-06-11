@@ -1,51 +1,36 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-
-async function verifyToken(request: NextRequest) {
-  const supabase = createServiceClient();
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .single();
-
-  return profile ? { uid: user.id, role: profile.role as string, tenantId: profile.tenant_id as string } : null;
-}
+import { verifyToken, authError } from "@/lib/auth/verify-token";
 
 export async function GET(request: NextRequest) {
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await verifyToken(request);
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const supabase = createServiceClient();
 
   const [userRes, stagesRes] = await Promise.all([
-    supabase.from("users").select("full_name, email, phone").eq("id", auth.uid).single(),
+    supabase.from("users").select("full_name, email, phone, notification_preferences").eq("id", auth.uid).single(),
     supabase.from("pipeline_stages").select("*").eq("tenant_id", auth.tenantId).order("position"),
   ]);
 
   const userData = userRes.data ?? {};
-  const stages = stagesRes.data ?? [];
 
   return NextResponse.json({
     user: {
       fullName: (userData as Record<string, unknown>).full_name ?? "",
       email: (userData as Record<string, unknown>).email ?? "",
       phone: (userData as Record<string, unknown>).phone ?? null,
+      notificationPreferences: (userData as Record<string, unknown>).notification_preferences ?? null,
     },
-    stages,
+    stages: stagesRes.data ?? [],
   });
 }
 
 export async function PATCH(request: NextRequest) {
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await verifyToken(request);
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const body = await request.json();
   const supabase = createServiceClient();
@@ -53,6 +38,7 @@ export async function PATCH(request: NextRequest) {
   const update: Record<string, unknown> = {};
   if ("fullName" in body) update.full_name = body.fullName;
   if ("phone" in body) update.phone = body.phone;
+  if ("notificationPreferences" in body) update.notification_preferences = body.notificationPreferences;
 
   if (Object.keys(update).length > 0) {
     await supabase.from("users").update(update).eq("id", auth.uid);
@@ -62,11 +48,9 @@ export async function PATCH(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (auth.role !== "admin" && auth.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const body = await request.json();
   const supabase = createServiceClient();

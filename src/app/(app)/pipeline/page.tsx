@@ -390,6 +390,24 @@ export default function PipelinePage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ leadId, stageId: toStageId }),
         }).catch((err) => console.error("Cadence enrollment failed:", err));
+
+        // Stage-change email notification (fire-and-forget)
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (!session?.access_token) return;
+          fetch("/api/notifications/stage-change", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              leadId,
+              toStageName: stageName,
+              note: note || null,
+              terminal: isTerminal,
+            }),
+          }).catch(() => {});
+        });
       }
     } catch (err) {
       console.error("Failed to update stage:", err);

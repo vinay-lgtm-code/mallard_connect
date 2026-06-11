@@ -11,9 +11,13 @@ interface EmptyStateProps {
     label: string;
     href: string;
   };
+  onAction?: {
+    label: string;
+    onClick: () => void;
+  };
 }
 
-export function EmptyState({ icon: Icon, title, description, action }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, action, onAction }: EmptyStateProps) {
   return (
     <div className="bg-white rounded-[12px] p-8 shadow-sm border border-gray-100 text-center">
       {Icon && (
@@ -33,6 +37,16 @@ export function EmptyState({ icon: Icon, title, description, action }: EmptyStat
           >
             {action.label}
           </Link>
+        </div>
+      )}
+      {onAction && (
+        <div className="mt-5">
+          <button
+            onClick={onAction.onClick}
+            className="inline-flex items-center justify-center bg-primary text-white font-semibold py-2.5 px-5 rounded-lg text-sm hover:bg-primary-dark transition-colors"
+          >
+            {onAction.label}
+          </button>
         </div>
       )}
     </div>

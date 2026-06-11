@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
         .from("leads")
         .select("first_name, last_name, phone, follow_up_reason, follow_up_notes")
         .eq("id", task.lead_id)
+        .eq("tenant_id", task.tenant_id)
         .single();
 
       if (!lead) continue;

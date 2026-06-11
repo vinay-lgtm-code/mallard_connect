@@ -240,6 +240,12 @@ export interface Notification {
   createdAt: string;
 }
 
+export interface NotificationPreferences {
+  reminders: boolean;
+  assignments: boolean;
+  stageChanges: boolean;
+}
+
 export interface ImportRecord {
   id: string;
   uploadedBy: string;

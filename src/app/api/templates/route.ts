@@ -4,32 +4,16 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { CreateTemplateSchema } from "@/schemas/template";
 import { extractVariables } from "@/lib/email/render";
 import { isCadencesTemplatesEnabledServer } from "@/lib/feature-flags";
-
-async function verifyToken(request: NextRequest) {
-  const supabase = createServiceClient();
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .single();
-
-  return profile ? { uid: user.id, role: profile.role as string, tenantId: profile.tenant_id as string } : null;
-}
+import { verifyToken, authError } from "@/lib/auth/verify-token";
 
 export async function GET(request: NextRequest) {
   if (!isCadencesTemplatesEnabledServer()) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await verifyToken(request);
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const supabase = createServiceClient();
   const { data, error } = await supabase
@@ -50,12 +34,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (auth.role !== "admin" && auth.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   let validated;
   try {
