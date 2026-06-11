@@ -58,6 +58,12 @@ export default function CapturePage() {
       const firstName = parts[0] ?? "";
       const lastName = parts.slice(1).join(" ");
 
+      if (isDemoUser(user.id)) {
+        setShowToast(true);
+        setTimeout(() => router.push("/dashboard"), 1200);
+        return;
+      }
+
       if (!supabase) throw new Error("Database not configured");
       await supabase.auth.refreshSession();
 

@@ -77,23 +77,25 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !dueDate || !supabase) return;
+    if (!title.trim() || !dueDate) return;
     setSaving(true);
     setError(null);
     try {
-      await supabase.from("tasks").insert({
-        tenant_id: tenantId,
-        lead_id: leadId,
-        assigned_to: userId,
-        created_by: userId,
-        title: title.trim(),
-        description: null,
-        due_date: new Date(dueDate).toISOString(),
-        priority: "normal",
-        status: "pending",
-        reminder_emails: [email1, email2, email3].filter(Boolean),
-        reminder_sent: false,
-      });
+      if (!demo && supabase) {
+        await supabase.from("tasks").insert({
+          tenant_id: tenantId,
+          lead_id: leadId,
+          assigned_to: userId,
+          created_by: userId,
+          title: title.trim(),
+          description: null,
+          due_date: new Date(dueDate).toISOString(),
+          priority: "normal",
+          status: "pending",
+          reminder_emails: [email1, email2, email3].filter(Boolean),
+          reminder_sent: false,
+        });
+      }
       onClose(true);
     } catch (err) {
       console.error("Failed to create follow-up:", err);
@@ -215,19 +217,20 @@ function OverviewTab({ lead, leadId, demo, supabase, userNameById, onShowAssignM
     readiness !== (lead.readiness ?? "");
 
   async function handleSave() {
-    if (!supabase || demo) return;
     setSaving(true);
     try {
-      await supabase.from("leads").update({
-        phone: phone.trim(),
-        email: email.trim() || null,
-        mortgage_type: mortgageType || null,
-        readiness: readiness || null,
-        updated_at: new Date().toISOString(),
-      }).eq("id", leadId);
+      if (!demo && supabase) {
+        await supabase.from("leads").update({
+          phone: phone.trim(),
+          email: email.trim() || null,
+          mortgage_type: mortgageType || null,
+          readiness: readiness || null,
+          updated_at: new Date().toISOString(),
+        }).eq("id", leadId);
+        onSaved();
+      }
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
-      onSaved();
     } catch (err) {
       console.error("Failed to save overview:", err);
     } finally {
@@ -349,6 +352,7 @@ export default function LeadDetailPage() {
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [localStageOverride, setLocalStageOverride] = useState<string | null>(null);
 
   const [slugToId, setSlugToId] = useState<Record<string, string>>({});
   const [idToSlug, setIdToSlug] = useState<Record<string, string>>({});
@@ -423,21 +427,23 @@ export default function LeadDetailPage() {
   }
 
   async function handleSaveNote() {
-    if (!noteText.trim() || !user || !supabase) return;
+    if (!noteText.trim() || !user) return;
     setSavingNote(true);
     try {
-      await supabase.from("activities").insert({
-        tenant_id: user.tenantId,
-        lead_id: id,
-        performed_by: user.id,
-        activity_type: "note",
-        title: "Note added",
-        description: noteText,
-        metadata: null,
-      });
+      if (!demo && supabase) {
+        await supabase.from("activities").insert({
+          tenant_id: user.tenantId,
+          lead_id: id,
+          performed_by: user.id,
+          activity_type: "note",
+          title: "Note added",
+          description: noteText,
+          metadata: null,
+        });
+        refetchActivities();
+      }
       setNoteText("");
       setAddingNote(false);
-      refetchActivities();
     } catch (err) {
       console.error("Failed to save note:", err);
     } finally {
@@ -447,7 +453,14 @@ export default function LeadDetailPage() {
 
   async function handleStageChange(stageSlug: string) {
     setStageDropdownOpen(false);
-    if (!user || demo || !supabase) return;
+    if (!user) return;
+
+    if (demo) {
+      setLocalStageOverride(stageSlug);
+      return;
+    }
+
+    if (!supabase) return;
     const stageUuid = slugToId[stageSlug] ?? stageSlug;
     try {
       await supabase.from("leads").update({
@@ -473,48 +486,50 @@ export default function LeadDetailPage() {
 
   async function handleLogActivity(payload: LogActivityPayload) {
     if (!user) return;
-    if (demo) return;
-    if (!supabase) return;
-    try {
-      await supabase.from("activities").insert({
-        tenant_id: user.tenantId,
-        lead_id: id,
-        performed_by: user.id,
-        activity_type: payload.activityType,
-        title: payload.title,
-        description: payload.description || null,
-        metadata: Object.keys(payload.metadata).length > 0 ? payload.metadata : null,
-      });
-      refetchActivities();
-    } catch (err) {
-      console.error("Failed to log activity:", err);
+    if (!demo && supabase) {
+      try {
+        await supabase.from("activities").insert({
+          tenant_id: user.tenantId,
+          lead_id: id,
+          performed_by: user.id,
+          activity_type: payload.activityType,
+          title: payload.title,
+          description: payload.description || null,
+          metadata: Object.keys(payload.metadata).length > 0 ? payload.metadata : null,
+        });
+        refetchActivities();
+      } catch (err) {
+        console.error("Failed to log activity:", err);
+      }
     }
   }
 
   async function handleToggleTask(taskId: string, currentStatus: string) {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
-    if (demo) return;
-    if (!supabase) return;
-    try {
-      await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
-      refetchTasks();
-    } catch (err) {
-      console.error("Failed to update task:", err);
+    if (!demo && supabase) {
+      try {
+        await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
+        refetchTasks();
+      } catch (err) {
+        console.error("Failed to update task:", err);
+      }
     }
   }
 
   async function handleSaveQualification() {
-    if (!user || !supabase) return;
+    if (!user) return;
     setSavingQual(true);
     setQualSaved(false);
     try {
-      await supabase.from("leads").update({
-        property_value: qualPropertyValue ? Number(qualPropertyValue) : null,
-        deposit_amount: qualDepositAmount ? Number(qualDepositAmount) : null,
-        deal_value: qualDealValue ? Number(qualDealValue) : null,
-        estimated_close_date: qualEstimatedCloseDate || null,
-        confidence: qualConfidence ? Number(qualConfidence) : null,
-      }).eq("id", id);
+      if (!demo && supabase) {
+        await supabase.from("leads").update({
+          property_value: qualPropertyValue ? Number(qualPropertyValue) : null,
+          deposit_amount: qualDepositAmount ? Number(qualDepositAmount) : null,
+          deal_value: qualDealValue ? Number(qualDealValue) : null,
+          estimated_close_date: qualEstimatedCloseDate || null,
+          confidence: qualConfidence ? Number(qualConfidence) : null,
+        }).eq("id", id);
+      }
       setQualSaved(true);
       setTimeout(() => setQualSaved(false), 2000);
     } catch (err) {
@@ -540,9 +555,10 @@ export default function LeadDetailPage() {
     );
   }
 
-  const currentSlug = lead.currentStageId
-    ? (idToSlug[lead.currentStageId] ?? lead.currentStageId)
-    : "new_enquiry";
+  const currentSlug = localStageOverride
+    ?? (lead.currentStageId
+      ? (idToSlug[lead.currentStageId] ?? lead.currentStageId)
+      : "new_enquiry");
   const stageStyle = STAGE_STYLES[currentSlug] ?? "bg-gray-100 text-gray-700";
   const stageLabel = STAGE_LABELS[currentSlug] ?? currentSlug;
 
