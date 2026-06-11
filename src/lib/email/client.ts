@@ -490,6 +490,44 @@ export async function sendSignupConfirmationEmail({
   });
 }
 
+// ── OAuth welcome (sent to first-time OAuth signups) ────────────────────
+
+interface SendOAuthWelcomeParams {
+  to: string;
+  fullName: string;
+  provider: string;
+}
+
+export async function sendOAuthWelcomeEmail({
+  to,
+  fullName,
+  provider,
+}: SendOAuthWelcomeParams) {
+  const providerName = provider === "azure" ? "Microsoft" : provider.charAt(0).toUpperCase() + provider.slice(1);
+
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Hi <strong>${esc(fullName.split(" ")[0])}</strong>, welcome to Sequence!
+    </p>
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Your account has been created using <strong>${esc(providerName)}</strong>. You're all set — complete the onboarding steps to get your team up and running.
+    </p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: "Welcome to Sequence",
+    html: brandedHtml({
+      preheader: `Your Sequence account is ready — signed up with ${providerName}`,
+      heading: "Welcome to Sequence",
+      body,
+      ctaLabel: "Get Started",
+      ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com"}/onboarding`,
+      footer: "If you didn't create an account on Sequence, you can safely ignore this email.",
+    }),
+  });
+}
+
 // ── New lead created (internal, sent to managers) ───────────────────────
 
 interface SendLeadCreatedParams {
