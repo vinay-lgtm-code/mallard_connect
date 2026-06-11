@@ -26,10 +26,13 @@ export default function TemplatesListPage() {
             {" "}fill from the lead and adviser context at send time.
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark">
+        <Link
+          href="/templates/new"
+          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+        >
           <Plus size={16} />
           New template
-        </button>
+        </Link>
       </div>
 
       <Section title="Email" icon={Mail} items={emails} />
