@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import { Phone, Mail, Plus, ChevronDown, Check, UserPlus } from "lucide-react";
 import { format } from "date-fns";
-import { useLead, useLeadActivities, useLeadTasks } from "@/hooks/use-leads";
+import { useLead, useLeadActivities, useLeadTasks, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { QuickLogBar } from "@/components/leads/quick-log-bar";
@@ -172,6 +172,163 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
   );
 }
 
+const MORTGAGE_TYPE_OPTIONS = [
+  { value: "", label: "Not set" },
+  { value: "first-time-buyer", label: "First-time Buyer" },
+  { value: "remortgage", label: "Remortgage" },
+  { value: "self-employed", label: "Self-employed" },
+  { value: "buy-to-let", label: "Buy-to-let" },
+  { value: "other", label: "Other" },
+];
+
+const READINESS_OPTIONS = [
+  { value: "", label: "Unknown" },
+  { value: "ready-now", label: "Ready now" },
+  { value: "1-3-months", label: "1–3 months" },
+  { value: "3-6-months", label: "3–6 months" },
+  { value: "6-12-months", label: "6–12 months" },
+  { value: "exploring", label: "Just exploring" },
+];
+
+interface OverviewTabProps {
+  lead: { phone: string; email: string | null; mortgageType: string | null; readiness: string | null; assignedTo: string; nextFollowUpDate: string | null; followUpReason: string | null; followUpNotes: string | null };
+  leadId: string;
+  demo: boolean;
+  supabase: ReturnType<typeof useSupabase>;
+  userNameById: Record<string, string>;
+  onShowAssignModal: () => void;
+  onSaved: () => void;
+}
+
+function OverviewTab({ lead, leadId, demo, supabase, userNameById, onShowAssignModal, onSaved }: OverviewTabProps) {
+  const [phone, setPhone] = useState(lead.phone);
+  const [email, setEmail] = useState(lead.email ?? "");
+  const [mortgageType, setMortgageType] = useState(lead.mortgageType ?? "");
+  const [readiness, setReadiness] = useState(lead.readiness ?? "");
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const dirty =
+    phone !== lead.phone ||
+    email !== (lead.email ?? "") ||
+    mortgageType !== (lead.mortgageType ?? "") ||
+    readiness !== (lead.readiness ?? "");
+
+  async function handleSave() {
+    if (!supabase || demo) return;
+    setSaving(true);
+    try {
+      await supabase.from("leads").update({
+        phone: phone.trim(),
+        email: email.trim() || null,
+        mortgage_type: mortgageType || null,
+        readiness: readiness || null,
+        updated_at: new Date().toISOString(),
+      }).eq("id", leadId);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+      onSaved();
+    } catch (err) {
+      console.error("Failed to save overview:", err);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const assigneeName = lead.assignedTo ? (userNameById[lead.assignedTo] ?? "Unknown") : "Unassigned";
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-4">
+        <h2 className="text-sm font-semibold text-gray-700">Contact Info</h2>
+        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+          <div>
+            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Phone</label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="—"
+              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Mortgage Type</label>
+            <select
+              value={mortgageType}
+              onChange={(e) => setMortgageType(e.target.value)}
+              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            >
+              {MORTGAGE_TYPE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Readiness</label>
+            <select
+              value={readiness}
+              onChange={(e) => setReadiness(e.target.value)}
+              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            >
+              {READINESS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          </div>
+          <div className="col-span-2">
+            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Assigned To</label>
+            <button
+              onClick={onShowAssignModal}
+              className="mt-1 w-full text-left border border-gray-300 rounded-lg px-3 py-2 text-sm text-primary font-medium hover:bg-gray-50 flex items-center justify-between"
+            >
+              {assigneeName}
+              <UserPlus size={14} className="text-gray-400" />
+            </button>
+          </div>
+        </div>
+
+        {dirty && (
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full bg-primary text-white font-semibold py-2.5 rounded-lg text-sm hover:bg-primary-dark transition-colors disabled:opacity-60"
+          >
+            {saving ? "Saving…" : saved ? "Saved!" : "Save Changes"}
+          </button>
+        )}
+        {saved && !dirty && (
+          <p className="text-center text-sm text-green-600 font-medium">Saved!</p>
+        )}
+      </div>
+
+      {lead.nextFollowUpDate && (
+        <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-5">
+          <h2 className="text-sm font-semibold text-amber-800">Next Follow-up</h2>
+          <p className="text-lg font-bold text-amber-900 mt-1">
+            {format(new Date(lead.nextFollowUpDate), "EEEE, d MMMM yyyy")}
+          </p>
+          {lead.followUpReason && (
+            <p className="text-sm text-amber-700 mt-1">{lead.followUpReason}</p>
+          )}
+          {lead.followUpNotes && (
+            <p className="text-sm text-amber-600 mt-0.5 italic">{lead.followUpNotes}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LeadDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -182,6 +339,7 @@ export default function LeadDetailPage() {
   const { lead, loading, refetch: refetchLead } = useLead(id);
   const { activities, refetch: refetchActivities } = useLeadActivities(id);
   const { tasks, refetch: refetchTasks } = useLeadTasks(id);
+  const { users } = useTenantUsers();
   const supabase = useSupabase();
 
   const [activeTab, setActiveTab] = useState<Tab>("overview");
@@ -191,6 +349,34 @@ export default function LeadDetailPage() {
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+
+  const [slugToId, setSlugToId] = useState<Record<string, string>>({});
+  const [idToSlug, setIdToSlug] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (demo || !supabase || !user?.tenantId) return;
+    supabase
+      .from("pipeline_stages")
+      .select("id, slug")
+      .eq("tenant_id", user.tenantId)
+      .then(({ data }) => {
+        if (!data) return;
+        const s2i: Record<string, string> = {};
+        const i2s: Record<string, string> = {};
+        for (const row of data) {
+          s2i[row.slug] = row.id;
+          i2s[row.id] = row.slug;
+        }
+        setSlugToId(s2i);
+        setIdToSlug(i2s);
+      });
+  }, [demo, supabase, user?.tenantId]);
+
+  const userNameById = (() => {
+    const map: Record<string, string> = {};
+    for (const u of users) map[u.id] = u.fullName;
+    return map;
+  })();
 
   const stageDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -259,14 +445,14 @@ export default function LeadDetailPage() {
     }
   }
 
-  async function handleStageChange(stageId: string) {
+  async function handleStageChange(stageSlug: string) {
     setStageDropdownOpen(false);
-    if (!user) return;
-    if (demo) return;
-    if (!supabase) return;
+    if (!user || demo || !supabase) return;
+    const stageUuid = slugToId[stageSlug] ?? stageSlug;
     try {
       await supabase.from("leads").update({
-        current_stage_id: stageId,
+        current_stage_id: stageUuid,
+        current_stage_entered_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       }).eq("id", id);
       await supabase.from("activities").insert({
@@ -274,7 +460,7 @@ export default function LeadDetailPage() {
         lead_id: id,
         performed_by: user.id,
         activity_type: "stage-change",
-        title: `Stage changed to ${STAGE_LABELS[stageId] ?? stageId}`,
+        title: `Stage changed to ${STAGE_LABELS[stageSlug] ?? stageSlug}`,
         description: null,
         metadata: null,
       });
@@ -354,8 +540,11 @@ export default function LeadDetailPage() {
     );
   }
 
-  const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-700";
-  const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
+  const currentSlug = lead.currentStageId
+    ? (idToSlug[lead.currentStageId] ?? lead.currentStageId)
+    : "new_enquiry";
+  const stageStyle = STAGE_STYLES[currentSlug] ?? "bg-gray-100 text-gray-700";
+  const stageLabel = STAGE_LABELS[currentSlug] ?? currentSlug;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
@@ -411,7 +600,7 @@ export default function LeadDetailPage() {
                   {stageDropdownOpen && (
                     <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
                       {Object.entries(STAGE_LABELS)
-                        .filter(([key]) => key !== lead.currentStageId)
+                        .filter(([key]) => key !== currentSlug)
                         .map(([key, label]) => (
                           <button
                             key={key}
@@ -430,7 +619,6 @@ export default function LeadDetailPage() {
                     {lead.mortgageType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </span>
                 )}
-                <span className="text-xs text-gray-500">via {lead.source}</span>
               </div>
             </div>
           </div>
@@ -481,60 +669,15 @@ export default function LeadDetailPage() {
 
         {/* Tab content */}
         {activeTab === "overview" && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-3">
-              <h2 className="text-sm font-semibold text-gray-700">Contact Info</h2>
-              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Phone</p>
-                  <a href={`tel:${lead.phone}`} className="text-primary font-medium hover:underline">{lead.phone}</a>
-                </div>
-                {lead.email && (
-                  <div>
-                    <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Email</p>
-                    <a href={`mailto:${lead.email}`} className="text-primary font-medium hover:underline truncate block">{lead.email}</a>
-                  </div>
-                )}
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Source</p>
-                  <p className="text-gray-700 capitalize">{lead.source}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Readiness</p>
-                  <p className="text-gray-700">{lead.readiness ?? "Unknown"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Mortgage Type</p>
-                  <p className="text-gray-700">{lead.mortgageType ?? "Not set"}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Assigned To</p>
-                  <button
-                    onClick={() => setShowAssignModal(true)}
-                    className="text-primary font-medium hover:underline text-sm flex items-center gap-1"
-                  >
-                    {lead.assignedTo ?? "Unassigned"}
-                    <UserPlus size={12} className="text-gray-400" />
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {lead.nextFollowUpDate && (
-              <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-5">
-                <h2 className="text-sm font-semibold text-amber-800">Next Follow-up</h2>
-                <p className="text-lg font-bold text-amber-900 mt-1">
-                  {format(new Date(lead.nextFollowUpDate), "EEEE, d MMMM yyyy")}
-                </p>
-                {lead.followUpReason && (
-                  <p className="text-sm text-amber-700 mt-1">{lead.followUpReason}</p>
-                )}
-                {lead.followUpNotes && (
-                  <p className="text-sm text-amber-600 mt-0.5 italic">{lead.followUpNotes}</p>
-                )}
-              </div>
-            )}
-          </div>
+          <OverviewTab
+            lead={lead}
+            leadId={id}
+            demo={demo}
+            supabase={supabase}
+            userNameById={userNameById}
+            onShowAssignModal={() => setShowAssignModal(true)}
+            onSaved={refetchLead}
+          />
         )}
 
         {activeTab === "activity" && (
