@@ -31,6 +31,7 @@ const TARGET_FIELDS = [
   { value: "", label: "— Skip —" },
   { value: "firstName", label: "First Name" },
   { value: "lastName", label: "Last Name" },
+  { value: "name", label: "Full Name" },
   { value: "email", label: "Email" },
   { value: "phone", label: "Phone" },
   { value: "source", label: "Lead Source" },
@@ -45,7 +46,7 @@ const TARGET_FIELDS = [
 const AUTO_MAP_PATTERNS: Array<{ patterns: string[]; field: string }> = [
   { patterns: ["first name", "firstname"], field: "firstName" },
   { patterns: ["last name", "lastname", "surname"], field: "lastName" },
-  { patterns: ["client name", "name", "full name", "client"], field: "firstName" },
+  { patterns: ["client name", "name", "full name", "client"], field: "name" },
   { patterns: ["tel number", "phone", "mobile", "telephone", "phone number", "contact number"], field: "phone" },
   { patterns: ["email address", "email"], field: "email" },
   { patterns: ["source", "lead source", "enquiry source"], field: "source" },
@@ -221,7 +222,7 @@ export default function ImportPage() {
       const preview = await res.json();
 
       const sourceColumns: string[] = preview.columns ?? [];
-      const autoMapping: Record<string, string> = preview.columnMapping ?? {};
+      const autoMapping = autoMapColumnsClient(sourceColumns);
       setMappings(sourceColumns.map((col: string) => ({
         sourceColumn: col,
         targetField: autoMapping[col] ?? "",
