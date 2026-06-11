@@ -141,11 +141,25 @@ export function useAuth() {
         return;
       }
 
-      const { data: profile } = await supabase
+      let { data: profile } = await supabase
         .from("users")
         .select("*")
         .eq("id", authUser.id)
         .single();
+
+      // If the profile query returned nothing but the user has a tenant_id in
+      // app_metadata, the JWT is stale (missing tenant_id the RLS policy needs).
+      // Force a session refresh so subsequent queries use a JWT that includes
+      // the tenant_id claim set during onboarding.
+      if (!profile && authUser.app_metadata?.tenant_id) {
+        await supabase.auth.refreshSession();
+        const retry = await supabase
+          .from("users")
+          .select("*")
+          .eq("id", authUser.id)
+          .single();
+        profile = retry.data;
+      }
 
       if (profile) {
         const resolvedUser = rowToApp<User>(profile);
