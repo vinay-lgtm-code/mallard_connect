@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
   const scheduler = schedulerRes.data as Record<string, unknown>;
   const managers = (managersRes.data ?? []) as Array<Record<string, unknown>>;
 
-  const leadName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim();
+  const leadName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim() || "Unknown";
   const schedulerName = (scheduler.full_name as string) ?? "";
 
   // Fetch assigned user's email if the lead has an assigned adviser
@@ -114,7 +114,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, sent: 0 });
   }
 
-  const appUrl = process.env.APP_URL ?? "https://app.sequence-ai.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
   const leadUrl = `${appUrl}/leads/${leadId}`;
 
   await sendFollowUpScheduledEmail({

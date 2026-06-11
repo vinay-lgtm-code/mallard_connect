@@ -77,30 +77,31 @@ export async function GET(request: NextRequest) {
 
   for (const user of users) {
     try {
-      // ── 2a. Overdue tasks: pending, due_date < today ──────────────
-      const { data: overdueTasks } = await supabase
-        .from("tasks")
-        .select("id, lead_id, title, due_date")
-        .eq("assigned_to", user.id)
-        .eq("status", "pending")
-        .lt("due_date", todayIso);
-
-      // ── 2b. Due this week: pending, due_date between monday-sunday ─
-      const { data: weekTasks } = await supabase
-        .from("tasks")
-        .select("id, lead_id, title, due_date")
-        .eq("assigned_to", user.id)
-        .eq("status", "pending")
-        .gte("due_date", mondayIso)
-        .lte("due_date", sundayIso);
-
-      // ── 2c. Leads updated in last 24h, assigned to user, active ───
-      const { data: recentLeads } = await supabase
-        .from("leads")
-        .select("id, first_name, last_name, phone, mortgage_type, source, updated_at")
-        .eq("assigned_to", user.id)
-        .eq("status", "active")
-        .gte("updated_at", twentyFourHoursAgo);
+      // ── 2a/2b/2c. Parallel: overdue tasks, week tasks, recent leads ─
+      const [{ data: overdueTasks }, { data: weekTasks }, { data: recentLeads }] = await Promise.all([
+        supabase
+          .from("tasks")
+          .select("id, lead_id, title, due_date")
+          .eq("tenant_id", user.tenant_id)
+          .eq("assigned_to", user.id)
+          .eq("status", "pending")
+          .lt("due_date", todayIso),
+        supabase
+          .from("tasks")
+          .select("id, lead_id, title, due_date")
+          .eq("tenant_id", user.tenant_id)
+          .eq("assigned_to", user.id)
+          .eq("status", "pending")
+          .gte("due_date", mondayIso)
+          .lte("due_date", sundayIso),
+        supabase
+          .from("leads")
+          .select("id, first_name, last_name, phone, mortgage_type, source, updated_at")
+          .eq("tenant_id", user.tenant_id)
+          .eq("assigned_to", user.id)
+          .eq("status", "active")
+          .gte("updated_at", twentyFourHoursAgo),
+      ]);
 
       // Deduplicate week tasks that also appear in overdue
       const overdueLeadIds = new Set((overdueTasks ?? []).map((t) => t.lead_id));

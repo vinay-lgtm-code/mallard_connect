@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
-import { createClient } from "@/lib/supabase/client";
 import { isDemoUser } from "@/lib/mock-data";
 
 const TYPE_TAGS = [
@@ -95,10 +94,9 @@ export default function CapturePage() {
       if (insertErr) throw insertErr;
 
       // Notify managers about new lead (non-blocking)
-      if (newLead?.id) {
+      if (newLead?.id && supabase) {
         try {
-          const sb = createClient();
-          const { data: { session } } = await sb.auth.getSession();
+          const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) {
             fetch("/api/notifications/lead-created", {
               method: "POST",

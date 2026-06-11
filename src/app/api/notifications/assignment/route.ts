@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
   const assigner = assignerRes.data as Record<string, unknown>;
   const managers = (managersRes.data ?? []) as Array<Record<string, unknown>>;
 
-  const leadName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim();
+  const leadName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim() || "Unknown";
   const assigneeName = (assignee.full_name as string) ?? "";
   const assignerName = (assigner.full_name as string) ?? "";
 
@@ -101,19 +101,24 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, sent: 0 });
   }
 
-  const appUrl = process.env.APP_URL ?? "https://app.sequence-ai.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
   const leadUrl = `${appUrl}/leads/${leadId}`;
 
-  await sendAssignmentEmail({
-    to: recipients,
-    leadName,
-    leadPhone: (lead.phone as string) ?? "",
-    leadSource: (lead.source as string) ?? "unknown",
-    mortgageType: (lead.mortgage_type as string) ?? "not specified",
-    assignedByName: assignerName,
-    assigneeName,
-    leadUrl,
-  });
+  try {
+    await sendAssignmentEmail({
+      to: recipients,
+      leadName,
+      leadPhone: (lead.phone as string) ?? "",
+      leadSource: (lead.source as string) ?? "unknown",
+      mortgageType: (lead.mortgage_type as string) ?? "not specified",
+      assignedByName: assignerName,
+      assigneeName,
+      leadUrl,
+    });
 
-  return NextResponse.json({ success: true, sent: recipients.length });
+    return NextResponse.json({ success: true, sent: recipients.length });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
+  }
 }

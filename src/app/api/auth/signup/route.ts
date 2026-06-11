@@ -26,7 +26,6 @@ function isRateLimited(ip: string): boolean {
   const timestamps = (ipTimestamps.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
   if (timestamps.length >= RATE_LIMIT) return true;
   timestamps.push(now);
-  if (timestamps.length > RATE_LIMIT) timestamps.splice(0, timestamps.length - RATE_LIMIT);
   ipTimestamps.set(ip, timestamps);
   return false;
 }

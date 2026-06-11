@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
-import { createClient } from "@/lib/supabase/client";
 import { isDemoUser } from "@/lib/mock-data";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
 
@@ -226,10 +225,9 @@ export default function NewLeadPage() {
       }
 
       // Notify managers about new lead (non-blocking)
-      if (newLead?.id) {
+      if (newLead?.id && supabase) {
         try {
-          const sb = createClient();
-          const { data: { session } } = await sb.auth.getSession();
+          const { data: { session } } = await supabase.auth.getSession();
           if (session?.access_token) {
             fetch("/api/notifications/lead-created", {
               method: "POST",
