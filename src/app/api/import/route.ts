@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseImportFile, normalizeMortgageType } from "@/lib/import/parser";
+import { appToRow } from "@/lib/supabase/mappers";
 import { findDuplicates } from "@/lib/import/dedup";
 import type { ImportRow } from "@/lib/import/dedup";
 import { verifyToken, authError } from "@/lib/auth/verify-token";
@@ -15,25 +16,54 @@ export async function POST(request: NextRequest) {
   const supabase = createServiceClient();
 
   if (contentType.includes("multipart/form-data")) {
-    const formData = await request.formData();
-    const file = formData.get("file");
-    if (!file || typeof file === "string") {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    try {
+      const formData = await request.formData();
+      const file = formData.get("file");
+      if (!file || typeof file === "string") {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const mimeType = file.type;
+
+      const { rows: parsed, columns, columnMapping } = await parseImportFile(buffer, mimeType);
+
+      const { data: existingRaw } = await supabase
+        .from("leads")
+        .select("id, phone, email, updated_at")
+        .eq("tenant_id", caller.tenantId);
+
+      const existing = (existingRaw ?? []).map(row => ({
+        id: row.id,
+        phone: row.phone,
+        email: row.email,
+        updatedAt: row.updated_at,
+      }));
+
+      const dedupResult = findDuplicates(parsed, existing);
+      return NextResponse.json({
+        columns,
+        columnMapping,
+        stats: {
+          new: dedupResult.new.length,
+          skip: dedupResult.duplicateSkip.length,
+        },
+        toCreate: dedupResult.new,
+        toUpdate: dedupResult.duplicateUpdate,
+        duplicates: dedupResult.duplicateUpdate.map(row => ({
+          id: row.matchedLeadId,
+          name: row.mappedData.name || row.mappedData.phone || "Unknown",
+          phone: row.mappedData.phone || "",
+        })),
+      });
+    } catch (err) {
+      console.error("Import parse error:", err);
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Failed to parse file" },
+        { status: 400 }
+      );
     }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const mimeType = file.type;
-
-    const parsed = await parseImportFile(buffer, mimeType);
-
-    const { data: existing } = await supabase
-      .from("leads")
-      .select("id, phone, email, updated_at")
-      .eq("tenant_id", caller.tenantId);
-
-    const dedupResult = findDuplicates(parsed, existing ?? []);
-    return NextResponse.json(dedupResult);
   }
 
   const body = await request.json();
@@ -96,7 +126,7 @@ export async function POST(request: NextRequest) {
       delete data.factFindDate;
     }
 
-    return data;
+    return appToRow(data);
   }
 
   let created = 0;
