@@ -4,21 +4,36 @@ import { sendSignupConfirmationEmail } from "@/lib/email/client";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
 
+// In-process rate limiter — best-effort per instance. A distributed store
+// (Upstash/Vercel KV) would be better but this caps abuse within a single
+// Fluid Compute instance which handles many concurrent requests.
+const MAX_TRACKED_IPS = 10_000;
 const ipTimestamps = new Map<string, number[]>();
 const RATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
 const RATE_LIMIT = 5; // max signups per IP per window
 
 function isRateLimited(ip: string): boolean {
   const now = Date.now();
+
+  // Prune expired entries to bound memory
+  if (ipTimestamps.size > MAX_TRACKED_IPS) {
+    for (const [key, ts] of ipTimestamps) {
+      if (ts[ts.length - 1] < now - RATE_WINDOW_MS) ipTimestamps.delete(key);
+      if (ipTimestamps.size <= MAX_TRACKED_IPS * 0.8) break;
+    }
+  }
+
   const timestamps = (ipTimestamps.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
   if (timestamps.length >= RATE_LIMIT) return true;
   timestamps.push(now);
+  if (timestamps.length > RATE_LIMIT) timestamps.splice(0, timestamps.length - RATE_LIMIT);
   ipTimestamps.set(ip, timestamps);
   return false;
 }
 
 export async function POST(request: NextRequest) {
-  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  // x-real-ip is set by Vercel and cannot be spoofed by the client
+  const ip = request.headers.get("x-real-ip") ?? request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
   if (isRateLimited(ip)) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
