@@ -1,14 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/client";
 import { clearDemoUser } from "@/hooks/useAuth";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function SignUpPage() {
-  const router = useRouter();
   const [fullName, setFullName] = useState("");
   const [organisation, setOrganisation] = useState("");
   const [email, setEmail] = useState("");
@@ -35,29 +32,28 @@ export default function SignUpPage() {
 
     setLoading(true);
     try {
-      const supabase = createClient();
-      const { data, error: authErr } = await supabase.auth.signUp({
-        email,
-        password,
-        options: { data: { full_name: fullName, organisation } },
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, fullName, organisation }),
       });
-      if (authErr) throw authErr;
-      clearDemoUser();
 
-      if (!data.session && data.user?.identities?.length === 0) {
-        setConfirmSent(true);
-        return;
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error ?? "Something went wrong");
       }
 
-      router.push("/onboarding");
+      clearDemoUser();
+      setConfirmSent(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("already registered")) {
+      if (msg.includes("already registered") || msg.includes("already exists")) {
         setError("An account with this email already exists.");
-      } else if (msg.includes("password")) {
+      } else if (msg.includes("password") || msg.includes("Password")) {
         setError("Password is too weak. Use at least 6 characters.");
       } else {
-        setError("Something went wrong. Please try again.");
+        setError(msg || "Something went wrong. Please try again.");
       }
     } finally {
       setLoading(false);

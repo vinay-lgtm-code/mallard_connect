@@ -453,3 +453,39 @@ export async function sendTeamInviteEmail({
     }),
   });
 }
+
+// ── Signup confirmation (sent to new signups) ───────────────────────────
+
+interface SendSignupConfirmationParams {
+  to: string;
+  fullName: string;
+  confirmUrl: string;
+}
+
+export async function sendSignupConfirmationEmail({
+  to,
+  fullName,
+  confirmUrl,
+}: SendSignupConfirmationParams) {
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Hi <strong>${esc(fullName.split(" ")[0])}</strong>, thanks for signing up for Sequence!
+    </p>
+    <p style="margin:0 0 24px;color:#374151;font-size:15px;">
+      Please confirm your email address to activate your account and get started.
+    </p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: "Confirm your Sequence account",
+    html: brandedHtml({
+      preheader: "One click to activate your Sequence account",
+      heading: "Confirm Your Email",
+      body,
+      ctaLabel: "Confirm Email Address",
+      ctaUrl: confirmUrl,
+      footer: "If you didn't create an account on Sequence, you can safely ignore this email.",
+    }),
+  });
+}
