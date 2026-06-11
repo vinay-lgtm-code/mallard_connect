@@ -176,6 +176,15 @@ export default function NewLeadPage() {
 
       if (!supabase) throw new Error("Database not configured");
       await supabase.auth.refreshSession();
+
+      const { data: firstStage } = await supabase
+        .from("pipeline_stages")
+        .select("id")
+        .eq("tenant_id", user.tenantId)
+        .order("position", { ascending: true })
+        .limit(1)
+        .single();
+
       const { data: newLead, error: insertErr } = await supabase.from("leads").insert({
         tenant_id: user.tenantId,
         first_name: form.firstName,
@@ -186,7 +195,8 @@ export default function NewLeadPage() {
         mortgage_type: form.mortgageType || null,
         readiness: form.readiness || null,
         status: "active",
-        current_stage_id: null,
+        current_stage_id: firstStage?.id ?? null,
+        current_stage_entered_at: new Date().toISOString(),
         assigned_to: user.id,
         next_follow_up_date: form.followUpDate ? new Date(form.followUpDate).toISOString() : null,
         follow_up_reason: form.followUpReason || null,

@@ -113,6 +113,16 @@ export async function POST(request: NextRequest) {
   let skipped = 0;
   const errors: string[] = [];
 
+  const { data: firstStage } = await supabase
+    .from("pipeline_stages")
+    .select("id")
+    .eq("tenant_id", caller.tenantId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .single();
+  const defaultStageId = firstStage?.id ?? null;
+  const nowIso = new Date().toISOString();
+
   for (const row of toCreate ?? []) {
     const dbRow = mapToDbRow(row.mappedData);
     if (!dbRow.first_name || !dbRow.phone) {
@@ -124,6 +134,8 @@ export async function POST(request: NextRequest) {
       ...dbRow,
       tenant_id: caller.tenantId,
       status: "active",
+      current_stage_id: defaultStageId,
+      current_stage_entered_at: nowIso,
     });
     if (error) {
       errors.push(error.message);
