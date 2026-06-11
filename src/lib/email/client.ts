@@ -489,3 +489,63 @@ export async function sendSignupConfirmationEmail({
     }),
   });
 }
+
+// ── New lead created (internal, sent to managers) ───────────────────────
+
+interface SendLeadCreatedParams {
+  to: string[];
+  leadName: string;
+  leadPhone: string;
+  leadEmail: string | null;
+  leadSource: string;
+  mortgageType: string | null;
+  readiness: string | null;
+  createdByName: string;
+  leadUrl: string;
+}
+
+export async function sendLeadCreatedEmail({
+  to,
+  leadName,
+  leadPhone,
+  leadEmail,
+  leadSource,
+  mortgageType,
+  readiness,
+  createdByName,
+  leadUrl,
+}: SendLeadCreatedParams) {
+  const rows = [
+    `<tr><td style="padding:6px 0;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Name</span><br/><span style="color:#111827;font-size:15px;font-weight:600;">${esc(leadName)}</span></td></tr>`,
+    `<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Phone</span><br/><a href="tel:${esc(leadPhone)}" style="color:#1A5653;font-size:15px;font-weight:600;text-decoration:none;">${esc(leadPhone)}</a></td></tr>`,
+    ...(leadEmail ? [`<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Email</span><br/><span style="color:#111827;font-size:15px;">${esc(leadEmail)}</span></td></tr>`] : []),
+    `<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Source</span><br/><span style="color:#111827;font-size:15px;">${esc(leadSource)}</span></td></tr>`,
+    ...(mortgageType ? [`<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Mortgage type</span><br/><span style="color:#111827;font-size:15px;">${esc(formatLabel(mortgageType))}</span></td></tr>`] : []),
+    ...(readiness ? [`<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Readiness</span><br/><span style="color:#111827;font-size:15px;">${esc(formatLabel(readiness))}</span></td></tr>`] : []),
+    `<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Added by</span><br/><span style="color:#111827;font-size:15px;">${esc(createdByName)}</span></td></tr>`,
+  ];
+
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      <strong>${esc(createdByName)}</strong> added a new lead: <strong>${esc(leadName)}</strong>.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>
+      </td></tr>
+    </table>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to,
+    subject: `New lead added: ${leadName}`,
+    html: brandedHtml({
+      preheader: `${createdByName} added ${leadName} as a new lead`,
+      heading: `New Lead — ${leadName}`,
+      body,
+      ctaLabel: "View Lead in Sequence",
+      ctaUrl: leadUrl,
+      footer: "This notification was sent by Sequence. If you believe this was sent in error, please contact your manager.",
+    }),
+  });
+}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
+import { createClient } from "@/lib/supabase/client";
 import { isDemoUser } from "@/lib/mock-data";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
 
@@ -222,6 +223,24 @@ export default function NewLeadPage() {
           reminder_emails: reminderEmails,
           reminder_sent: false,
         });
+      }
+
+      // Notify managers about new lead (non-blocking)
+      if (newLead?.id) {
+        try {
+          const sb = createClient();
+          const { data: { session } } = await sb.auth.getSession();
+          if (session?.access_token) {
+            fetch("/api/notifications/lead-created", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ leadId: newLead.id }),
+            }).catch(() => {});
+          }
+        } catch { /* non-fatal */ }
       }
 
       router.push(`/leads/${newLead?.id}`);

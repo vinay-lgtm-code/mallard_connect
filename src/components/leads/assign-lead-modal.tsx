@@ -76,28 +76,18 @@ export function AssignLeadModal({
         const sb = createClient();
         const { data: { session } } = await sb.auth.getSession();
         if (session?.access_token) {
-          fetch("/api/notifications/lead-assigned", {
+          fetch("/api/notifications/assignment", {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
               Authorization: `Bearer ${session.access_token}`,
             },
-            body: JSON.stringify({ leadId, assigneeId: selectedUserId }),
-          });
+            body: JSON.stringify({ leadId }),
+          }).catch(() => {});
         }
       } catch { /* non-fatal */ }
 
       onAssigned();
-
-      supabase?.auth.getSession().then(({ data: { session } }) => {
-        if (session?.access_token) {
-          fetch("/api/notifications/assignment", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
-            body: JSON.stringify({ leadId }),
-          }).catch(() => {});
-        }
-      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to assign lead. Please try again.");
     } finally {

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
+import { createClient } from "@/lib/supabase/client";
 import { isDemoUser } from "@/lib/mock-data";
 
 const TYPE_TAGS = [
@@ -75,7 +76,7 @@ export default function CapturePage() {
         .limit(1)
         .single();
 
-      const { error: insertErr } = await supabase.from("leads").insert({
+      const { data: newLead, error: insertErr } = await supabase.from("leads").insert({
         tenant_id: user.tenantId,
         first_name: firstName,
         last_name: lastName,
@@ -90,8 +91,26 @@ export default function CapturePage() {
         readiness: null,
         follow_up_notes: notes.trim() || null,
         tags: selectedTags,
-      });
+      }).select("id").single();
       if (insertErr) throw insertErr;
+
+      // Notify managers about new lead (non-blocking)
+      if (newLead?.id) {
+        try {
+          const sb = createClient();
+          const { data: { session } } = await sb.auth.getSession();
+          if (session?.access_token) {
+            fetch("/api/notifications/lead-created", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${session.access_token}`,
+              },
+              body: JSON.stringify({ leadId: newLead.id }),
+            }).catch(() => {});
+          }
+        } catch { /* non-fatal */ }
+      }
 
       setShowToast(true);
       setTimeout(() => {
