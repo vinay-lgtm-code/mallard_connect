@@ -333,7 +333,15 @@ export default function ImportPage() {
       }
 
       const result = await res.json();
-      setNewCount(result.created ?? newCount);
+      setNewCount(result.created ?? 0);
+
+      if (result.failed > 0 && result.created === 0) {
+        const detail = result.errors?.[0] ?? "Unknown error";
+        throw new Error(`All rows failed to import: ${detail}`);
+      }
+      if (result.failed > 0) {
+        setImportError(`${result.failed} row(s) failed: ${result.errors?.[0] ?? "Unknown error"}`);
+      }
 
       setProgress(100);
       setStep("done");

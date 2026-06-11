@@ -27,26 +27,33 @@ async function requireAdminOrManager(request: NextRequest) {
   return { uid: user.id, role, tenantId };
 }
 
+const VALID_MORTGAGE_TYPES = new Set([
+  "first-time-buyer", "purchase", "remortgage", "self-employed", "buy-to-let", "other",
+]);
+const VALID_READINESS = new Set([
+  "ready-now", "1-3-months", "3-6-months", "6-12-months", "exploring",
+]);
+
 function mapToDbRow(mappedData: Record<string, string | undefined>) {
   const result: Record<string, string | number | null> = {};
 
   if (mappedData.firstName && !mappedData.lastName) {
     const parts = mappedData.firstName.trim().split(/\s+/);
     result.first_name = parts[0];
-    result.last_name = parts.slice(1).join(" ") || null;
+    result.last_name = parts.slice(1).join(" ") || "";
   } else {
-    if (mappedData.firstName) result.first_name = mappedData.firstName;
-    if (mappedData.lastName) result.last_name = mappedData.lastName;
+    result.first_name = mappedData.firstName?.trim() || "";
+    result.last_name = mappedData.lastName?.trim() || "";
   }
 
-  if (mappedData.phone) result.phone = mappedData.phone;
-  if (mappedData.email) result.email = mappedData.email;
-  if (mappedData.source) result.source = mappedData.source;
-  if (mappedData.mortgageType) result.mortgage_type = mappedData.mortgageType;
-  if (mappedData.readiness) result.readiness = mappedData.readiness;
+  result.phone = mappedData.phone?.trim() || "";
+  if (mappedData.email) result.email = mappedData.email.trim();
+  const mt = mappedData.mortgageType?.toLowerCase().trim();
+  if (mt && VALID_MORTGAGE_TYPES.has(mt)) result.mortgage_type = mt;
+  const rd = mappedData.readiness?.toLowerCase().trim();
+  if (rd && VALID_READINESS.has(rd)) result.readiness = rd;
   if (mappedData.notes) result.follow_up_notes = mappedData.notes;
   if (mappedData.referredBy) result.referred_by = mappedData.referredBy;
-  if (mappedData.assignedTo) result.assigned_to = mappedData.assignedTo;
 
   return result;
 }
@@ -103,15 +110,26 @@ export async function POST(request: NextRequest) {
   const { toCreate, toUpdate }: { toCreate: ImportRow[]; toUpdate: ImportRow[] } = body;
   let created = 0;
   let updated = 0;
+  let skipped = 0;
+  const errors: string[] = [];
 
   for (const row of toCreate ?? []) {
     const dbRow = mapToDbRow(row.mappedData);
+    if (!dbRow.first_name || !dbRow.phone) {
+      skipped++;
+      continue;
+    }
+    if (!dbRow.last_name) dbRow.last_name = "";
     const { error } = await supabase.from("leads").insert({
       ...dbRow,
       tenant_id: caller.tenantId,
       status: "active",
     });
-    if (!error) created++;
+    if (error) {
+      errors.push(error.message);
+    } else {
+      created++;
+    }
   }
 
   for (const row of toUpdate ?? []) {
@@ -120,7 +138,11 @@ export async function POST(request: NextRequest) {
     const { error } = await supabase.from("leads").update(dbRow)
       .eq("id", row.matchedLeadId)
       .eq("tenant_id", caller.tenantId);
-    if (!error) updated++;
+    if (error) {
+      errors.push(error.message);
+    } else {
+      updated++;
+    }
   }
 
   await supabase.from("import_records").insert({
@@ -132,11 +154,17 @@ export async function POST(request: NextRequest) {
       total: (toCreate ?? []).length + (toUpdate ?? []).length,
       imported: created,
       updated,
-      skipped: (toCreate ?? []).length - created,
-      failed: 0,
+      skipped,
+      failed: errors.length,
     },
     status: "completed",
   });
 
-  return NextResponse.json({ created, updated });
+  return NextResponse.json({
+    created,
+    updated,
+    skipped,
+    failed: errors.length,
+    errors: errors.length > 0 ? errors.slice(0, 5) : undefined,
+  });
 }
