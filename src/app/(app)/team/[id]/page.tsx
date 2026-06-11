@@ -4,12 +4,14 @@ import { useEffect } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Users, RefreshCw } from "lucide-react";
+import { ArrowLeft, Users, RefreshCw, Trash2, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
-import { useLeads } from "@/hooks/use-leads";
+import { useLeads, useTenantUsers } from "@/hooks/use-leads";
+import { isDemoUser } from "@/lib/mock-data";
+import { createClient } from "@/lib/supabase/client";
 import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { getInitials, formatRelativeDate } from "@/lib/utils";
 import type { User, Activity, UserRole } from "@/types";
 
@@ -60,10 +62,30 @@ export default function TeamMemberPage() {
   }, [currentUser, router]);
 
   const supabase = useSupabase();
+  const demo = currentUser ? isDemoUser(currentUser.id) : false;
   const [member, setMember] = useState<(User & { id: string }) | null>(null);
   const [memberLoading, setMemberLoading] = useState(true);
   const [activities, setActivities] = useState<(Activity & { id: string })[]>([]);
   const [activitiesLoading, setActivitiesLoading] = useState(true);
+
+  const [idToSlug, setIdToSlug] = useState<Record<string, string>>({});
+
+  const [showReassignModal, setShowReassignModal] = useState(false);
+  const [reassignTarget, setReassignTarget] = useState<string | null>(null);
+  const [reassigning, setReassigning] = useState(false);
+  const [reassignError, setReassignError] = useState<string | null>(null);
+
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  function showSuccessBanner(msg: string) {
+    setSuccessMessage(msg);
+    setShowSuccess(true);
+    setTimeout(() => setShowSuccess(false), 2000);
+  }
 
   const fetchMember = useCallback(() => {
     if (!supabase) return;
@@ -79,7 +101,24 @@ export default function TeamMemberPage() {
 
   useEffect(() => { fetchMember(); }, [fetchMember]);
 
+  useEffect(() => {
+    if (demo || !supabase || !currentUser?.tenantId) return;
+    supabase
+      .from("pipeline_stages")
+      .select("id, slug")
+      .eq("tenant_id", currentUser.tenantId)
+      .then(({ data }) => {
+        if (!data) return;
+        const i2s: Record<string, string> = {};
+        for (const row of data) {
+          i2s[row.id] = row.slug;
+        }
+        setIdToSlug(i2s);
+      });
+  }, [demo, supabase, currentUser?.tenantId]);
+
   const { leads, loading: leadsLoading } = useLeads({ assignedTo: id });
+  const { users: allUsers } = useTenantUsers();
 
   const isManager = currentUser?.role === "admin" || currentUser?.role === "manager";
 
@@ -108,8 +147,212 @@ export default function TeamMemberPage() {
   const convertedLeads = leads.filter((l) => l.status === "converted");
   const conversionRate = leads.length > 0 ? Math.round((convertedLeads.length / leads.length) * 100) : 0;
 
+  const stageSlugOf = (stageId: string | null | undefined): string =>
+    stageId ? (idToSlug[stageId] ?? stageId) : "new_enquiry";
+
+  const reassignableUsers = useMemo(
+    () => allUsers.filter((u) => u.isActive && u.id !== id),
+    [allUsers, id],
+  );
+
+  const leadCountByUser = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const lead of leads) {
+      if (lead.assignedTo) {
+        map[lead.assignedTo] = (map[lead.assignedTo] ?? 0) + 1;
+      }
+    }
+    return map;
+  }, [leads]);
+
+  const canDelete = isManager && member && member.id !== currentUser?.id && member.role !== "admin";
+
+  async function handleReassign() {
+    if (!reassignTarget || !currentUser) return;
+    setReassigning(true);
+    setReassignError(null);
+
+    try {
+      if (!demo && supabase) {
+        for (const lead of activeLeads) {
+          await supabase.from("leads").update({ assigned_to: reassignTarget }).eq("id", lead.id);
+          await supabase.from("activities").insert({
+            tenant_id: currentUser.tenantId,
+            lead_id: lead.id,
+            performed_by: currentUser.id,
+            activity_type: "stage-change",
+            title: `Lead reassigned to ${allUsers.find((u) => u.id === reassignTarget)?.fullName ?? reassignTarget}`,
+            description: null,
+            metadata: {
+              previousAssignee: id,
+              newAssignee: reassignTarget,
+            },
+          });
+        }
+      }
+      setShowReassignModal(false);
+      setReassignTarget(null);
+      showSuccessBanner(`${activeLeads.length} lead${activeLeads.length !== 1 ? "s" : ""} reassigned`);
+      setTimeout(() => router.refresh(), 500);
+    } catch (err) {
+      setReassignError(err instanceof Error ? err.message : "Failed to reassign leads");
+    } finally {
+      setReassigning(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!member) return;
+    setDeleting(true);
+    setActionError(null);
+
+    try {
+      if (demo) {
+        showSuccessBanner("Team member removed");
+        setTimeout(() => router.push("/team"), 1000);
+        return;
+      }
+
+      const authClient = createClient();
+      const { data: { session } } = await authClient.auth.getSession();
+      if (!session?.access_token) throw new Error("Not authenticated");
+
+      const res = await fetch("/api/team", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({ userId: member.id }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => null);
+        throw new Error(data?.error ?? `Failed (${res.status})`);
+      }
+
+      showSuccessBanner("Team member removed");
+      setTimeout(() => router.push("/team"), 1000);
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Failed to remove member");
+      setDeleting(false);
+    }
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-5">
+      {showSuccess && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white text-sm font-semibold px-5 py-3 rounded-full shadow-lg">
+          {successMessage}
+        </div>
+      )}
+
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-[12px] p-6 max-w-md w-full mx-4 shadow-xl">
+            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove team member?</h3>
+            <p className="text-sm text-gray-600 mb-1">
+              This will permanently remove <strong>{member?.fullName}</strong> from your team.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              {activeLeads.length > 0
+                ? `Their ${activeLeads.length} assigned lead${activeLeads.length !== 1 ? "s" : ""} will be unassigned.`
+                : "This action cannot be undone."}
+            </p>
+            {actionError && (
+              <p className="mb-4 text-sm text-destructive">{actionError}</p>
+            )}
+            <div className="flex items-center justify-end gap-3">
+              <button
+                onClick={() => { setShowDeleteConfirm(false); setActionError(null); }}
+                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+              >
+                {deleting ? "Removing…" : "Remove"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showReassignModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+              <h2 className="text-base font-bold text-gray-900">Reassign {activeLeads.length} Lead{activeLeads.length !== 1 ? "s" : ""}</h2>
+              <button
+                onClick={() => setShowReassignModal(false)}
+                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="max-h-80 overflow-y-auto divide-y divide-gray-50 p-2">
+              {reassignableUsers.length === 0 ? (
+                <p className="text-sm text-gray-400 text-center py-6">No other active team members.</p>
+              ) : (
+                reassignableUsers.map((u) => {
+                  const isSelected = reassignTarget === u.id;
+                  const count = leadCountByUser[u.id] ?? 0;
+                  return (
+                    <button
+                      key={u.id}
+                      onClick={() => setReassignTarget(u.id)}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-left ${
+                        isSelected
+                          ? "bg-primary/10 border border-primary/30"
+                          : "hover:bg-gray-50 border border-transparent"
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
+                        <span className="text-white text-xs font-bold">{getInitials(u.fullName)}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900">{u.fullName}</p>
+                        <p className="text-xs text-gray-500 capitalize">{u.role}</p>
+                      </div>
+                      <div className="text-right flex-shrink-0">
+                        <p className="text-sm font-semibold text-gray-700">{count}</p>
+                        <p className="text-xs text-gray-400">leads</p>
+                      </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
+
+            {reassignError && (
+              <div className="px-5 py-2">
+                <p className="text-xs text-destructive">{reassignError}</p>
+              </div>
+            )}
+
+            <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-3">
+              <button
+                onClick={() => setShowReassignModal(false)}
+                className="flex-1 border border-gray-200 text-gray-700 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleReassign}
+                disabled={!reassignTarget || reassigning}
+                className="flex-1 bg-primary text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {reassigning ? "Reassigning…" : "Reassign"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Back */}
       <Link
         href="/team"
@@ -141,10 +384,23 @@ export default function TeamMemberPage() {
 
         {isManager && (
           <div className="mt-4 flex gap-2">
-            <button className="flex items-center gap-1.5 border border-gray-200 text-gray-700 text-sm font-medium px-3.5 py-2 rounded-lg hover:bg-gray-50 transition-colors">
+            <button
+              onClick={() => { setReassignTarget(null); setReassignError(null); setShowReassignModal(true); }}
+              disabled={activeLeads.length === 0}
+              className="flex items-center gap-1.5 border border-gray-200 text-gray-700 text-sm font-medium px-3.5 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               <RefreshCw size={14} />
               Reassign Leads
             </button>
+            {canDelete && (
+              <button
+                onClick={() => { setActionError(null); setShowDeleteConfirm(true); }}
+                className="flex items-center gap-1.5 border border-red-200 text-red-600 text-sm font-medium px-3.5 py-2 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={14} />
+                Remove Member
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -185,8 +441,9 @@ export default function TeamMemberPage() {
         ) : (
           <div className="space-y-2">
             {activeLeads.slice(0, 10).map((lead) => {
-              const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-600";
-              const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
+              const slug = stageSlugOf(lead.currentStageId);
+              const stageStyle = STAGE_STYLES[slug] ?? "bg-gray-100 text-gray-600";
+              const stageLabel = STAGE_LABELS[slug] ?? slug;
               const updatedDate = lead.updatedAt ? new Date(lead.updatedAt) : undefined;
               return (
                 <Link
