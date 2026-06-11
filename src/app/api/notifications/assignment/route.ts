@@ -24,6 +24,10 @@ export async function POST(request: NextRequest) {
   const auth = await verifyToken(request);
   if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  if (auth.role !== "admin" && auth.role !== "manager") {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  }
+
   let body: { leadId?: string };
   try {
     body = await request.json();
