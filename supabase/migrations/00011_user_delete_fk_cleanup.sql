@@ -1,3 +1,6 @@
+-- Add 'assignment' to activity_type enum for lead reassignment tracking.
+ALTER TYPE activity_type ADD VALUE IF NOT EXISTS 'assignment';
+
 -- Allow user deletion by updating foreign key constraints
 -- that reference users(id) to use ON DELETE SET NULL or CASCADE.
 
