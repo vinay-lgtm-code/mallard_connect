@@ -30,9 +30,27 @@ async function requireAdminOrManager(request: NextRequest) {
 const VALID_MORTGAGE_TYPES = new Set([
   "first-time-buyer", "purchase", "remortgage", "self-employed", "buy-to-let", "other",
 ]);
+const MORTGAGE_TYPE_ALIASES: Record<string, string> = {
+  ftb: "first-time-buyer",
+  "first time buyer": "first-time-buyer",
+  "first-time": "first-time-buyer",
+  btl: "buy-to-let",
+  "buy to let": "buy-to-let",
+  "self employed": "self-employed",
+  remort: "remortgage",
+  remo: "remortgage",
+};
 const VALID_READINESS = new Set([
   "ready-now", "1-3-months", "3-6-months", "6-12-months", "exploring",
 ]);
+
+function normalizeMortgageType(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const lower = raw.toLowerCase().trim();
+  if (VALID_MORTGAGE_TYPES.has(lower)) return lower;
+  if (MORTGAGE_TYPE_ALIASES[lower]) return MORTGAGE_TYPE_ALIASES[lower];
+  return null;
+}
 
 function mapToDbRow(mappedData: Record<string, string | undefined>) {
   const result: Record<string, string | number | null> = {};
@@ -48,8 +66,8 @@ function mapToDbRow(mappedData: Record<string, string | undefined>) {
 
   result.phone = mappedData.phone?.trim() || "";
   if (mappedData.email) result.email = mappedData.email.trim();
-  const mt = mappedData.mortgageType?.toLowerCase().trim();
-  if (mt && VALID_MORTGAGE_TYPES.has(mt)) result.mortgage_type = mt;
+  const mt = normalizeMortgageType(mappedData.mortgageType);
+  if (mt) result.mortgage_type = mt;
   const rd = mappedData.readiness?.toLowerCase().trim();
   if (rd && VALID_READINESS.has(rd)) result.readiness = rd;
   if (mappedData.notes) result.follow_up_notes = mappedData.notes;
@@ -125,11 +143,12 @@ export async function POST(request: NextRequest) {
 
   for (const row of toCreate ?? []) {
     const dbRow = mapToDbRow(row.mappedData);
-    if (!dbRow.first_name || !dbRow.phone) {
+    if (!dbRow.first_name) {
       skipped++;
       continue;
     }
     if (!dbRow.last_name) dbRow.last_name = "";
+    if (!dbRow.phone) dbRow.phone = "";
     const { error } = await supabase.from("leads").insert({
       ...dbRow,
       tenant_id: caller.tenantId,
