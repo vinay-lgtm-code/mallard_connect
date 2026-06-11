@@ -4,7 +4,25 @@ import { sendSignupConfirmationEmail } from "@/lib/email/client";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
 
+const ipTimestamps = new Map<string, number[]>();
+const RATE_WINDOW_MS = 10 * 60 * 1000; // 10 minutes
+const RATE_LIMIT = 5; // max signups per IP per window
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const timestamps = (ipTimestamps.get(ip) ?? []).filter((t) => now - t < RATE_WINDOW_MS);
+  if (timestamps.length >= RATE_LIMIT) return true;
+  timestamps.push(now);
+  ipTimestamps.set(ip, timestamps);
+  return false;
+}
+
 export async function POST(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "unknown";
+  if (isRateLimited(ip)) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
+  }
+
   let body: { email?: string; password?: string; fullName?: string; organisation?: string };
   try {
     body = await request.json();
@@ -34,15 +52,15 @@ export async function POST(request: NextRequest) {
   });
 
   if (linkErr) {
-    if (linkErr.message?.includes("already registered")) {
-      return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
-    }
-    return NextResponse.json({ error: linkErr.message }, { status: 422 });
+    // Always return the same response to prevent email enumeration
+    console.error("[signup] generateLink error:", linkErr.message);
+    return NextResponse.json({ confirmSent: true });
   }
 
   const confirmUrl = linkData?.properties?.action_link;
   if (!confirmUrl) {
-    return NextResponse.json({ error: "Failed to generate confirmation link" }, { status: 500 });
+    console.error("[signup] No action_link in generateLink response");
+    return NextResponse.json({ confirmSent: true });
   }
 
   try {
@@ -51,8 +69,8 @@ export async function POST(request: NextRequest) {
       fullName,
       confirmUrl,
     });
-  } catch {
-    return NextResponse.json({ error: "Account created but confirmation email failed to send. Please try signing in." }, { status: 500 });
+  } catch (err) {
+    console.error("[signup] Email send failed:", err instanceof Error ? err.message : err);
   }
 
   return NextResponse.json({ confirmSent: true });

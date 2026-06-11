@@ -48,8 +48,8 @@ export default function SignUpPage() {
       setConfirmSent(true);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "";
-      if (msg.includes("already registered") || msg.includes("already exists")) {
-        setError("An account with this email already exists.");
+      if (msg.includes("Too many requests")) {
+        setError("Too many attempts. Please wait a few minutes and try again.");
       } else if (msg.includes("password") || msg.includes("Password")) {
         setError("Password is too weak. Use at least 6 characters.");
       } else {
