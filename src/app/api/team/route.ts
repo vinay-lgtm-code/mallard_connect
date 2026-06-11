@@ -161,3 +161,49 @@ export async function PATCH(request: NextRequest) {
 
   return NextResponse.json({ success: true, userId, ...updates });
 }
+
+export async function DELETE(request: NextRequest) {
+  const caller = await verifyAdminOrManager(request);
+  if (!caller) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+
+  let body: { userId?: string };
+  try { body = await request.json(); } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const { userId } = body;
+  if (!userId) return NextResponse.json({ error: "userId is required" }, { status: 400 });
+
+  if (userId === caller.uid) {
+    return NextResponse.json({ error: "Cannot remove yourself" }, { status: 400 });
+  }
+
+  const supabase = createServiceClient();
+
+  const { data: target } = await supabase
+    .from("users")
+    .select("tenant_id, role")
+    .eq("id", userId)
+    .single();
+
+  if (!target || target.tenant_id !== caller.tenantId) {
+    return NextResponse.json({ error: "Cross-tenant delete forbidden" }, { status: 403 });
+  }
+
+  if (target.role === "admin") {
+    return NextResponse.json({ error: "Cannot remove an admin user" }, { status: 403 });
+  }
+
+  try {
+    await supabase.from("leads").update({ assigned_to: null }).eq("assigned_to", userId);
+    await supabase.from("tasks").update({ assigned_to: null }).eq("assigned_to", userId);
+
+    const { error: deleteErr } = await supabase.auth.admin.deleteUser(userId);
+    if (deleteErr) throw deleteErr;
+
+    return NextResponse.json({ success: true, userId });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to remove user";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
