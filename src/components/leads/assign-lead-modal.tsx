@@ -62,7 +62,7 @@ export function AssignLeadModal({
         tenant_id: user.tenantId,
         lead_id: leadId,
         performed_by: user.id,
-        activity_type: "stage-change",
+        activity_type: "note",
         title: `Lead assigned to ${users.find((u) => u.id === selectedUserId)?.fullName ?? selectedUserId}`,
         description: null,
         metadata: {
@@ -88,6 +88,16 @@ export function AssignLeadModal({
       } catch { /* non-fatal */ }
 
       onAssigned();
+
+      supabase?.auth.getSession().then(({ data: { session } }) => {
+        if (session?.access_token) {
+          fetch("/api/notifications/assignment", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+            body: JSON.stringify({ leadId }),
+          }).catch(() => {});
+        }
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to assign lead. Please try again.");
     } finally {

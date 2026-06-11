@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Mail, MessageSquare, Plus } from "lucide-react";
+import { Mail, MessageSquare, Plus, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
+import { ComingSoon } from "@/components/coming-soon";
 import { useTemplates } from "@/hooks/use-templates";
 import type { Template } from "@/types";
 
@@ -14,6 +16,16 @@ export default function TemplatesListPage() {
   const sms = templates.filter((t) => t.channel === "sms");
 
   if (!user) return null;
+
+  if (!isCadencesTemplatesEnabled()) {
+    return (
+      <ComingSoon
+        icon={FileText}
+        title="Templates"
+        description="Reusable email and SMS templates with dynamic variables for cadences and one-click activity logging. Coming soon."
+      />
+    );
+  }
 
   return (
     <div className="px-6 py-8 max-w-5xl">
@@ -28,7 +40,7 @@ export default function TemplatesListPage() {
         </div>
         <Link
           href="/templates/new"
-          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark"
         >
           <Plus size={16} />
           New template

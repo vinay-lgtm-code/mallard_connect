@@ -7,3 +7,8 @@ export function renderTemplate(body: string, context: Record<string, string | nu
     return value === undefined || value === null ? "" : String(value);
   });
 }
+
+export function extractVariables(text: string): string[] {
+  const matches = text.matchAll(/{{\s*(\w+)\s*}}/g);
+  return [...new Set([...matches].map((m) => m[1]))];
+}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sendLeadAssignmentEmail } from "@/lib/email/client";
+import { sendAssignmentEmail } from "@/lib/email/client";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
 
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("first_name, last_name, phone, email, source, mortgage_type, readiness, property_value, current_stage_id, tenant_id, assigned_to")
+    .select("first_name, last_name, phone, source, mortgage_type, tenant_id, assigned_to")
     .eq("id", leadId)
     .single();
 
@@ -62,16 +62,6 @@ export async function POST(request: NextRequest) {
 
   if (lead.assigned_to !== assigneeId) {
     return NextResponse.json({ error: "Lead is not assigned to this user" }, { status: 409 });
-  }
-
-  let stageName = "Unknown";
-  if (lead.current_stage_id) {
-    const { data: stage } = await supabase
-      .from("pipeline_stages")
-      .select("name")
-      .eq("id", lead.current_stage_id)
-      .single();
-    if (stage) stageName = stage.name;
   }
 
   const leadName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim() || "Unknown";
@@ -87,20 +77,14 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await sendLeadAssignmentEmail({
+    await sendAssignmentEmail({
       to: Array.from(recipients),
+      leadName,
+      leadPhone: lead.phone ?? "",
+      leadSource: lead.source ?? "other",
+      mortgageType: lead.mortgage_type ?? "",
+      assignedByName: callerProfile.full_name,
       assigneeName: assignee.full_name,
-      assignerName: callerProfile.full_name,
-      lead: {
-        name: leadName,
-        phone: lead.phone ?? "",
-        email: lead.email,
-        source: lead.source ?? "other",
-        mortgageType: lead.mortgage_type,
-        readiness: lead.readiness,
-        propertyValue: lead.property_value,
-        stage: stageName,
-      },
       leadUrl: `${APP_URL}/leads/${leadId}`,
     });
 

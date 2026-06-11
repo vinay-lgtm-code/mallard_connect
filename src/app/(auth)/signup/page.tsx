@@ -10,6 +10,7 @@ import { OAuthButtons } from "@/components/auth/oauth-buttons";
 export default function SignUpPage() {
   const router = useRouter();
   const [fullName, setFullName] = useState("");
+  const [organisation, setOrganisation] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -38,7 +39,7 @@ export default function SignUpPage() {
       const { data, error: authErr } = await supabase.auth.signUp({
         email,
         password,
-        options: { data: { full_name: fullName } },
+        options: { data: { full_name: fullName, organisation } },
       });
       if (authErr) throw authErr;
       clearDemoUser();
@@ -124,7 +125,22 @@ export default function SignUpPage() {
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Email address
+              Organisation
+            </label>
+            <input
+              type="text"
+              value={organisation}
+              onChange={(e) => setOrganisation(e.target.value)}
+              required
+              autoComplete="organization"
+              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              placeholder="Acme Mortgages"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+              Work email address
             </label>
             <input
               type="email"

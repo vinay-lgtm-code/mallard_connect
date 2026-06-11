@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Mail, MessageSquare, CheckSquare, Bell, Plus, Zap, Hand, UserPlus2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useCadences, useCadenceEnrollments } from "@/hooks/use-cadences";
+import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
+import { ComingSoon } from "@/components/coming-soon";
 import type { CadenceChannel, CadenceTrigger } from "@/types";
 
 function ChannelIcon({ channel, size = 12 }: { channel: CadenceChannel; size?: number }) {
@@ -51,6 +53,16 @@ export default function CadencesListPage() {
   }, [enrollments]);
 
   if (!user) return null;
+
+  if (!isCadencesTemplatesEnabled()) {
+    return (
+      <ComingSoon
+        icon={Zap}
+        title="Cadences"
+        description="Automated multi-step nurture sequences that trigger on stage changes or manual enrollment. This feature is being finalized and will be available soon."
+      />
+    );
+  }
 
   return (
     <div className="px-6 py-8 max-w-6xl">

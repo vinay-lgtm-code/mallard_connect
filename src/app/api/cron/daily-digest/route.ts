@@ -1,10 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
-import { sendDailyLeadsDigestEmail } from "@/lib/email/client";
+import { sendDailyDigestEmail } from "@/lib/email/client";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
 
+function startOfWeek(d: Date): Date {
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day; // Monday = start
+  const mon = new Date(d);
+  mon.setDate(mon.getDate() + diff);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function endOfWeek(d: Date): Date {
+  const sun = startOfWeek(d);
+  sun.setDate(sun.getDate() + 6);
+  sun.setHours(23, 59, 59, 999);
+  return sun;
+}
+
+function formatDate(d: Date): string {
+  return d.toLocaleDateString("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+}
+
+function formatShortDate(iso: string): string {
+  const d = new Date(iso);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+}
+
 export async function GET(request: NextRequest) {
+  // ── Auth ─────────────────────────────────────────────────────────────
   if (process.env.NODE_ENV === "production") {
     const auth = request.headers.get("authorization");
     if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -18,70 +49,146 @@ export async function GET(request: NextRequest) {
   }
 
   const supabase = createServiceClient();
+  const now = new Date();
+  const todayIso = now.toISOString();
+  const mondayIso = startOfWeek(now).toISOString();
+  const sundayIso = endOfWeek(now).toISOString();
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
 
-  const { data: tenants } = await supabase.from("tenants").select("id, name");
-  if (!tenants || tenants.length === 0) {
-    return NextResponse.json({ sent: 0, message: "No tenants found" });
+  // ── 1. Get all active users with email ──────────────────────────────
+  const { data: users, error: usersErr } = await supabase
+    .from("users")
+    .select("id, email, full_name, tenant_id")
+    .eq("is_active", true)
+    .neq("email", "");
+
+  if (usersErr) {
+    return NextResponse.json({ error: usersErr.message }, { status: 500 });
   }
 
-  let totalSent = 0;
-  let totalErrors = 0;
-  const log: { tenantId: string; userId: string; leadCount: number; ok: boolean; error?: string }[] = [];
+  if (!users || users.length === 0) {
+    return NextResponse.json({ sent: 0, skipped: 0, errors: 0, message: "No active users" });
+  }
 
-  for (const tenant of tenants) {
-    const { data: users } = await supabase
-      .from("users")
-      .select("id, email, full_name")
-      .eq("tenant_id", tenant.id)
-      .eq("is_active", true);
+  let sent = 0;
+  let skipped = 0;
+  let errors = 0;
+  const log: { userId: string; ok: boolean; reason?: string; error?: string }[] = [];
 
-    if (!users || users.length === 0) continue;
+  for (const user of users) {
+    try {
+      // ── 2a. Overdue tasks: pending, due_date < today ──────────────
+      const { data: overdueTasks } = await supabase
+        .from("tasks")
+        .select("id, lead_id, title, due_date")
+        .eq("assigned_to", user.id)
+        .eq("status", "pending")
+        .lt("due_date", todayIso);
 
-    const { data: stages } = await supabase
-      .from("pipeline_stages")
-      .select("id, name")
-      .eq("tenant_id", tenant.id);
+      // ── 2b. Due this week: pending, due_date between monday-sunday ─
+      const { data: weekTasks } = await supabase
+        .from("tasks")
+        .select("id, lead_id, title, due_date")
+        .eq("assigned_to", user.id)
+        .eq("status", "pending")
+        .gte("due_date", mondayIso)
+        .lte("due_date", sundayIso);
 
-    const stageMap = new Map((stages ?? []).map((s) => [s.id, s.name]));
-
-    for (const member of users) {
-      const { data: leads } = await supabase
+      // ── 2c. Leads updated in last 24h, assigned to user, active ───
+      const { data: recentLeads } = await supabase
         .from("leads")
-        .select("id, first_name, last_name, phone, current_stage_id, next_follow_up_date, readiness")
-        .eq("tenant_id", tenant.id)
-        .eq("assigned_to", member.id)
+        .select("id, first_name, last_name, phone, mortgage_type, source, updated_at")
+        .eq("assigned_to", user.id)
         .eq("status", "active")
-        .order("next_follow_up_date", { ascending: true, nullsFirst: false });
+        .gte("updated_at", twentyFourHoursAgo);
 
-      if (!leads || leads.length === 0) continue;
+      // Deduplicate week tasks that also appear in overdue
+      const overdueLeadIds = new Set((overdueTasks ?? []).map((t) => t.lead_id));
+      const filteredWeekTasks = (weekTasks ?? []).filter((t) => !overdueLeadIds.has(t.lead_id));
 
-      const digestLeads = leads.map((l) => ({
-        name: `${l.first_name ?? ""} ${l.last_name ?? ""}`.trim() || "Unknown",
+      const hasContent =
+        (overdueTasks ?? []).length > 0 ||
+        filteredWeekTasks.length > 0 ||
+        (recentLeads ?? []).length > 0;
+
+      if (!hasContent) {
+        skipped++;
+        log.push({ userId: user.id, ok: true, reason: "nothing to report" });
+        continue;
+      }
+
+      // ── 3. Resolve lead data for task-based items ─────────────────
+      const allTaskLeadIds = new Set<string>();
+      for (const t of overdueTasks ?? []) if (t.lead_id) allTaskLeadIds.add(t.lead_id);
+      for (const t of filteredWeekTasks) if (t.lead_id) allTaskLeadIds.add(t.lead_id);
+
+      const leadMap = new Map<string, { first_name: string; last_name: string; phone: string; mortgage_type: string; source: string }>();
+
+      if (allTaskLeadIds.size > 0) {
+        const { data: leads } = await supabase
+          .from("leads")
+          .select("id, first_name, last_name, phone, mortgage_type, source")
+          .in("id", Array.from(allTaskLeadIds));
+
+        for (const l of leads ?? []) {
+          leadMap.set(l.id, l);
+        }
+      }
+
+      // ── 4. Build digest cards ─────────────────────────────────────
+      function taskToCard(task: { lead_id: string; title: string; due_date: string | null }, isOverdue: boolean) {
+        const lead = leadMap.get(task.lead_id);
+        if (!lead) return null;
+        return {
+          id: task.lead_id,
+          firstName: lead.first_name ?? "",
+          lastName: lead.last_name ?? "",
+          phone: lead.phone ?? "",
+          mortgageType: lead.mortgage_type ?? "",
+          source: lead.source ?? "",
+          taskTitle: task.title ?? undefined,
+          dueDate: task.due_date ? formatShortDate(task.due_date) : undefined,
+          isOverdue,
+        };
+      }
+
+      const overdueCards = (overdueTasks ?? [])
+        .map((t) => taskToCard(t, true))
+        .filter(Boolean) as NonNullable<ReturnType<typeof taskToCard>>[];
+
+      const weekCards = filteredWeekTasks
+        .map((t) => taskToCard(t, false))
+        .filter(Boolean) as NonNullable<ReturnType<typeof taskToCard>>[];
+
+      const recentCards = (recentLeads ?? []).map((l) => ({
+        id: l.id,
+        firstName: l.first_name ?? "",
+        lastName: l.last_name ?? "",
         phone: l.phone ?? "",
-        stage: stageMap.get(l.current_stage_id) ?? "Unknown",
-        nextFollowUp: l.next_follow_up_date,
-        readiness: l.readiness,
-        leadUrl: `${APP_URL}/leads/${l.id}`,
+        mortgageType: l.mortgage_type ?? "",
+        source: l.source ?? "",
       }));
 
-      try {
-        await sendDailyLeadsDigestEmail({
-          to: member.email,
-          recipientName: member.full_name,
-          leads: digestLeads,
-          appUrl: `${APP_URL}/dashboard`,
-        });
-        totalSent++;
-        log.push({ tenantId: tenant.id, userId: member.id, leadCount: digestLeads.length, ok: true });
-      } catch (err) {
-        totalErrors++;
-        const msg = err instanceof Error ? err.message : String(err);
-        log.push({ tenantId: tenant.id, userId: member.id, leadCount: digestLeads.length, ok: false, error: msg });
-      }
+      // ── 5. Send ───────────────────────────────────────────────────
+      await sendDailyDigestEmail({
+        to: user.email,
+        userName: user.full_name || "there",
+        date: formatDate(now),
+        overdue: overdueCards,
+        dueThisWeek: weekCards,
+        recentlyUpdated: recentCards,
+        appUrl: APP_URL,
+      });
+
+      sent++;
+      log.push({ userId: user.id, ok: true });
+    } catch (err) {
+      errors++;
+      log.push({ userId: user.id, ok: false, error: err instanceof Error ? err.message : String(err) });
     }
   }
 
-  return NextResponse.json({ sent: totalSent, errors: totalErrors, log });
+  return NextResponse.json({ sent, skipped, errors, totalUsers: users.length, log });
 }
 
 export const POST = GET;

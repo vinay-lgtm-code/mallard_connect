@@ -1,231 +1,209 @@
 "use client";
 
-import { use, useMemo, useState, useCallback } from "react";
+import { use, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Trash2 } from "lucide-react";
+import { ArrowLeft, FileText, Loader2 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTemplates } from "@/hooks/use-templates";
+import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import { isDemoUser } from "@/lib/mock-data";
+import { extractVariables } from "@/lib/email/render";
+import { ComingSoon } from "@/components/coming-soon";
 import type { TemplateChannel } from "@/types";
 
-const CHANNEL_OPTIONS: { value: TemplateChannel; label: string }[] = [
-  { value: "email", label: "Email" },
-  { value: "sms", label: "SMS" },
-];
-
-const AVAILABLE_VARIABLES = [
-  "firstName",
-  "lastName",
-  "adviser",
-  "firmName",
-  "nextActionDate",
-];
-
-function extractVariables(text: string): string[] {
-  const regex = /\{\{(\w+)\}\}/g;
-  const found = new Set<string>();
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(text)) !== null) {
-    found.add(match[1]);
-  }
-  return Array.from(found);
-}
-
-export default function TemplateEditorPage({ params }: { params: Promise<{ id: string }> }) {
+export default function TemplateDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = use(params);
   const router = useRouter();
   const { user } = useAuth();
   const supabase = useSupabase();
-  const { templates } = useTemplates();
-  const demo = user ? isDemoUser(user.id) : false;
+  const { templates, loading: templatesLoading } = useTemplates();
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
 
-  const isNew = id === "new";
-  const existingTemplate = useMemo(
-    () => (isNew ? null : templates.find((t) => t.id === id)),
-    [templates, id, isNew]
-  );
+  const template = templates.find((t) => t.id === id);
 
-  const [name, setName] = useState(existingTemplate?.name ?? "");
-  const [channel, setChannel] = useState<TemplateChannel>(existingTemplate?.channel ?? "email");
-  const [subject, setSubject] = useState(existingTemplate?.subject ?? "");
-  const [body, setBody] = useState(existingTemplate?.body ?? "");
-
-  // Sync from existing template when it loads (templates hook is async)
-  const [synced, setSynced] = useState(isNew);
-  if (!isNew && existingTemplate && !synced) {
-    setName(existingTemplate.name);
-    setChannel(existingTemplate.channel);
-    setSubject(existingTemplate.subject ?? "");
-    setBody(existingTemplate.body);
-    setSynced(true);
-  }
-
+  const [name, setName] = useState("");
+  const [channel, setChannel] = useState<TemplateChannel>("email");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [submitError, setSubmitError] = useState<string | null>(null);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successMessage, setSuccessMessage] = useState("");
+  const [feedback, setFeedback] = useState<{ type: "success" | "error"; message: string } | null>(null);
 
-  const detectedVariables = useMemo(() => extractVariables(body), [body]);
-
-  const showSuccessBanner = useCallback((msg: string) => {
-    setSuccessMessage(msg);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 2000);
-  }, []);
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitError(null);
-
-    if (!name.trim()) {
-      setSubmitError("Template name is required.");
-      return;
+  // Populate form when template loads
+  useEffect(() => {
+    if (template) {
+      setName(template.name);
+      setChannel(template.channel);
+      setSubject(template.subject ?? "");
+      setBody(template.body);
     }
-    if (!body.trim()) {
-      setSubmitError("Template body is required.");
-      return;
-    }
-    if (channel === "email" && !subject.trim()) {
-      setSubmitError("Email templates require a subject line.");
-      return;
-    }
+  }, [template]);
 
-    if (!user) {
-      setSubmitError("You must be logged in.");
-      return;
-    }
+  const isDemo = user ? isDemoUser(user.id) : false;
+  const isAdminOrManager = user?.role === "manager" || user?.role === "admin";
 
+  // Live variable detection from body + subject
+  const detectedVariables = useMemo(() => {
+    const combined = channel === "email" ? `${subject} ${body}` : body;
+    return extractVariables(combined);
+  }, [subject, body, channel]);
+
+  function insertVariable(variable: string) {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    const newText = text.substring(0, start) + variable + text.substring(end);
+    setBody(newText);
+    // Restore cursor position after React re-render
+    setTimeout(() => {
+      textarea.focus();
+      textarea.selectionStart = textarea.selectionEnd = start + variable.length;
+    }, 0);
+  }
+
+  async function handleSave() {
+    if (!supabase || !name.trim() || !body.trim()) return;
     setSaving(true);
+    setFeedback(null);
+
     try {
-      if (demo) {
-        showSuccessBanner(isNew ? "Template created!" : "Template updated!");
-        setTimeout(() => router.push("/templates"), 1500);
-        return;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch(`/api/templates/${id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          channel,
+          subject: channel === "email" ? subject.trim() : undefined,
+          body: body.trim(),
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Save failed (${res.status})`);
       }
 
-      if (!supabase) throw new Error("Database not configured");
-      await supabase.auth.refreshSession();
-
-      const payload = {
-        tenant_id: user.tenantId,
-        name: name.trim(),
-        channel,
-        subject: channel === "email" ? subject.trim() : null,
-        body: body.trim(),
-        variables: detectedVariables,
-        updated_at: new Date().toISOString(),
-      };
-
-      if (isNew) {
-        const { error } = await supabase.from("templates").insert(payload);
-        if (error) throw error;
-      } else {
-        // Don't send tenant_id on update — it's immutable
-        const { tenant_id: _tid, ...updatePayload } = payload;
-        void _tid;
-        const { error } = await supabase
-          .from("templates")
-          .update(updatePayload)
-          .eq("id", id);
-        if (error) throw error;
-      }
-
-      router.push("/templates");
-    } catch (err: unknown) {
-      console.error("Failed to save template:", err);
-      const detail = err instanceof Error ? err.message : "";
-      setSubmitError(
-        detail ? `Failed to save template: ${detail}` : "Failed to save template. Please try again."
-      );
+      setFeedback({ type: "success", message: "Template saved." });
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to save template.",
+      });
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete() {
-    setSubmitError(null);
+    if (!supabase) return;
+    const confirmed = window.confirm(
+      `Delete "${name}"? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
     setDeleting(true);
+    setFeedback(null);
 
     try {
-      if (demo) {
-        showSuccessBanner("Template deleted");
-        setTimeout(() => router.push("/templates"), 1000);
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      const token = session?.access_token;
+
+      const res = await fetch(`/api/templates/${id}`, {
+        method: "DELETE",
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+
+      if (res.status === 409) {
+        const data = await res.json().catch(() => ({}));
+        const cadenceNames = data.cadences
+          ? (data.cadences as string[]).join(", ")
+          : "one or more cadences";
+        window.alert(
+          `Cannot delete this template because it is used by: ${cadenceNames}. Remove it from those cadences first.`
+        );
+        setDeleting(false);
         return;
       }
 
-      if (!supabase) throw new Error("Database not configured");
-      await supabase.auth.refreshSession();
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || `Delete failed (${res.status})`);
+      }
 
-      const { error } = await supabase.from("templates").delete().eq("id", id);
-      if (error) throw error;
       router.push("/templates");
-    } catch (err: unknown) {
-      console.error("Failed to delete template:", err);
-      const detail = err instanceof Error ? err.message : "";
-      setSubmitError(detail ? `Failed to delete: ${detail}` : "Failed to delete template.");
-    } finally {
+    } catch (err) {
+      setFeedback({
+        type: "error",
+        message: err instanceof Error ? err.message : "Failed to delete template.",
+      });
       setDeleting(false);
-      setShowDeleteConfirm(false);
     }
   }
 
-  if (!user) return null;
-
-  // If editing an existing template that hasn't loaded yet
-  if (!isNew && !existingTemplate && templates.length > 0) {
+  if (!isCadencesTemplatesEnabled()) {
     return (
-      <div className="px-6 py-8">
-        <Link href="/templates" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
-          <ArrowLeft size={14} /> Back to templates
-        </Link>
-        <p className="mt-6 text-gray-500">Template not found.</p>
+      <ComingSoon
+        icon={FileText}
+        title="Templates"
+        description="Reusable email and SMS templates with dynamic variables for cadences and one-click activity logging. Coming soon."
+      />
+    );
+  }
+
+  if (!user || templatesLoading) {
+    return (
+      <div className="px-6 py-8 max-w-5xl">
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+          <Loader2 size={16} className="animate-spin" />
+          Loading...
+        </div>
       </div>
     );
   }
 
+  if (!template) {
+    return (
+      <div className="px-6 py-8 max-w-5xl">
+        <Link
+          href="/templates"
+          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+        >
+          <ArrowLeft size={14} /> Back to templates
+        </Link>
+        <p className="text-sm text-gray-500">Template not found.</p>
+      </div>
+    );
+  }
+
+  const VARIABLES = [
+    "{{firstName}}",
+    "{{lastName}}",
+    "{{adviser}}",
+    "{{firmName}}",
+  ];
+
   return (
-    <div className="px-6 py-8 max-w-3xl">
-      {showSuccess && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-green-600 text-white text-sm font-semibold px-5 py-3 rounded-full shadow-lg">
-          {successMessage}
-        </div>
-      )}
-
-      {/* Delete confirmation dialog */}
-      {showDeleteConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-          <div className="bg-white rounded-[12px] p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Delete template?</h3>
-            <p className="text-sm text-gray-600 mb-6">
-              This will permanently delete <strong>{name || "this template"}</strong>. Cadences using
-              this template will need to be updated.
-            </p>
-            {submitError && (
-              <p className="mb-4 text-sm text-destructive">{submitError}</p>
-            )}
-            <div className="flex items-center justify-end gap-3">
-              <button
-                onClick={() => { setShowDeleteConfirm(false); setSubmitError(null); }}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
-              >
-                {deleting ? "Deleting..." : "Delete"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
+    <div className="px-6 py-8 max-w-5xl">
       <Link
         href="/templates"
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
@@ -233,116 +211,112 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
         <ArrowLeft size={14} /> Back to templates
       </Link>
 
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">
-          {isNew ? "New template" : "Edit template"}
-        </h1>
-        {!isNew && (
-          <button
-            onClick={() => setShowDeleteConfirm(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50"
-          >
-            <Trash2 size={14} />
-            Delete
-          </button>
-        )}
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit template</h1>
 
-      <form onSubmit={handleSubmit} noValidate>
-        <div className="bg-white border border-gray-100 rounded-[12px] p-6 mb-5">
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Name <span className="text-destructive">*</span>
-              </label>
+      <div className="bg-white border border-gray-100 rounded-[12px] p-6 space-y-5">
+        {/* Name */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Name <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="e.g. FTB welcome email"
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+          />
+        </div>
+
+        {/* Channel */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Channel
+          </label>
+          <div className="flex items-center gap-4">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
               <input
-                type="text"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. FTB initial welcome"
-                className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                type="radio"
+                name="channel"
+                value="email"
+                checked={channel === "email"}
+                onChange={() => setChannel("email")}
+                className="accent-primary"
               />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Channel</label>
-              <select
-                value={channel}
-                onChange={(e) => setChannel(e.target.value as TemplateChannel)}
-                className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-              >
-                {CHANNEL_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {channel === "email" && (
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Subject <span className="text-destructive">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={subject}
-                  onChange={(e) => setSubject(e.target.value)}
-                  placeholder="e.g. {{firstName}}, here's your next step"
-                  className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-                />
-              </div>
-            )}
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Body <span className="text-destructive">*</span>
-              </label>
-              <textarea
-                value={body}
-                onChange={(e) => setBody(e.target.value)}
-                rows={10}
-                placeholder={`Hi {{firstName}},\n\nJust checking in on your mortgage journey...\n\nBest,\n{{adviser}} at {{firmName}}`}
-                className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-y font-mono leading-relaxed"
+              Email
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <input
+                type="radio"
+                name="channel"
+                value="sms"
+                checked={channel === "sms"}
+                onChange={() => setChannel("sms")}
+                className="accent-primary"
               />
-            </div>
+              SMS
+            </label>
           </div>
         </div>
 
-        {/* Variables section */}
-        <div className="bg-white border border-gray-100 rounded-[12px] p-6 mb-5">
-          <h2 className="text-sm font-semibold text-gray-700 mb-3">Variables</h2>
-          <p className="text-xs text-gray-500 mb-3">
-            Use <code className="px-1 py-0.5 rounded bg-gray-100 text-gray-700">{"{{variableName}}"}</code> in
-            the body. These are auto-detected from your template content.
-          </p>
-
-          {detectedVariables.length > 0 ? (
-            <div className="flex flex-wrap gap-1.5 mb-4">
-              {detectedVariables.map((v) => (
-                <span
-                  key={v}
-                  className={`inline-block text-xs px-2 py-1 rounded font-mono ${
-                    AVAILABLE_VARIABLES.includes(v)
-                      ? "bg-green-50 text-green-700 border border-green-200"
-                      : "bg-amber-50 text-amber-700 border border-amber-200"
-                  }`}
-                >
-                  {`{{${v}}}`}
-                  {!AVAILABLE_VARIABLES.includes(v) && (
-                    <span className="ml-1 text-[10px] font-sans">(unknown)</span>
-                  )}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-xs text-gray-400 mb-4">No variables detected in the body.</p>
-          )}
-
+        {/* Subject (email only) */}
+        {channel === "email" && (
           <div>
-            <p className="text-xs font-medium text-gray-600 mb-2">Available variables:</p>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Subject
+            </label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              placeholder="e.g. {{firstName}}, here's your next step"
+              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            />
+          </div>
+        )}
+
+        {/* Body */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Body <span className="text-red-400">*</span>
+          </label>
+          <textarea
+            ref={bodyRef}
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            rows={12}
+            placeholder="Write your template body here..."
+            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-y"
+          />
+        </div>
+
+        {/* Variable insertion buttons */}
+        <div>
+          <p className="text-xs font-medium text-gray-500 mb-2">
+            Insert variable
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {VARIABLES.map((v) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => insertVariable(v)}
+                className="px-2 py-1 rounded border border-gray-200 text-xs font-mono text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+              >
+                {v}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Detected variables */}
+        {detectedVariables.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-gray-500 mb-2">
+              Detected variables
+            </p>
             <div className="flex flex-wrap gap-1.5">
-              {AVAILABLE_VARIABLES.map((v) => (
+              {detectedVariables.map((v) => (
                 <span
                   key={v}
                   className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-mono"
@@ -352,28 +326,44 @@ export default function TemplateEditorPage({ params }: { params: Promise<{ id: s
               ))}
             </div>
           </div>
-        </div>
-
-        {submitError && !showDeleteConfirm && (
-          <p className="mb-4 text-sm text-destructive text-center">{submitError}</p>
         )}
 
-        <div className="flex items-center gap-3">
+        {/* Feedback */}
+        {feedback && (
+          <p
+            className={`text-sm ${
+              feedback.type === "success" ? "text-green-600" : "text-red-600"
+            }`}
+          >
+            {feedback.message}
+          </p>
+        )}
+
+        {/* Actions */}
+        <div className="flex items-center justify-between pt-2">
+          <div>
+            {isAdminOrManager && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={isDemo || deleting}
+                className="px-3 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deleting ? "Deleting..." : "Delete template"}
+              </button>
+            )}
+          </div>
           <button
-            type="submit"
-            disabled={saving}
-            className="bg-primary text-white font-semibold px-6 py-2.5 rounded-lg text-sm hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            type="button"
+            onClick={handleSave}
+            disabled={isDemo || saving || !name.trim() || !body.trim()}
+            className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Saving..." : isNew ? "Create template" : "Save changes"}
+            {saving && <Loader2 size={14} className="animate-spin" />}
+            {saving ? "Saving..." : "Save template"}
           </button>
-          <Link
-            href="/templates"
-            className="px-4 py-2.5 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            Cancel
-          </Link>
         </div>
-      </form>
+      </div>
     </div>
   );
 }

@@ -2,14 +2,17 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Phone, Mail, Plus, ChevronDown, Check, UserPlus } from "lucide-react";
+import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus } from "lucide-react";
 import { format } from "date-fns";
 import { useLead, useLeadActivities, useLeadTasks, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { QuickLogBar } from "@/components/leads/quick-log-bar";
+import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
 import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
+import { EditableField } from "@/components/leads/editable-field";
 import { isDemoUser } from "@/lib/mock-data";
+import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType } from "@/types";
 
@@ -77,25 +80,32 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!title.trim() || !dueDate) return;
+    if (!title.trim() || !dueDate || !supabase) return;
     setSaving(true);
     setError(null);
     try {
-      if (!demo && supabase) {
-        await supabase.from("tasks").insert({
-          tenant_id: tenantId,
-          lead_id: leadId,
-          assigned_to: userId,
-          created_by: userId,
-          title: title.trim(),
-          description: null,
-          due_date: new Date(dueDate).toISOString(),
-          priority: "normal",
-          status: "pending",
-          reminder_emails: [email1, email2, email3].filter(Boolean),
-          reminder_sent: false,
-        });
-      }
+      await supabase.from("tasks").insert({
+        tenant_id: tenantId,
+        lead_id: leadId,
+        assigned_to: userId,
+        created_by: userId,
+        title: title.trim(),
+        description: null,
+        due_date: new Date(dueDate).toISOString(),
+        priority: "normal",
+        status: "pending",
+        reminder_emails: [email1, email2, email3].filter(Boolean),
+        reminder_sent: false,
+      });
+      supabase?.auth.getSession().then(({ data: { session } }) => {
+        if (session?.access_token) {
+          fetch("/api/notifications/follow-up-scheduled", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+            body: JSON.stringify({ leadId, taskTitle: title.trim(), dueDate }),
+          }).catch(() => {});
+        }
+      });
       onClose(true);
     } catch (err) {
       console.error("Failed to create follow-up:", err);
@@ -174,164 +184,6 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
   );
 }
 
-const MORTGAGE_TYPE_OPTIONS = [
-  { value: "", label: "Not set" },
-  { value: "first-time-buyer", label: "First-time Buyer" },
-  { value: "remortgage", label: "Remortgage" },
-  { value: "self-employed", label: "Self-employed" },
-  { value: "buy-to-let", label: "Buy-to-let" },
-  { value: "other", label: "Other" },
-];
-
-const READINESS_OPTIONS = [
-  { value: "", label: "Unknown" },
-  { value: "ready-now", label: "Ready now" },
-  { value: "1-3-months", label: "1–3 months" },
-  { value: "3-6-months", label: "3–6 months" },
-  { value: "6-12-months", label: "6–12 months" },
-  { value: "exploring", label: "Just exploring" },
-];
-
-interface OverviewTabProps {
-  lead: { phone: string; email: string | null; mortgageType: string | null; readiness: string | null; assignedTo: string; nextFollowUpDate: string | null; followUpReason: string | null; followUpNotes: string | null };
-  leadId: string;
-  demo: boolean;
-  supabase: ReturnType<typeof useSupabase>;
-  userNameById: Record<string, string>;
-  onShowAssignModal: () => void;
-  onSaved: () => void;
-}
-
-function OverviewTab({ lead, leadId, demo, supabase, userNameById, onShowAssignModal, onSaved }: OverviewTabProps) {
-  const [phone, setPhone] = useState(lead.phone);
-  const [email, setEmail] = useState(lead.email ?? "");
-  const [mortgageType, setMortgageType] = useState(lead.mortgageType ?? "");
-  const [readiness, setReadiness] = useState(lead.readiness ?? "");
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
-
-  const dirty =
-    phone !== lead.phone ||
-    email !== (lead.email ?? "") ||
-    mortgageType !== (lead.mortgageType ?? "") ||
-    readiness !== (lead.readiness ?? "");
-
-  async function handleSave() {
-    setSaving(true);
-    try {
-      if (!demo && supabase) {
-        await supabase.from("leads").update({
-          phone: phone.trim(),
-          email: email.trim() || null,
-          mortgage_type: mortgageType || null,
-          readiness: readiness || null,
-          updated_at: new Date().toISOString(),
-        }).eq("id", leadId);
-        onSaved();
-      }
-      setSaved(true);
-      setTimeout(() => setSaved(false), 2000);
-    } catch (err) {
-      console.error("Failed to save overview:", err);
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  const assigneeName = lead.assignedTo ? (userNameById[lead.assignedTo] ?? "Unknown") : "Unassigned";
-
-  return (
-    <div className="space-y-4">
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-4">
-        <h2 className="text-sm font-semibold text-gray-700">Contact Info</h2>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
-          <div>
-            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Phone</label>
-            <input
-              type="tel"
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="—"
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Mortgage Type</label>
-            <select
-              value={mortgageType}
-              onChange={(e) => setMortgageType(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-            >
-              {MORTGAGE_TYPE_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Readiness</label>
-            <select
-              value={readiness}
-              onChange={(e) => setReadiness(e.target.value)}
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white"
-            >
-              {READINESS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div className="col-span-2">
-            <label className="text-xs text-gray-400 uppercase tracking-wide font-medium">Assigned To</label>
-            <button
-              onClick={onShowAssignModal}
-              className="mt-1 w-full text-left border border-gray-300 rounded-lg px-3 py-2 text-sm text-primary font-medium hover:bg-gray-50 flex items-center justify-between"
-            >
-              {assigneeName}
-              <UserPlus size={14} className="text-gray-400" />
-            </button>
-          </div>
-        </div>
-
-        {dirty && (
-          <button
-            onClick={handleSave}
-            disabled={saving}
-            className="w-full bg-primary text-white font-semibold py-2.5 rounded-lg text-sm hover:bg-primary-dark transition-colors disabled:opacity-60"
-          >
-            {saving ? "Saving…" : saved ? "Saved!" : "Save Changes"}
-          </button>
-        )}
-        {saved && !dirty && (
-          <p className="text-center text-sm text-green-600 font-medium">Saved!</p>
-        )}
-      </div>
-
-      {lead.nextFollowUpDate && (
-        <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-5">
-          <h2 className="text-sm font-semibold text-amber-800">Next Follow-up</h2>
-          <p className="text-lg font-bold text-amber-900 mt-1">
-            {format(new Date(lead.nextFollowUpDate), "EEEE, d MMMM yyyy")}
-          </p>
-          {lead.followUpReason && (
-            <p className="text-sm text-amber-700 mt-1">{lead.followUpReason}</p>
-          )}
-          {lead.followUpNotes && (
-            <p className="text-sm text-amber-600 mt-0.5 italic">{lead.followUpNotes}</p>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
 export default function LeadDetailPage() {
   const params = useParams();
   const id = params.id as string;
@@ -342,8 +194,8 @@ export default function LeadDetailPage() {
   const { lead, loading, refetch: refetchLead } = useLead(id);
   const { activities, refetch: refetchActivities } = useLeadActivities(id);
   const { tasks, refetch: refetchTasks } = useLeadTasks(id);
-  const { users } = useTenantUsers();
   const supabase = useSupabase();
+  const { users: tenantUsers } = useTenantUsers();
 
   const [activeTab, setActiveTab] = useState<Tab>("overview");
   const [noteText, setNoteText] = useState("");
@@ -351,36 +203,8 @@ export default function LeadDetailPage() {
   const [savingNote, setSavingNote] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
+  const [showCadenceModal, setShowCadenceModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [localStageOverride, setLocalStageOverride] = useState<string | null>(null);
-
-  const [slugToId, setSlugToId] = useState<Record<string, string>>({});
-  const [idToSlug, setIdToSlug] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    if (demo || !supabase || !user?.tenantId) return;
-    supabase
-      .from("pipeline_stages")
-      .select("id, slug")
-      .eq("tenant_id", user.tenantId)
-      .then(({ data }) => {
-        if (!data) return;
-        const s2i: Record<string, string> = {};
-        const i2s: Record<string, string> = {};
-        for (const row of data) {
-          s2i[row.slug] = row.id;
-          i2s[row.id] = row.slug;
-        }
-        setSlugToId(s2i);
-        setIdToSlug(i2s);
-      });
-  }, [demo, supabase, user?.tenantId]);
-
-  const userNameById = (() => {
-    const map: Record<string, string> = {};
-    for (const u of users) map[u.id] = u.fullName;
-    return map;
-  })();
 
   const stageDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -427,23 +251,21 @@ export default function LeadDetailPage() {
   }
 
   async function handleSaveNote() {
-    if (!noteText.trim() || !user) return;
+    if (!noteText.trim() || !user || !supabase) return;
     setSavingNote(true);
     try {
-      if (!demo && supabase) {
-        await supabase.from("activities").insert({
-          tenant_id: user.tenantId,
-          lead_id: id,
-          performed_by: user.id,
-          activity_type: "note",
-          title: "Note added",
-          description: noteText,
-          metadata: null,
-        });
-        refetchActivities();
-      }
+      await supabase.from("activities").insert({
+        tenant_id: user.tenantId,
+        lead_id: id,
+        performed_by: user.id,
+        activity_type: "note",
+        title: "Note added",
+        description: noteText,
+        metadata: null,
+      });
       setNoteText("");
       setAddingNote(false);
+      refetchActivities();
     } catch (err) {
       console.error("Failed to save note:", err);
     } finally {
@@ -451,21 +273,14 @@ export default function LeadDetailPage() {
     }
   }
 
-  async function handleStageChange(stageSlug: string) {
+  async function handleStageChange(stageId: string) {
     setStageDropdownOpen(false);
     if (!user) return;
-
-    if (demo) {
-      setLocalStageOverride(stageSlug);
-      return;
-    }
-
+    if (demo) return;
     if (!supabase) return;
-    const stageUuid = slugToId[stageSlug] ?? stageSlug;
     try {
       await supabase.from("leads").update({
-        current_stage_id: stageUuid,
-        current_stage_entered_at: new Date().toISOString(),
+        current_stage_id: stageId,
         updated_at: new Date().toISOString(),
       }).eq("id", id);
       await supabase.from("activities").insert({
@@ -473,7 +288,7 @@ export default function LeadDetailPage() {
         lead_id: id,
         performed_by: user.id,
         activity_type: "stage-change",
-        title: `Stage changed to ${STAGE_LABELS[stageSlug] ?? stageSlug}`,
+        title: `Stage changed to ${STAGE_LABELS[stageId] ?? stageId}`,
         description: null,
         metadata: null,
       });
@@ -486,50 +301,48 @@ export default function LeadDetailPage() {
 
   async function handleLogActivity(payload: LogActivityPayload) {
     if (!user) return;
-    if (!demo && supabase) {
-      try {
-        await supabase.from("activities").insert({
-          tenant_id: user.tenantId,
-          lead_id: id,
-          performed_by: user.id,
-          activity_type: payload.activityType,
-          title: payload.title,
-          description: payload.description || null,
-          metadata: Object.keys(payload.metadata).length > 0 ? payload.metadata : null,
-        });
-        refetchActivities();
-      } catch (err) {
-        console.error("Failed to log activity:", err);
-      }
+    if (demo) return;
+    if (!supabase) return;
+    try {
+      await supabase.from("activities").insert({
+        tenant_id: user.tenantId,
+        lead_id: id,
+        performed_by: user.id,
+        activity_type: payload.activityType,
+        title: payload.title,
+        description: payload.description || null,
+        metadata: Object.keys(payload.metadata).length > 0 ? payload.metadata : null,
+      });
+      refetchActivities();
+    } catch (err) {
+      console.error("Failed to log activity:", err);
     }
   }
 
   async function handleToggleTask(taskId: string, currentStatus: string) {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
-    if (!demo && supabase) {
-      try {
-        await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
-        refetchTasks();
-      } catch (err) {
-        console.error("Failed to update task:", err);
-      }
+    if (demo) return;
+    if (!supabase) return;
+    try {
+      await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
+      refetchTasks();
+    } catch (err) {
+      console.error("Failed to update task:", err);
     }
   }
 
   async function handleSaveQualification() {
-    if (!user) return;
+    if (!user || !supabase) return;
     setSavingQual(true);
     setQualSaved(false);
     try {
-      if (!demo && supabase) {
-        await supabase.from("leads").update({
-          property_value: qualPropertyValue ? Number(qualPropertyValue) : null,
-          deposit_amount: qualDepositAmount ? Number(qualDepositAmount) : null,
-          deal_value: qualDealValue ? Number(qualDealValue) : null,
-          estimated_close_date: qualEstimatedCloseDate || null,
-          confidence: qualConfidence ? Number(qualConfidence) : null,
-        }).eq("id", id);
-      }
+      await supabase.from("leads").update({
+        property_value: qualPropertyValue ? Number(qualPropertyValue) : null,
+        deposit_amount: qualDepositAmount ? Number(qualDepositAmount) : null,
+        deal_value: qualDealValue ? Number(qualDealValue) : null,
+        estimated_close_date: qualEstimatedCloseDate || null,
+        confidence: qualConfidence ? Number(qualConfidence) : null,
+      }).eq("id", id);
       setQualSaved(true);
       setTimeout(() => setQualSaved(false), 2000);
     } catch (err) {
@@ -555,12 +368,9 @@ export default function LeadDetailPage() {
     );
   }
 
-  const currentSlug = localStageOverride
-    ?? (lead.currentStageId
-      ? (idToSlug[lead.currentStageId] ?? lead.currentStageId)
-      : "new_enquiry");
-  const stageStyle = STAGE_STYLES[currentSlug] ?? "bg-gray-100 text-gray-700";
-  const stageLabel = STAGE_LABELS[currentSlug] ?? currentSlug;
+  const assigneeName = tenantUsers.find(u => u.id === lead.assignedTo)?.fullName;
+  const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-700";
+  const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
@@ -578,6 +388,16 @@ export default function LeadDetailPage() {
           tenantId={user.tenantId}
           demo={demo}
           onClose={() => { setShowFollowUpModal(false); refetchTasks(); }}
+        />
+      )}
+
+      {showCadenceModal && (
+        <EnrollCadenceModal
+          leadId={id}
+          leadName={`${lead.firstName} ${lead.lastName}`}
+          open={showCadenceModal}
+          onClose={() => setShowCadenceModal(false)}
+          onEnrolled={() => { setShowCadenceModal(false); refetchActivities(); }}
         />
       )}
 
@@ -616,7 +436,7 @@ export default function LeadDetailPage() {
                   {stageDropdownOpen && (
                     <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
                       {Object.entries(STAGE_LABELS)
-                        .filter(([key]) => key !== currentSlug)
+                        .filter(([key]) => key !== lead.currentStageId)
                         .map(([key, label]) => (
                           <button
                             key={key}
@@ -635,6 +455,7 @@ export default function LeadDetailPage() {
                     {lead.mortgageType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </span>
                 )}
+                <span className="text-xs text-gray-500">via {lead.source}</span>
               </div>
             </div>
           </div>
@@ -663,6 +484,15 @@ export default function LeadDetailPage() {
               <Plus size={15} />
               Log Activity
             </button>
+            {isCadencesTemplatesEnabled() && (
+              <button
+                onClick={() => setShowCadenceModal(true)}
+                className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+              >
+                <Zap size={15} />
+                Cadence
+              </button>
+            )}
           </div>
         </div>
 
@@ -685,15 +515,113 @@ export default function LeadDetailPage() {
 
         {/* Tab content */}
         {activeTab === "overview" && (
-          <OverviewTab
-            lead={lead}
-            leadId={id}
-            demo={demo}
-            supabase={supabase}
-            userNameById={userNameById}
-            onShowAssignModal={() => setShowAssignModal(true)}
-            onSaved={refetchLead}
-          />
+          <div className="space-y-4">
+            <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-3">
+              <h2 className="text-sm font-semibold text-gray-700">Contact Info</h2>
+              <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                <EditableField
+                  label="Phone"
+                  value={lead.phone}
+                  field="phone"
+                  type="tel"
+                  linkHref={lead.phone ? `tel:${lead.phone}` : undefined}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Email"
+                  value={lead.email}
+                  field="email"
+                  type="email"
+                  linkHref={lead.email ? `mailto:${lead.email}` : undefined}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Source"
+                  value={lead.source}
+                  field="source"
+                  type="select"
+                  options={[
+                    { value: "website", label: "Website" },
+                    { value: "referral", label: "Referral" },
+                    { value: "phone", label: "Phone" },
+                    { value: "walk-in", label: "Walk-in" },
+                    { value: "social", label: "Social" },
+                    { value: "mab-import", label: "MAB Import" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Readiness"
+                  value={lead.readiness}
+                  field="readiness"
+                  type="select"
+                  options={[
+                    { value: "ready-now", label: "Ready Now" },
+                    { value: "1-3-months", label: "1-3 Months" },
+                    { value: "3-6-months", label: "3-6 Months" },
+                    { value: "6-12-months", label: "6-12 Months" },
+                    { value: "exploring", label: "Exploring" },
+                  ]}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <EditableField
+                  label="Mortgage Type"
+                  value={lead.mortgageType}
+                  field="mortgage_type"
+                  type="select"
+                  options={[
+                    { value: "first-time-buyer", label: "First Time Buyer" },
+                    { value: "remortgage", label: "Remortgage" },
+                    { value: "self-employed", label: "Self Employed" },
+                    { value: "buy-to-let", label: "Buy to Let" },
+                    { value: "other", label: "Other" },
+                  ]}
+                  leadId={id}
+                  tenantId={user!.tenantId}
+                  demo={demo}
+                  onSaved={refetchLead}
+                />
+                <div>
+                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Assigned To</p>
+                  <button
+                    onClick={() => setShowAssignModal(true)}
+                    className="text-primary font-medium hover:underline text-sm flex items-center gap-1"
+                  >
+                    {assigneeName ?? "Unassigned"}
+                    <UserPlus size={12} className="text-gray-400" />
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {lead.nextFollowUpDate && (
+              <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-5">
+                <h2 className="text-sm font-semibold text-amber-800">Next Follow-up</h2>
+                <p className="text-lg font-bold text-amber-900 mt-1">
+                  {format(new Date(lead.nextFollowUpDate), "EEEE, d MMMM yyyy")}
+                </p>
+                {lead.followUpReason && (
+                  <p className="text-sm text-amber-700 mt-1">{lead.followUpReason}</p>
+                )}
+                {lead.followUpNotes && (
+                  <p className="text-sm text-amber-600 mt-0.5 italic">{lead.followUpNotes}</p>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         {activeTab === "activity" && (
