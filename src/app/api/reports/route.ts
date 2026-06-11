@@ -1,5 +1,6 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { verifyToken, authError } from "@/lib/auth/verify-token";
 
 interface TeamPerformanceEntry {
   userId: string;
@@ -17,21 +18,26 @@ interface ReportData {
   monthlyTrend: { month: string; count: number }[];
 }
 
-let cache: { timestamp: number; data: ReportData } | null = null;
+const cache = new Map<string, { timestamp: number; data: ReportData }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
-export async function GET() {
-  const now = Date.now();
+export async function GET(request: NextRequest) {
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
-  if (cache && now - cache.timestamp < CACHE_TTL_MS) {
-    return NextResponse.json(cache.data);
+  const now = Date.now();
+  const cached = cache.get(auth.tenantId);
+  if (cached && now - cached.timestamp < CACHE_TTL_MS) {
+    return NextResponse.json(cached.data);
   }
 
   try {
     const supabase = createServiceClient();
     const { data: leads, error } = await supabase
       .from("leads")
-      .select("id, status, source_id, current_stage_id, assigned_to, created_at, converted_at");
+      .select("id, status, source_id, current_stage_id, assigned_to, created_at, converted_at")
+      .eq("tenant_id", auth.tenantId);
 
     if (error) throw error;
 
@@ -103,7 +109,7 @@ export async function GET() {
       monthlyTrend,
     };
 
-    cache = { timestamp: now, data };
+    cache.set(auth.tenantId, { timestamp: now, data });
     return NextResponse.json(data);
   } catch (err) {
     console.error("[reports/route] Error:", err);

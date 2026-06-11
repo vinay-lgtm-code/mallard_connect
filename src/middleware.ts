@@ -6,10 +6,12 @@ const PUBLIC_PATHS = [
   "/login",
   "/signup",
   "/forgot-password",
+  "/reset-password",
   "/accept-invite",
   "/demo",
   "/onboarding",
   "/auth/callback",
+  "/auth/confirm",
 ];
 
 function isPublic(pathname: string): boolean {

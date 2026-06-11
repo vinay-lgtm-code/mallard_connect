@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Pencil, Check, X } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
+import { notifyAssignment } from "@/lib/email/notify-client";
 
 interface EditableFieldProps {
   label: string;
@@ -63,7 +64,11 @@ export function EditableField({
       await supabase
         .from("leads")
         .update({ [field]: newValue })
-        .eq("id", leadId);
+        .eq("id", leadId)
+        .eq("tenant_id", tenantId);
+      if (field === "assigned_to" && newValue) {
+        notifyAssignment(leadId).catch(() => {});
+      }
       onSaved?.();
     } finally {
       setSaving(false);

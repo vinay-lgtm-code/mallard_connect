@@ -1,28 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendFollowUpScheduledEmail } from "@/lib/email/client";
-
-async function verifyToken(request: NextRequest) {
-  const supabase = createServiceClient();
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .single();
-
-  return profile ? { uid: user.id, role: profile.role as string, tenantId: profile.tenant_id as string } : null;
-}
+import { verifyToken, authError } from "@/lib/auth/verify-token";
+import { getLeadName, filterRecipientsByPref } from "@/lib/email/recipients";
 
 export async function POST(request: NextRequest) {
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await verifyToken(request);
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   let body: { leadId?: string; taskTitle?: string; dueDate?: string };
   try {
@@ -38,7 +23,6 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
 
-  // Verify a matching task was actually created by this user
   const { data: task } = await supabase
     .from("tasks")
     .select("id")
@@ -55,7 +39,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "No matching task found" }, { status: 404 });
   }
 
-  // Fetch lead (includes assigned_to), scheduler (auth.uid), and all managers in parallel
   const [leadRes, schedulerRes, managersRes] = await Promise.all([
     supabase
       .from("leads")
@@ -80,14 +63,13 @@ export async function POST(request: NextRequest) {
   if (!leadRes.data) return NextResponse.json({ error: "Lead not found" }, { status: 404 });
   if (!schedulerRes.data) return NextResponse.json({ error: "Scheduler user not found" }, { status: 404 });
 
-  const lead = leadRes.data as Record<string, unknown>;
-  const scheduler = schedulerRes.data as Record<string, unknown>;
-  const managers = (managersRes.data ?? []) as Array<Record<string, unknown>>;
+  const lead = leadRes.data;
+  const scheduler = schedulerRes.data;
+  const managers = managersRes.data ?? [];
 
-  const leadName = `${lead.first_name ?? ""} ${lead.last_name ?? ""}`.trim() || "Unknown";
+  const leadName = getLeadName(lead);
   const schedulerName = (scheduler.full_name as string) ?? "";
 
-  // Fetch assigned user's email if the lead has an assigned adviser
   let assignedUserEmail: string | null = null;
   if (lead.assigned_to) {
     const { data: assignedUser } = await supabase
@@ -97,20 +79,25 @@ export async function POST(request: NextRequest) {
       .eq("tenant_id", auth.tenantId)
       .single();
     if (assignedUser) {
-      assignedUserEmail = (assignedUser as Record<string, unknown>).email as string | null;
+      assignedUserEmail = assignedUser.email as string | null;
     }
   }
 
-  // Build unique recipient list: assigned adviser + scheduler + all managers
   const recipientSet = new Set<string>();
   if (assignedUserEmail) recipientSet.add(assignedUserEmail);
   if (scheduler.email) recipientSet.add(scheduler.email as string);
   for (const m of managers) {
     if (m.email) recipientSet.add(m.email as string);
   }
-  const recipients = Array.from(recipientSet);
 
-  if (recipients.length === 0) {
+  const filtered = await filterRecipientsByPref(
+    supabase,
+    auth.tenantId,
+    Array.from(recipientSet),
+    "reminders",
+  );
+
+  if (filtered.length === 0) {
     return NextResponse.json({ success: true, sent: 0 });
   }
 
@@ -118,7 +105,7 @@ export async function POST(request: NextRequest) {
   const leadUrl = `${appUrl}/leads/${leadId}`;
 
   await sendFollowUpScheduledEmail({
-    to: recipients,
+    to: filtered,
     leadName,
     taskTitle,
     dueDate,
@@ -126,5 +113,5 @@ export async function POST(request: NextRequest) {
     leadUrl,
   });
 
-  return NextResponse.json({ success: true, sent: recipients.length });
+  return NextResponse.json({ success: true, sent: filtered.length });
 }
