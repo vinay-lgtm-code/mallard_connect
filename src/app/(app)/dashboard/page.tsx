@@ -30,7 +30,7 @@ const PIPELINE_STAGE_CONFIG = [
   { id: "not_ready_yet", name: "Not Ready Yet", color: "bg-amber-500" },
   { id: "nurturing", name: "Nurturing", color: "bg-green-500" },
   { id: "ready_to_proceed", name: "Ready to Proceed", color: "bg-blue-600" },
-  { id: "referred_to_mab", name: "Referred to MAB", color: "bg-purple-500" },
+  { id: "referred_to_mab", name: "Deal Done", color: "bg-purple-500" },
 ];
 
 const STATUS_STYLES = {

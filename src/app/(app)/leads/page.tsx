@@ -25,7 +25,7 @@ const STAGE_LABELS: Record<string, string> = {
   not_ready_yet: "Not Ready Yet",
   nurturing: "Nurturing",
   ready_to_proceed: "Ready to Proceed",
-  referred_to_mab: "Referred to MAB",
+  referred_to_mab: "Deal Done",
 };
 
 const STATUS_STYLES: Record<LeadStatus, string> = {
@@ -50,7 +50,7 @@ const ALL_STAGES = [
   { value: "not_ready_yet", label: "Not Ready Yet" },
   { value: "nurturing", label: "Nurturing" },
   { value: "ready_to_proceed", label: "Ready to Proceed" },
-  { value: "referred_to_mab", label: "Referred to MAB" },
+  { value: "referred_to_mab", label: "Deal Done" },
 ];
 
 const ALL_STATUSES = [

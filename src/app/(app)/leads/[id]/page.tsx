@@ -31,7 +31,7 @@ const STAGE_LABELS: Record<string, string> = {
   not_ready_yet: "Not Ready Yet",
   nurturing: "Nurturing",
   ready_to_proceed: "Ready to Proceed",
-  referred_to_mab: "Referred to MAB",
+  referred_to_mab: "Deal Done",
 };
 
 const ACTIVITY_DOT: Record<ActivityType, string> = {
