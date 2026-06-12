@@ -4,24 +4,7 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { UpdateTemplateSchema } from "@/schemas/template";
 import { extractVariables } from "@/lib/email/render";
 import { isCadencesTemplatesEnabledServer } from "@/lib/feature-flags";
-
-async function verifyToken(request: NextRequest) {
-  const supabase = createServiceClient();
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .single();
-
-  return profile ? { uid: user.id, role: profile.role as string, tenantId: profile.tenant_id as string } : null;
-}
+import { verifyToken, authError } from "@/lib/auth/verify-token";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -30,8 +13,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await verifyToken(request);
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const { id } = await params;
   const supabase = createServiceClient();
@@ -54,12 +38,9 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (auth.role !== "admin" && auth.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const { id } = await params;
 
@@ -74,16 +55,13 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  // Build the update object with only the fields that were provided
   const update: Record<string, unknown> = {};
   if ("name" in validated && validated.name !== undefined) update.name = validated.name;
   if ("channel" in validated && validated.channel !== undefined) update.channel = validated.channel;
   if ("subject" in validated && validated.subject !== undefined) update.subject = validated.subject;
   if ("body" in validated && validated.body !== undefined) update.body = validated.body;
 
-  // Re-extract variables if subject or body changed
   if ("body" in validated || "subject" in validated) {
-    // Fetch current template to merge with updates
     const supabase = createServiceClient();
     const { data: current } = await supabase
       .from("templates")
@@ -125,17 +103,13 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (auth.role !== "admin" && auth.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const { id } = await params;
   const supabase = createServiceClient();
 
-  // Check if any cadence references this template
   const { data: cadences } = await supabase
     .from("cadences")
     .select("id, name, steps")

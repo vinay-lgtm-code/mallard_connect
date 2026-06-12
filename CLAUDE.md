@@ -19,12 +19,12 @@ The product directly addresses one customer pain: prospects who enquire but are 
 ## Architecture
 
 - **Framework:** Next.js 15 App Router, TypeScript, React 19.
-- **Database:** Firebase Firestore (multi-tenant — see Tenant Model rules below).
-- **Auth:** Firebase Auth + custom claims (`role`, `tenantId`).
+- **Database:** Supabase (Postgres) — multi-tenant, see Tenant Model rules below.
+- **Auth:** Supabase Auth + `app_metadata` claims (`role`, `tenant_id`).
 - **Email send engine:** Resend. **Always Resend** for outbound transactional email — never replace, never split.
 - **Optional contact source:** Brevo, opportunistic one-way pull only. Tenants without Brevo use CSV import.
 - **Hosting:** Vercel. Cron jobs in `vercel.json`. Vercel Analytics enabled.
-- **State:** TanStack React Query for server-state caching; Firestore `onSnapshot` for real-time.
+- **State:** Supabase realtime subscriptions for live data; client-side Supabase SDK for queries.
 - **UI:** Tailwind v4 only (no shadcn/ui, no component library beyond what we ship in `src/components/ui/`).
 
 ## Domain map

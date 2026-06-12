@@ -20,7 +20,7 @@ INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal
   ('00000000-0000-0000-0000-000000000001', 'Not Ready Yet', 'not_ready_yet', 2, '#f59e0b', false),
   ('00000000-0000-0000-0000-000000000001', 'Nurturing', 'nurturing', 3, '#22c55e', false),
   ('00000000-0000-0000-0000-000000000001', 'Ready to Proceed', 'ready_to_proceed', 4, '#2563eb', false),
-  ('00000000-0000-0000-0000-000000000001', 'Referred to MAB', 'referred_to_mab', 5, '#a855f7', true);
+  ('00000000-0000-0000-0000-000000000001', 'Deal Done', 'referred_to_mab', 5, '#a855f7', true);
 
 -- Friends Capital stages
 INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal) VALUES
@@ -29,7 +29,7 @@ INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal
   ('00000000-0000-0000-0000-000000000002', 'Not Ready Yet', 'not_ready_yet', 2, '#f59e0b', false),
   ('00000000-0000-0000-0000-000000000002', 'Nurturing', 'nurturing', 3, '#22c55e', false),
   ('00000000-0000-0000-0000-000000000002', 'Ready to Proceed', 'ready_to_proceed', 4, '#2563eb', false),
-  ('00000000-0000-0000-0000-000000000002', 'Referred to MAB', 'referred_to_mab', 5, '#a855f7', true);
+  ('00000000-0000-0000-0000-000000000002', 'Deal Done', 'referred_to_mab', 5, '#a855f7', true);
 
 -- Acme stages
 INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal) VALUES
@@ -38,7 +38,7 @@ INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal
   ('00000000-0000-0000-0000-000000000003', 'Not Ready Yet', 'not_ready_yet', 2, '#f59e0b', false),
   ('00000000-0000-0000-0000-000000000003', 'Nurturing', 'nurturing', 3, '#22c55e', false),
   ('00000000-0000-0000-0000-000000000003', 'Ready to Proceed', 'ready_to_proceed', 4, '#2563eb', false),
-  ('00000000-0000-0000-0000-000000000003', 'Referred to MAB', 'referred_to_mab', 5, '#a855f7', true);
+  ('00000000-0000-0000-0000-000000000003', 'Deal Done', 'referred_to_mab', 5, '#a855f7', true);
 
 -- ============================================================
 -- Lead sources (based on Mallard's actual spreadsheet)

@@ -3,24 +3,7 @@ import { ZodError } from "zod";
 import { createServiceClient } from "@/lib/supabase/server";
 import { UpdateCadenceSchema } from "@/schemas/cadence";
 import { isCadencesTemplatesEnabledServer } from "@/lib/feature-flags";
-
-async function verifyToken(request: NextRequest) {
-  const supabase = createServiceClient();
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .single();
-
-  return profile ? { uid: user.id, role: profile.role as string, tenantId: profile.tenant_id as string } : null;
-}
+import { verifyToken, authError } from "@/lib/auth/verify-token";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -29,8 +12,9 @@ export async function GET(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const result = await verifyToken(request);
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const { id } = await params;
   const supabase = createServiceClient();
@@ -53,12 +37,9 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (auth.role !== "admin" && auth.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const { id } = await params;
 
@@ -73,7 +54,6 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
   }
 
-  // Validate templateId references if steps were provided
   if (validated.steps) {
     const templateIds = validated.steps
       .map((s) => s.templateId)
@@ -99,7 +79,6 @@ export async function PUT(request: NextRequest, { params }: RouteContext) {
     }
   }
 
-  // Build update object with only provided fields
   const update: Record<string, unknown> = {};
   if ("name" in validated && validated.name !== undefined) update.name = validated.name;
   if ("description" in validated && validated.description !== undefined) update.description = validated.description;
@@ -129,17 +108,13 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Feature not enabled" }, { status: 403 });
   }
 
-  const auth = await verifyToken(request);
-  if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  if (auth.role !== "admin" && auth.role !== "manager") {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const { auth } = result;
 
   const { id } = await params;
   const supabase = createServiceClient();
 
-  // Verify cadence belongs to this tenant before touching enrollments
   const { data: cadence } = await supabase
     .from("cadences")
     .select("id")
@@ -151,7 +126,6 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     return NextResponse.json({ error: "Cadence not found" }, { status: 404 });
   }
 
-  // Check for active enrollments (tenant-scoped)
   const { count } = await supabase
     .from("cadence_enrollments")
     .select("*", { count: "exact", head: true })
@@ -166,14 +140,12 @@ export async function DELETE(request: NextRequest, { params }: RouteContext) {
     );
   }
 
-  // Delete all enrollments first (FK has no CASCADE, tenant-scoped)
   await supabase
     .from("cadence_enrollments")
     .delete()
     .eq("cadence_id", id)
     .eq("tenant_id", auth.tenantId);
 
-  // Delete the cadence
   const { error } = await supabase
     .from("cadences")
     .delete()

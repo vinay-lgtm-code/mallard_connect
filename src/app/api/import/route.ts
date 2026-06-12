@@ -1,59 +1,69 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { parseImportFile, normalizeMortgageType } from "@/lib/import/parser";
+import { appToRow } from "@/lib/supabase/mappers";
 import { findDuplicates } from "@/lib/import/dedup";
 import type { ImportRow } from "@/lib/import/dedup";
-
-async function requireAdminOrManager(request: NextRequest) {
-  const supabase = createServiceClient();
-  const authHeader = request.headers.get("authorization");
-  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
-  if (!token) return null;
-
-  const { data: { user } } = await supabase.auth.getUser(token);
-  if (!user) return null;
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role, tenant_id")
-    .eq("id", user.id)
-    .single();
-
-  if (!profile) return null;
-  const role = profile.role as string;
-  const tenantId = profile.tenant_id as string;
-  if (role !== "admin" && role !== "manager") return null;
-
-  return { uid: user.id, role, tenantId };
-}
+import { verifyToken, authError } from "@/lib/auth/verify-token";
+import { sendImportSummaryEmail } from "@/lib/email/client";
 
 export async function POST(request: NextRequest) {
-  const caller = await requireAdminOrManager(request);
-  if (!caller) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  if (!result.ok) return authError(result);
+  const caller = result.auth;
 
   const contentType = request.headers.get("content-type") ?? "";
   const supabase = createServiceClient();
 
   if (contentType.includes("multipart/form-data")) {
-    const formData = await request.formData();
-    const file = formData.get("file");
-    if (!file || typeof file === "string") {
-      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    try {
+      const formData = await request.formData();
+      const file = formData.get("file");
+      if (!file || typeof file === "string") {
+        return NextResponse.json({ error: "No file provided" }, { status: 400 });
+      }
+
+      const arrayBuffer = await file.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+      const mimeType = file.type;
+
+      const { rows: parsed, columns, columnMapping } = await parseImportFile(buffer, mimeType);
+
+      const { data: existingRaw } = await supabase
+        .from("leads")
+        .select("id, phone, email, updated_at")
+        .eq("tenant_id", caller.tenantId);
+
+      const existing = (existingRaw ?? []).map(row => ({
+        id: row.id,
+        phone: row.phone,
+        email: row.email,
+        updatedAt: row.updated_at,
+      }));
+
+      const dedupResult = findDuplicates(parsed, existing);
+      return NextResponse.json({
+        columns,
+        columnMapping,
+        stats: {
+          new: dedupResult.new.length,
+          skip: dedupResult.duplicateSkip.length,
+        },
+        toCreate: dedupResult.new,
+        toUpdate: dedupResult.duplicateUpdate,
+        duplicates: dedupResult.duplicateUpdate.map(row => ({
+          id: row.matchedLeadId,
+          name: row.mappedData.name || row.mappedData.phone || "Unknown",
+          phone: row.mappedData.phone || "",
+        })),
+      });
+    } catch (err) {
+      console.error("Import parse error:", err);
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Failed to parse file" },
+        { status: 400 }
+      );
     }
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const mimeType = file.type;
-
-    const parsed = await parseImportFile(buffer, mimeType);
-
-    const { data: existing } = await supabase
-      .from("leads")
-      .select("id, phone, email, updated_at")
-      .eq("tenant_id", caller.tenantId);
-
-    const dedupResult = findDuplicates(parsed, existing ?? []);
-    return NextResponse.json(dedupResult);
   }
 
   const body = await request.json();
@@ -68,24 +78,21 @@ export async function POST(request: NextRequest) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data: Record<string, any> = { ...mappedData };
 
-    // (a) Normalize mortgage type
     if (data.mortgageType) {
       data.mortgageType = normalizeMortgageType(data.mortgageType);
     }
 
-    // (b) Resolve advisor name to user ID
     if (data.assignedTo && !/^[0-9a-f]{8}-/.test(data.assignedTo)) {
       const safeName = String(data.assignedTo).replace(/[%_\\]/g, "\\$&");
       const { data: matchedUser } = await supabase
         .from("users")
         .select("id")
-        .eq("tenant_id", caller!.tenantId)
+        .eq("tenant_id", caller.tenantId)
         .ilike("full_name", safeName)
         .single();
       data.assignedTo = matchedUser?.id ?? null;
     }
 
-    // (c) Split "name" (Client column) into firstName / lastName
     if (data.name) {
       const trimmed = data.name.trim();
       const lastSpace = trimmed.lastIndexOf(" ");
@@ -99,13 +106,11 @@ export async function POST(request: NextRequest) {
       delete data.name;
     }
 
-    // (d) Map notes to follow_up_notes
     if (data.notes !== undefined) {
       data.follow_up_notes = data.notes;
       delete data.notes;
     }
 
-    // (e) Parse factFindDate (DD/MM/YYYY) into ISO string
     if (data.factFindDate !== undefined) {
       let parsed: Date | null = null;
       const ddmmyyyy = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/;
@@ -121,25 +126,41 @@ export async function POST(request: NextRequest) {
       delete data.factFindDate;
     }
 
-    return data;
+    return appToRow(data);
   }
 
+  let created = 0;
+  let updated = 0;
+  let failed = 0;
+
   for (const row of toCreate ?? []) {
-    const transformed = await transformMappedData(row.mappedData);
-    await supabase.from("leads").insert({
-      ...transformed,
-      tenant_id: caller.tenantId,
-      status: "active",
-    });
+    try {
+      const transformed = await transformMappedData(row.mappedData);
+      const { error } = await supabase.from("leads").insert({
+        ...transformed,
+        tenant_id: caller.tenantId,
+        status: "active",
+      });
+      if (error) { failed++; } else { created++; }
+    } catch {
+      failed++;
+    }
   }
 
   for (const row of toUpdate ?? []) {
     if (!row.matchedLeadId) continue;
-    const transformed = await transformMappedData(row.mappedData);
-    await supabase.from("leads").update({
-      ...transformed,
-    }).eq("id", row.matchedLeadId).eq("tenant_id", caller.tenantId);
+    try {
+      const transformed = await transformMappedData(row.mappedData);
+      const { error } = await supabase.from("leads").update({
+        ...transformed,
+      }).eq("id", row.matchedLeadId).eq("tenant_id", caller.tenantId);
+      if (error) { failed++; } else { updated++; }
+    } catch {
+      failed++;
+    }
   }
+
+  const total = (toCreate ?? []).length + (toUpdate ?? []).length;
 
   await supabase.from("import_records").insert({
     tenant_id: caller.tenantId,
@@ -147,16 +168,26 @@ export async function POST(request: NextRequest) {
     file_name: "import",
     column_mapping: {},
     stats: {
-      total: (toCreate ?? []).length + (toUpdate ?? []).length,
-      imported: (toCreate ?? []).length,
+      total,
+      imported: created + updated,
       skipped: 0,
-      failed: 0,
+      failed,
     },
     status: "completed",
   });
 
-  return NextResponse.json({
-    created: (toCreate ?? []).length,
-    updated: (toUpdate ?? []).length,
-  });
+  try {
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+    await sendImportSummaryEmail({
+      to: caller.email,
+      uploaderName: caller.fullName,
+      created,
+      updated,
+      failed,
+      total,
+      importUrl: `${appUrl}/leads`,
+    });
+  } catch { /* email failure is non-fatal */ }
+
+  return NextResponse.json({ created, updated, failed });
 }

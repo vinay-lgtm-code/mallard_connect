@@ -1,7 +1,13 @@
 import * as XLSX from "xlsx";
 import type { ImportRow } from "./dedup";
 
-export async function parseImportFile(buffer: Buffer, mimeType: string): Promise<ImportRow[]> {
+export type ParseResult = {
+  rows: ImportRow[];
+  columns: string[];
+  columnMapping: Record<string, string>;
+};
+
+export async function parseImportFile(buffer: Buffer, mimeType: string): Promise<ParseResult> {
   const workbook = XLSX.read(buffer, {
     type: "buffer",
     raw: mimeType === "text/csv",
@@ -15,12 +21,12 @@ export async function parseImportFile(buffer: Buffer, mimeType: string): Promise
     raw: false,
   });
 
-  if (rows.length === 0) return [];
+  if (rows.length === 0) return { rows: [], columns: [], columnMapping: {} };
 
   const headers = Object.keys(rows[0]);
   const columnMap = autoMapColumns(headers);
 
-  return rows.map((row) => {
+  const importRows = rows.map((row) => {
     const rawData: Record<string, string> = {};
     for (const [key, value] of Object.entries(row)) {
       rawData[key] = String(value);
@@ -36,6 +42,8 @@ export async function parseImportFile(buffer: Buffer, mimeType: string): Promise
 
     return { rawData, mappedData };
   });
+
+  return { rows: importRows, columns: headers, columnMapping: columnMap };
 }
 
 export function autoMapColumns(headers: string[]): Record<string, string> {

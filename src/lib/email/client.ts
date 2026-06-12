@@ -587,3 +587,173 @@ export async function sendLeadCreatedEmail({
     }),
   });
 }
+
+// ── Stage change notification (internal, sent to advisers & managers) ──
+
+interface SendStageChangeEmailParams {
+  to: string[];
+  leadName: string;
+  toStageName: string;
+  note: string | null;
+  leadUrl: string;
+}
+
+export async function sendStageChangeEmail({
+  to,
+  leadName,
+  toStageName,
+  note,
+  leadUrl,
+}: SendStageChangeEmailParams) {
+  const rows = [
+    `<tr><td style="padding:6px 0;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Lead</span><br/><span style="color:#111827;font-size:15px;font-weight:600;">${esc(leadName)}</span></td></tr>`,
+    `<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">New stage</span><br/><span style="color:#111827;font-size:15px;">${esc(toStageName)}</span></td></tr>`,
+    ...(note ? [`<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Note</span><br/><span style="color:#374151;font-size:14px;line-height:1.5;">${esc(note)}</span></td></tr>`] : []),
+  ];
+
+  const body = `
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>
+      </td></tr>
+    </table>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to,
+    subject: `Stage change: ${leadName} → ${toStageName}`,
+    html: brandedHtml({
+      heading: `${leadName} moved to ${toStageName}`,
+      body,
+      ctaLabel: "View Lead in Sequence",
+      ctaUrl: leadUrl,
+      footer: "This notification was sent by Sequence. If you believe this was sent in error, please contact your manager.",
+    }),
+  });
+}
+
+// ── Lead converted/lost (internal, sent to managers) ─────────────────
+
+interface SendLeadConvertedEmailParams {
+  to: string[];
+  leadName: string;
+  outcome: "converted" | "lost";
+  leadUrl: string;
+}
+
+export async function sendLeadConvertedEmail({
+  to,
+  leadName,
+  outcome,
+  leadUrl,
+}: SendLeadConvertedEmailParams) {
+  const isConverted = outcome === "converted";
+  const heading = isConverted
+    ? `${leadName} has been converted`
+    : `${leadName} has been marked as lost`;
+  const emoji = isConverted ? "&#127881;" : "";
+
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      ${emoji} <strong>${esc(leadName)}</strong> has been ${isConverted ? "converted to a client" : "marked as lost"}.
+    </p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to,
+    subject: `Lead ${outcome}: ${leadName}`,
+    html: brandedHtml({
+      heading,
+      body,
+      ctaLabel: "View Lead in Sequence",
+      ctaUrl: leadUrl,
+      footer: "This notification was sent by Sequence.",
+    }),
+  });
+}
+
+// ── Import summary (internal, sent to uploader) ──────────────────────
+
+interface SendImportSummaryEmailParams {
+  to: string;
+  uploaderName: string;
+  created: number;
+  updated: number;
+  failed: number;
+  total: number;
+  importUrl: string;
+}
+
+export async function sendImportSummaryEmail({
+  to,
+  uploaderName,
+  created,
+  updated,
+  failed,
+  total,
+  importUrl,
+}: SendImportSummaryEmailParams) {
+  const rows = [
+    infoRow("Total rows", String(total)),
+    infoRow("Created", String(created)),
+    infoRow("Updated", String(updated)),
+    ...(failed > 0 ? [infoRow("Failed", `<span style="color:#ef4444;font-weight:600;">${failed}</span>`)] : []),
+  ];
+
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Hi <strong>${esc(uploaderName.split(" ")[0])}</strong>, your import has completed.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>
+      </td></tr>
+    </table>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: `Import complete: ${created + updated} of ${total} leads processed`,
+    html: brandedHtml({
+      preheader: `${created} created, ${updated} updated${failed > 0 ? `, ${failed} failed` : ""}`,
+      heading: "Import Summary",
+      body,
+      ctaLabel: "View Leads",
+      ctaUrl: importUrl,
+    }),
+  });
+}
+
+// ── Password reset (sent to user) ─────────────────────────────────────
+
+interface SendPasswordResetEmailParams {
+  to: string;
+  resetUrl: string;
+}
+
+export async function sendPasswordResetEmail({
+  to,
+  resetUrl,
+}: SendPasswordResetEmailParams) {
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      We received a request to reset your password. Click the button below to set a new password.
+    </p>
+    <p style="margin:0 0 0;color:#9ca3af;font-size:13px;">
+      If you didn&rsquo;t request this, you can safely ignore this email. The link expires in 1 hour.
+    </p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: "Reset your Sequence password",
+    html: brandedHtml({
+      preheader: "Reset your password for Sequence",
+      heading: "Reset Your Password",
+      body,
+      ctaLabel: "Reset Password",
+      ctaUrl: resetUrl,
+      footer: "If you didn't request a password reset, you can safely ignore this email.",
+    }),
+  });
+}
