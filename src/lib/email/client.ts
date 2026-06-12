@@ -522,7 +522,7 @@ export async function sendOAuthWelcomeEmail({
       heading: "Welcome to Sequence",
       body,
       ctaLabel: "Get Started",
-      ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com"}/onboarding`,
+      ctaUrl: `${process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com"}/onboarding`,
       footer: "If you didn't create an account on Sequence, you can safely ignore this email.",
     }),
   });
