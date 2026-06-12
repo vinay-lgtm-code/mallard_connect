@@ -184,7 +184,7 @@ export async function DELETE(request: NextRequest) {
     await supabase.from("notifications").delete().eq("user_id", userId).eq("tenant_id", auth.tenantId);
     await supabase.from("import_records").delete().eq("uploaded_by", userId).eq("tenant_id", auth.tenantId);
 
-    await supabase.from("users").delete().eq("id", userId);
+    await supabase.from("users").delete().eq("id", userId).eq("tenant_id", auth.tenantId);
 
     const { error: deleteErr } = await supabase.auth.admin.deleteUser(userId);
     if (deleteErr) throw deleteErr;
