@@ -179,6 +179,10 @@ export async function DELETE(request: NextRequest) {
   try {
     await supabase.from("leads").update({ assigned_to: null }).eq("assigned_to", userId).eq("tenant_id", auth.tenantId);
     await supabase.from("tasks").update({ assigned_to: null }).eq("assigned_to", userId).eq("tenant_id", auth.tenantId);
+    await supabase.from("tasks").update({ created_by: null }).eq("created_by", userId).eq("tenant_id", auth.tenantId);
+    await supabase.from("activities").update({ performed_by: null }).eq("performed_by", userId).eq("tenant_id", auth.tenantId);
+    await supabase.from("notifications").delete().eq("user_id", userId).eq("tenant_id", auth.tenantId);
+    await supabase.from("import_records").update({ uploaded_by: null }).eq("uploaded_by", userId).eq("tenant_id", auth.tenantId);
 
     const { error: deleteErr } = await supabase.auth.admin.deleteUser(userId);
     if (deleteErr) throw deleteErr;
