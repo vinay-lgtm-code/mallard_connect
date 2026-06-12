@@ -122,6 +122,25 @@ export default function TeamMemberPage() {
 
   const isManager = currentUser?.role === "admin" || currentUser?.role === "manager";
 
+  const activeLeads = useMemo(() => leads.filter((l) => l.status === "active"), [leads]);
+  const convertedLeads = useMemo(() => leads.filter((l) => l.status === "converted"), [leads]);
+  const conversionRate = leads.length > 0 ? Math.round((convertedLeads.length / leads.length) * 100) : 0;
+
+  const reassignableUsers = useMemo(
+    () => allUsers.filter((u) => u.isActive && u.id !== id),
+    [allUsers, id],
+  );
+
+  const leadCountByUser = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const lead of leads) {
+      if (lead.assignedTo) {
+        map[lead.assignedTo] = (map[lead.assignedTo] ?? 0) + 1;
+      }
+    }
+    return map;
+  }, [leads]);
+
   if (!currentUser || currentUser.role === "advisor") return null;
 
   if (memberLoading) {
@@ -143,27 +162,8 @@ export default function TeamMemberPage() {
     );
   }
 
-  const activeLeads = leads.filter((l) => l.status === "active");
-  const convertedLeads = leads.filter((l) => l.status === "converted");
-  const conversionRate = leads.length > 0 ? Math.round((convertedLeads.length / leads.length) * 100) : 0;
-
   const stageSlugOf = (stageId: string | null | undefined): string =>
     stageId ? (idToSlug[stageId] ?? stageId) : "new_enquiry";
-
-  const reassignableUsers = useMemo(
-    () => allUsers.filter((u) => u.isActive && u.id !== id),
-    [allUsers, id],
-  );
-
-  const leadCountByUser = useMemo(() => {
-    const map: Record<string, number> = {};
-    for (const lead of leads) {
-      if (lead.assignedTo) {
-        map[lead.assignedTo] = (map[lead.assignedTo] ?? 0) + 1;
-      }
-    }
-    return map;
-  }, [leads]);
 
   const canDelete = isManager && member && member.id !== currentUser?.id && member.role !== "admin";
 
