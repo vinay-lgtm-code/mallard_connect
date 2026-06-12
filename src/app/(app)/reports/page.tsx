@@ -313,7 +313,7 @@ const KNOWN_STAGES: { id: string; name: string }[] = [
   { id: "not_ready_yet", name: "Not Ready Yet" },
   { id: "nurturing", name: "Nurturing" },
   { id: "ready_to_proceed", name: "Ready to Proceed" },
-  { id: "referred_to_mab", name: "Referred to MAB" },
+  { id: "referred_to_mab", name: "Deal Done" },
 ];
 
 export default function ReportsPage() {

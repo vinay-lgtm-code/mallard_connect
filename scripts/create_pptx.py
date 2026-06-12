@@ -380,7 +380,7 @@ make_screen_slide(
     "Pipeline Board — Kanban", "Drag-and-drop Kanban board with 6 visible stage columns. Bird's-eye view of all prospects.",
     "Della", "Desktop", "yuS5D",
     [
-        "6 color-coded stage columns: New Enquiry → Referred to MAB",
+        "6 color-coded stage columns: New Enquiry → Deal Done",
         '"Not Ready Yet" column highlighted with amber border — the key stage',
         "Prospect cards show: name, type, assigned avatar, time context",
         "Overdue badges in red on cards that need attention",

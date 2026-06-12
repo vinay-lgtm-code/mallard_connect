@@ -8,7 +8,7 @@ const DEFAULT_STAGES = [
   { name: "Not Ready Yet", slug: "not_ready_yet", position: 2, color: "#f59e0b", is_terminal: false },
   { name: "Nurturing", slug: "nurturing", position: 3, color: "#22c55e", is_terminal: false },
   { name: "Ready to Proceed", slug: "ready_to_proceed", position: 4, color: "#2563eb", is_terminal: false },
-  { name: "Referred to MAB", slug: "referred_to_mab", position: 5, color: "#a855f7", is_terminal: true },
+  { name: "Deal Done", slug: "referred_to_mab", position: 5, color: "#a855f7", is_terminal: true },
 ];
 
 const DEFAULT_SOURCES = [
