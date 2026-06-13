@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("first_name, last_name, phone, email, source_id, lead_sources(name, slug), mortgage_type, readiness, assigned_to, created_at")
+    .select("first_name, last_name, phone, email, source_id, lead_sources(name, slug), mortgage_type, readiness, next_follow_up_date, follow_up_reason, follow_up_notes, assigned_to, created_at")
     .eq("id", leadId)
     .eq("tenant_id", auth.tenantId)
     .single();
@@ -85,6 +85,9 @@ export async function POST(request: NextRequest) {
       leadSource: getSourceLabel(lead.lead_sources),
       mortgageType: lead.mortgage_type ?? null,
       readiness: lead.readiness ?? null,
+      nextFollowUpDate: lead.next_follow_up_date ?? null,
+      followUpReason: lead.follow_up_reason ?? null,
+      followUpNotes: lead.follow_up_notes ?? null,
       createdByName: auth.fullName,
       leadUrl: `${APP_URL}/leads/${leadId}`,
     });

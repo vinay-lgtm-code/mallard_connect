@@ -538,8 +538,23 @@ interface SendLeadCreatedParams {
   leadSource: string;
   mortgageType: string | null;
   readiness: string | null;
+  nextFollowUpDate: string | null;
+  followUpReason: string | null;
+  followUpNotes: string | null;
   createdByName: string;
   leadUrl: string;
+}
+
+function formatFollowUpDate(date: string): string {
+  const parsed = new Date(date);
+  if (Number.isNaN(parsed.getTime())) return date;
+  return new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(parsed);
 }
 
 export async function sendLeadCreatedEmail({
@@ -550,6 +565,9 @@ export async function sendLeadCreatedEmail({
   leadSource,
   mortgageType,
   readiness,
+  nextFollowUpDate,
+  followUpReason,
+  followUpNotes,
   createdByName,
   leadUrl,
 }: SendLeadCreatedParams) {
@@ -563,6 +581,22 @@ export async function sendLeadCreatedEmail({
     `<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Added by</span><br/><span style="color:#111827;font-size:15px;">${esc(createdByName)}</span></td></tr>`,
   ];
 
+  const followUpRows = [
+    ...(nextFollowUpDate ? [`<tr><td style="padding:6px 0;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Date of follow-up</span><br/><span style="color:#111827;font-size:15px;font-weight:600;">${esc(formatFollowUpDate(nextFollowUpDate))}</span></td></tr>`] : []),
+    ...(followUpReason ? [`<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Reason for follow-up</span><br/><span style="color:#111827;font-size:15px;">${esc(followUpReason)}</span></td></tr>`] : []),
+    ...(followUpNotes ? [`<tr><td style="padding:6px 0;border-top:1px solid #e5e7eb;"><span style="color:#6b7280;font-size:13px;font-weight:500;">Notes</span><br/><span style="color:#374151;font-size:14px;line-height:1.5;">${esc(followUpNotes)}</span></td></tr>`] : []),
+  ];
+
+  const followUpBlock = followUpRows.length > 0
+    ? `
+    <h3 style="margin:24px 0 12px;color:#111827;font-size:15px;font-weight:600;">Next Follow-up</h3>
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:20px;">
+        <table width="100%" cellpadding="0" cellspacing="0">${followUpRows.join("")}</table>
+      </td></tr>
+    </table>`
+    : "";
+
   const body = `
     <p style="margin:0 0 16px;color:#374151;font-size:15px;">
       <strong>${esc(leadName)}</strong> has been saved in Sequence.
@@ -574,7 +608,8 @@ export async function sendLeadCreatedEmail({
       <tr><td style="padding:20px;">
         <table width="100%" cellpadding="0" cellspacing="0">${rows.join("")}</table>
       </td></tr>
-    </table>`;
+    </table>
+    ${followUpBlock}`;
 
   return getResend().emails.send({
     from: FROM(),
