@@ -6,6 +6,13 @@ import { getLeadName, getManagerEmails } from "@/lib/email/recipients";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
+type LeadSourceRelation = { name?: string | null; slug?: string | null } | { name?: string | null; slug?: string | null }[] | null;
+
+function getSourceLabel(source: LeadSourceRelation): string {
+  const row = Array.isArray(source) ? source[0] : source;
+  return row?.name ?? row?.slug ?? "Other";
+}
+
 export async function POST(request: NextRequest) {
   const result = await verifyToken(request);
   if (!result.ok) return authError(result);
@@ -27,7 +34,7 @@ export async function POST(request: NextRequest) {
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("first_name, last_name, phone, email, source, mortgage_type, readiness, assigned_to, created_at")
+    .select("first_name, last_name, phone, email, source_id, lead_sources(name, slug), mortgage_type, readiness, assigned_to, created_at")
     .eq("id", leadId)
     .eq("tenant_id", auth.tenantId)
     .single();
@@ -43,7 +50,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, sent: 0, reason: "Lead is not recent" });
   }
 
-  const recipients = await getManagerEmails(supabase, auth.tenantId, "assignments");
+  const managerRecipients = await getManagerEmails(supabase, auth.tenantId, "assignments");
+  const recipients = [...new Set([auth.email, ...managerRecipients].filter(Boolean))];
 
   if (recipients.length === 0) {
     return NextResponse.json({ success: true, sent: 0 });
@@ -57,7 +65,7 @@ export async function POST(request: NextRequest) {
       leadName,
       leadPhone: lead.phone ?? "",
       leadEmail: lead.email ?? null,
-      leadSource: lead.source ?? "other",
+      leadSource: getSourceLabel(lead.lead_sources),
       mortgageType: lead.mortgage_type ?? null,
       readiness: lead.readiness ?? null,
       createdByName: auth.fullName,
