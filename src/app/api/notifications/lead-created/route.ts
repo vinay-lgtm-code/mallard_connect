@@ -13,6 +13,14 @@ function getSourceLabel(source: LeadSourceRelation): string {
   return row?.name ?? row?.slug ?? "Other";
 }
 
+function normalizeEmails(emails: unknown): string[] {
+  if (!Array.isArray(emails)) return [];
+  return emails
+    .filter((email): email is string => typeof email === "string")
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
+
 export async function POST(request: NextRequest) {
   const result = await verifyToken(request);
   if (!result.ok) return authError(result);
@@ -50,8 +58,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, sent: 0, reason: "Lead is not recent" });
   }
 
-  const managerRecipients = await getManagerEmails(supabase, auth.tenantId, "assignments");
-  const recipients = [...new Set([auth.email, ...managerRecipients].filter(Boolean))];
+  const [{ data: reminderTasks }, managerRecipients] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("reminder_emails")
+      .eq("lead_id", leadId)
+      .eq("tenant_id", auth.tenantId),
+    getManagerEmails(supabase, auth.tenantId, "assignments"),
+  ]);
+
+  const reminderRecipients = (reminderTasks ?? []).flatMap((task) => normalizeEmails(task.reminder_emails));
+  const recipients = [...new Set([auth.email, ...managerRecipients, ...reminderRecipients].filter(Boolean))];
 
   if (recipients.length === 0) {
     return NextResponse.json({ success: true, sent: 0 });
