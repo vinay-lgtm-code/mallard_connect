@@ -185,13 +185,25 @@ export default function NewLeadPage() {
         .limit(1)
         .single();
 
+      let sourceId: string | null = null;
+      if (form.source) {
+        const { data: sourceRow, error: sourceErr } = await supabase
+          .from("lead_sources")
+          .select("id")
+          .eq("tenant_id", user.tenantId)
+          .eq("slug", form.source)
+          .maybeSingle();
+        if (sourceErr) throw sourceErr;
+        sourceId = sourceRow?.id ?? null;
+      }
+
       const { data: newLead, error: insertErr } = await supabase.from("leads").insert({
         tenant_id: user.tenantId,
         first_name: form.firstName,
         last_name: form.lastName,
         phone: form.phone,
         email: form.email || null,
-        source_id: null,
+        source_id: sourceId,
         mortgage_type: form.mortgageType || null,
         readiness: form.readiness || null,
         status: "active",

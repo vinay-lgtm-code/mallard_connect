@@ -565,7 +565,10 @@ export async function sendLeadCreatedEmail({
 
   const body = `
     <p style="margin:0 0 16px;color:#374151;font-size:15px;">
-      <strong>${esc(createdByName)}</strong> added a new lead: <strong>${esc(leadName)}</strong>.
+      <strong>${esc(leadName)}</strong> has been saved in Sequence.
+    </p>
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Added by <strong>${esc(createdByName)}</strong>. The lead record is ready for review and follow-up.
     </p>
     <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
       <tr><td style="padding:20px;">
@@ -576,10 +579,10 @@ export async function sendLeadCreatedEmail({
   return getResend().emails.send({
     from: FROM(),
     to,
-    subject: `New lead added: ${leadName}`,
+    subject: `Lead saved: ${leadName}`,
     html: brandedHtml({
-      preheader: `${createdByName} added ${leadName} as a new lead`,
-      heading: `New Lead — ${leadName}`,
+      preheader: `${leadName} was saved in Sequence by ${createdByName}`,
+      heading: `Lead Saved - ${leadName}`,
       body,
       ctaLabel: "View Lead in Sequence",
       ctaUrl: leadUrl,
