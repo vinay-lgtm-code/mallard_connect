@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendPasswordResetEmail } from "@/lib/email/client";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
 const MAX_TRACKED_IPS = 10_000;
 const ipTimestamps = new Map<string, number[]>();

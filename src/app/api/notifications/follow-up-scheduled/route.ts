@@ -101,7 +101,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, sent: 0 });
   }
 
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
   const leadUrl = `${appUrl}/leads/${leadId}`;
 
   await sendFollowUpScheduledEmail({

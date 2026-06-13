@@ -7,7 +7,7 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as "recovery" | "signup" | "email" | null;
   const next = searchParams.get("next");
 
-  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+  const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
   if (!tokenHash || !type) {
     return NextResponse.redirect(`${APP_URL}/login?error=invalid_link`);

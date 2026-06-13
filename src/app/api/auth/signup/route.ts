@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendSignupConfirmationEmail } from "@/lib/email/client";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
 // In-process rate limiter — best-effort per instance. A distributed store
 // (Upstash/Vercel KV) would be better but this caps abuse within a single

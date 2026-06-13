@@ -34,8 +34,8 @@ STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 
 # Domain map
-NEXT_PUBLIC_APP_URL=https://app.sequence-ai.com
-NEXT_PUBLIC_APP_DOMAIN=app.sequence-ai.com
+NEXT_PUBLIC_APP_URL=https://sequence-ai.com
+NEXT_PUBLIC_APP_DOMAIN=sequence-ai.com
 NEXT_PUBLIC_MARKETING_DOMAIN=www.sequence-ai.com
 ```
 
@@ -76,7 +76,7 @@ The wildcard CNAME enables `{firm}.sequence-ai.com` for each tenant without manu
 
 In **Vercel → Project → Settings → Domains** add:
 - `www.sequence-ai.com` (mark as primary)
-- `app.sequence-ai.com`
+- `sequence-ai.com`
 - `sequence-ai.com` → redirect to `www.sequence-ai.com`
 - `*.sequence-ai.com` (wildcard for vanity tenants)
 
@@ -122,7 +122,7 @@ To smoke test after deploy:
 
 ```bash
 curl -H "Authorization: Bearer $CRON_SECRET" \
-  https://app.sequence-ai.com/api/cron/run-cadences
+  https://sequence-ai.com/api/cron/run-cadences
 ```
 
 ## 7. Smoke tests after deploy
@@ -132,19 +132,19 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 | `https://www.sequence-ai.com`      | Marketing landing — Sequence branding, hero, pricing      |
 | `https://www.sequence-ai.com/pricing` | Pricing page — £50 base tier, Growth tier card         |
 | `https://www.sequence-ai.com/checkout` | Mock Stripe checkout, "Start free trial" button       |
-| `https://app.sequence-ai.com/demo` | Three-tenant demo switcher (Mallard / Friends Capital / Acme) |
-| `https://app.sequence-ai.com/login` | Sequence login page with two demo personas              |
+| `https://sequence-ai.com/demo` | Three-tenant demo switcher (Mallard / Friends Capital / Acme) |
+| `https://sequence-ai.com/login` | Sequence login page with two demo personas              |
 | `https://mallard.sequence-ai.com/dashboard` | Lands on the demo dashboard with Mallard data    |
-| `https://app.sequence-ai.com/onboarding` | 5-step wizard, progress bar visible                |
-| `https://app.sequence-ai.com/cadences` | Three seeded cadences in a table                      |
+| `https://sequence-ai.com/onboarding` | 5-step wizard, progress bar visible                |
+| `https://sequence-ai.com/cadences` | Three seeded cadences in a table                      |
 | Cron simulation (above)            | `{"sent":0,"errors":0}` or similar success response       |
 | Send a test follow-up reminder     | Email lands in inbox from `reminders@sequence-ai.com`     |
 
 ## 8. Old domain transition
 
-Once `app.sequence-ai.com` is live and verified:
+Once `sequence-ai.com` is live and verified:
 
-1. In Vercel, leave the old `mallard-connect.vercel.app` deployment alive but redirect to `https://app.sequence-ai.com`.
+1. In Vercel, leave the old `mallard-connect.vercel.app` deployment alive but redirect to `https://sequence-ai.com`.
 2. Update any third-party references (Resend webhook URL, Firebase OAuth allowed origins, etc.) to point at the new domain.
 3. Announce the URL change to existing Mallard users with a one-line note in the next reminder email.
 
