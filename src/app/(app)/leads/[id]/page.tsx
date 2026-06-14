@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus } from "lucide-react";
+import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus, Pencil, X } from "lucide-react";
 import { format } from "date-fns";
 import { useLead, useLeadActivities, useLeadTasks, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
@@ -205,6 +205,9 @@ export default function LeadDetailPage() {
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
   const [showCadenceModal, setShowCadenceModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [editingFollowUp, setEditingFollowUp] = useState(false);
+  const [followUpDateValue, setFollowUpDateValue] = useState("");
+  const [savingFollowUp, setSavingFollowUp] = useState(false);
 
   const stageDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -349,6 +352,52 @@ export default function LeadDetailPage() {
       console.error("Failed to save qualification:", err);
     } finally {
       setSavingQual(false);
+    }
+  }
+
+  function startEditingFollowUp() {
+    if (demo) return;
+    setFollowUpDateValue(
+      lead?.nextFollowUpDate
+        ? new Date(lead.nextFollowUpDate).toISOString().split("T")[0]
+        : ""
+    );
+    setEditingFollowUp(true);
+  }
+
+  async function handleSaveFollowUpDate() {
+    if (demo || !supabase || !user) return;
+    setSavingFollowUp(true);
+    try {
+      await supabase
+        .from("leads")
+        .update({
+          next_follow_up_date: followUpDateValue
+            ? new Date(followUpDateValue).toISOString()
+            : null,
+        })
+        .eq("id", id)
+        .eq("tenant_id", user.tenantId);
+      setEditingFollowUp(false);
+      refetchLead();
+    } catch (err) {
+      console.error("Failed to update follow-up date:", err);
+    } finally {
+      setSavingFollowUp(false);
+    }
+  }
+
+  async function handleClearFollowUpDate() {
+    if (demo || !supabase || !user) return;
+    try {
+      await supabase
+        .from("leads")
+        .update({ next_follow_up_date: null })
+        .eq("id", id)
+        .eq("tenant_id", user.tenantId);
+      refetchLead();
+    } catch (err) {
+      console.error("Failed to clear follow-up date:", err);
     }
   }
 
@@ -607,20 +656,75 @@ export default function LeadDetailPage() {
               </div>
             </div>
 
-            {lead.nextFollowUpDate && (
-              <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-5">
+            <div className="bg-amber-50 border border-amber-200 rounded-[12px] p-5 group/followup">
+              <div className="flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-amber-800">Next Follow-up</h2>
-                <p className="text-lg font-bold text-amber-900 mt-1">
-                  {format(new Date(lead.nextFollowUpDate), "EEEE, d MMMM yyyy")}
-                </p>
-                {lead.followUpReason && (
-                  <p className="text-sm text-amber-700 mt-1">{lead.followUpReason}</p>
-                )}
-                {lead.followUpNotes && (
-                  <p className="text-sm text-amber-600 mt-0.5 italic">{lead.followUpNotes}</p>
+                {lead.nextFollowUpDate && !editingFollowUp && !demo && (
+                  <button
+                    onClick={handleClearFollowUpDate}
+                    className="text-amber-400 hover:text-amber-600 opacity-0 group-hover/followup:opacity-100 transition-opacity"
+                    title="Clear follow-up date"
+                  >
+                    <X size={14} />
+                  </button>
                 )}
               </div>
-            )}
+
+              {editingFollowUp ? (
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    type="date"
+                    value={followUpDateValue}
+                    onChange={(e) => setFollowUpDateValue(e.target.value)}
+                    min={new Date().toISOString().split("T")[0]}
+                    autoFocus
+                    className="border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400"
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") setEditingFollowUp(false);
+                      if (e.key === "Enter") handleSaveFollowUpDate();
+                    }}
+                  />
+                  <button
+                    onClick={handleSaveFollowUpDate}
+                    disabled={savingFollowUp || !followUpDateValue}
+                    className="p-1 hover:bg-amber-100 rounded disabled:opacity-40"
+                  >
+                    <Check size={16} className="text-amber-700" />
+                  </button>
+                  <button
+                    onClick={() => setEditingFollowUp(false)}
+                    className="p-1 hover:bg-amber-100 rounded"
+                  >
+                    <X size={16} className="text-amber-400" />
+                  </button>
+                </div>
+              ) : lead.nextFollowUpDate ? (
+                <p
+                  className={`text-lg font-bold text-amber-900 mt-1${!demo ? " cursor-pointer hover:underline decoration-amber-300" : ""}`}
+                  onClick={startEditingFollowUp}
+                >
+                  {format(new Date(lead.nextFollowUpDate), "EEEE, d MMMM yyyy")}
+                  {!demo && (
+                    <Pencil size={12} className="inline ml-2 text-amber-400 opacity-0 group-hover/followup:opacity-100 transition-opacity" />
+                  )}
+                </p>
+              ) : (
+                <button
+                  onClick={startEditingFollowUp}
+                  disabled={demo}
+                  className="text-sm font-medium text-amber-700 mt-1 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  + Set follow-up date
+                </button>
+              )}
+
+              {lead.followUpReason && (
+                <p className="text-sm text-amber-700 mt-1">{lead.followUpReason}</p>
+              )}
+              {lead.followUpNotes && (
+                <p className="text-sm text-amber-600 mt-0.5 italic">{lead.followUpNotes}</p>
+              )}
+            </div>
           </div>
         )}
 

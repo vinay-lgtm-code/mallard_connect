@@ -13,6 +13,7 @@ export function IdleTimeoutModal() {
   const router = useRouter();
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
   const [showWarning, setShowWarning] = useState(false);
+  const showWarningRef = useRef(false);
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -35,6 +36,7 @@ export function IdleTimeoutModal() {
   const startCountdown = useCallback(() => {
     setSecondsLeft(COUNTDOWN_SECONDS);
     setShowWarning(true);
+    showWarningRef.current = true;
     countdownTimer.current = setInterval(() => {
       setSecondsLeft((prev) => {
         if (prev <= 1) {
@@ -47,14 +49,15 @@ export function IdleTimeoutModal() {
   }, [signOut]);
 
   const resetIdleTimer = useCallback(() => {
-    if (showWarning) return;
+    if (showWarningRef.current) return;
     clearTimers();
     idleTimer.current = setTimeout(startCountdown, IDLE_LIMIT_MS);
-  }, [showWarning, clearTimers, startCountdown]);
+  }, [clearTimers, startCountdown]);
 
   const handleStaySignedIn = useCallback(() => {
     clearTimers();
     setShowWarning(false);
+    showWarningRef.current = false;
     setSecondsLeft(COUNTDOWN_SECONDS);
     idleTimer.current = setTimeout(startCountdown, IDLE_LIMIT_MS);
   }, [clearTimers, startCountdown]);
