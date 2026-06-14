@@ -4,7 +4,7 @@ import { sendStageChangeEmail, sendLeadConvertedEmail } from "@/lib/email/client
 import { verifyToken, authError } from "@/lib/auth/verify-token";
 import { getLeadName, getManagerEmails, filterRecipientsByPref } from "@/lib/email/recipients";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
 export async function POST(request: NextRequest) {
   const result = await verifyToken(request);

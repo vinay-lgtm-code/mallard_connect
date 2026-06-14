@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
     await sendTeamInviteEmail({
       to: email,
       fullName,

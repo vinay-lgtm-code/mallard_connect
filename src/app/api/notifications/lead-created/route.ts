@@ -4,7 +4,22 @@ import { sendLeadCreatedEmail } from "@/lib/email/client";
 import { verifyToken, authError } from "@/lib/auth/verify-token";
 import { getLeadName, getManagerEmails } from "@/lib/email/recipients";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
+
+type LeadSourceRelation = { name?: string | null; slug?: string | null } | { name?: string | null; slug?: string | null }[] | null;
+
+function getSourceLabel(source: LeadSourceRelation): string {
+  const row = Array.isArray(source) ? source[0] : source;
+  return row?.name ?? row?.slug ?? "Other";
+}
+
+function normalizeEmails(emails: unknown): string[] {
+  if (!Array.isArray(emails)) return [];
+  return emails
+    .filter((email): email is string => typeof email === "string")
+    .map((email) => email.trim())
+    .filter(Boolean);
+}
 
 export async function POST(request: NextRequest) {
   const result = await verifyToken(request);
@@ -27,7 +42,7 @@ export async function POST(request: NextRequest) {
 
   const { data: lead } = await supabase
     .from("leads")
-    .select("first_name, last_name, phone, email, source, mortgage_type, readiness, assigned_to, created_at")
+    .select("first_name, last_name, phone, email, source_id, lead_sources(name, slug), mortgage_type, readiness, next_follow_up_date, follow_up_reason, follow_up_notes, assigned_to, created_at")
     .eq("id", leadId)
     .eq("tenant_id", auth.tenantId)
     .single();
@@ -43,7 +58,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, sent: 0, reason: "Lead is not recent" });
   }
 
-  const recipients = await getManagerEmails(supabase, auth.tenantId, "assignments");
+  const [{ data: reminderTasks }, managerRecipients] = await Promise.all([
+    supabase
+      .from("tasks")
+      .select("reminder_emails")
+      .eq("lead_id", leadId)
+      .eq("tenant_id", auth.tenantId),
+    getManagerEmails(supabase, auth.tenantId, "assignments"),
+  ]);
+
+  const reminderRecipients = (reminderTasks ?? []).flatMap((task) => normalizeEmails(task.reminder_emails));
+  const recipients = [...new Set([auth.email, ...managerRecipients, ...reminderRecipients].filter(Boolean))];
 
   if (recipients.length === 0) {
     return NextResponse.json({ success: true, sent: 0 });
@@ -57,9 +82,12 @@ export async function POST(request: NextRequest) {
       leadName,
       leadPhone: lead.phone ?? "",
       leadEmail: lead.email ?? null,
-      leadSource: lead.source ?? "other",
+      leadSource: getSourceLabel(lead.lead_sources),
       mortgageType: lead.mortgage_type ?? null,
       readiness: lead.readiness ?? null,
+      nextFollowUpDate: lead.next_follow_up_date ?? null,
+      followUpReason: lead.follow_up_reason ?? null,
+      followUpNotes: lead.follow_up_notes ?? null,
       createdByName: auth.fullName,
       leadUrl: `${APP_URL}/leads/${leadId}`,
     });

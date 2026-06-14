@@ -4,7 +4,7 @@ import { sendReminderEmail } from "@/lib/email/client";
 import { runDueCadenceSteps } from "@/lib/cadences/run";
 import { isCadencesTemplatesEnabledServer } from "@/lib/feature-flags";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.sequence-ai.com";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
 export async function GET(request: NextRequest) {
   if (process.env.NODE_ENV === "production") {
