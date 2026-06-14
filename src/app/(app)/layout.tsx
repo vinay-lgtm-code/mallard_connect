@@ -22,6 +22,7 @@ import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import { NotificationDropdown } from "@/components/notifications";
 import { DemoBanner } from "@/components/tenant/tenant-switcher";
+import { IdleTimeoutModal } from "@/components/idle-timeout-modal";
 import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 
@@ -239,6 +240,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           );
         })}
       </nav>
+
+      <IdleTimeoutModal />
     </div>
   );
 }
