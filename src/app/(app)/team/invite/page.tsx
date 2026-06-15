@@ -40,6 +40,7 @@ export default function InviteTeamMemberPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setError(null);
 
     if (!form.email.trim() || !form.fullName.trim()) {
