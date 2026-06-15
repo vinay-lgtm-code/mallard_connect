@@ -56,6 +56,13 @@ const ACTIVITY_LABEL: Record<ActivityType, string> = {
 
 type Tab = "overview" | "activity" | "qualification" | "followups";
 
+type StageOption = {
+  id: string;
+  slug: string;
+  name: string;
+  color: string | null;
+};
+
 function getInitials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
 }
@@ -208,6 +215,7 @@ export default function LeadDetailPage() {
   const [editingFollowUp, setEditingFollowUp] = useState(false);
   const [followUpDateValue, setFollowUpDateValue] = useState("");
   const [savingFollowUp, setSavingFollowUp] = useState(false);
+  const [stageOptions, setStageOptions] = useState<StageOption[]>([]);
 
   const stageDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -222,6 +230,38 @@ export default function LeadDetailPage() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [stageDropdownOpen]);
+
+  useEffect(() => {
+    if (demo) {
+      setStageOptions(
+        Object.entries(STAGE_LABELS).map(([slug, name]) => ({
+          id: slug,
+          slug,
+          name,
+          color: null,
+        }))
+      );
+      return;
+    }
+
+    if (!supabase || !user?.tenantId) return;
+
+    supabase
+      .from("pipeline_stages")
+      .select("id, slug, name, color")
+      .eq("tenant_id", user.tenantId)
+      .order("position")
+      .then(({ data }) => {
+        setStageOptions(
+          (data ?? []).map((stage) => ({
+            id: stage.id,
+            slug: stage.slug,
+            name: stage.name,
+            color: stage.color,
+          }))
+        );
+      });
+  }, [demo, supabase, user?.tenantId]);
 
   // Qualification state — controlled, pre-populated from lead
   const [qualEmployment, setQualEmployment] = useState("");
@@ -276,14 +316,14 @@ export default function LeadDetailPage() {
     }
   }
 
-  async function handleStageChange(stageId: string) {
+  async function handleStageChange(stage: StageOption) {
     setStageDropdownOpen(false);
     if (!user) return;
     if (demo) return;
     if (!supabase) return;
     try {
       await supabase.from("leads").update({
-        current_stage_id: stageId,
+        current_stage_id: stage.id,
         updated_at: new Date().toISOString(),
       }).eq("id", id);
       await supabase.from("activities").insert({
@@ -291,7 +331,7 @@ export default function LeadDetailPage() {
         lead_id: id,
         performed_by: user.id,
         activity_type: "stage-change",
-        title: `Stage changed to ${STAGE_LABELS[stageId] ?? stageId}`,
+        title: `Stage changed to ${stage.name}`,
         description: null,
         metadata: null,
       });
@@ -418,8 +458,12 @@ export default function LeadDetailPage() {
   }
 
   const assigneeName = tenantUsers.find(u => u.id === lead.assignedTo)?.fullName;
-  const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-700";
-  const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
+  const currentStage = stageOptions.find((stage) => stage.id === lead.currentStageId || stage.slug === lead.currentStageId);
+  const stageStyle = STAGE_STYLES[currentStage?.slug ?? ""] ?? "bg-gray-100 text-gray-700";
+  const stageLabel = currentStage?.name ?? "";
+  const otherStages = stageOptions.filter(
+    (stage) => stage.id !== lead.currentStageId && stage.slug !== lead.currentStageId
+  );
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
@@ -474,31 +518,34 @@ export default function LeadDetailPage() {
                 {lead.firstName} {lead.lastName}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                <div className="relative" ref={stageDropdownRef}>
-                  <button
-                    onClick={() => setStageDropdownOpen(!stageDropdownOpen)}
-                    className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}
-                  >
-                    {stageLabel}
-                    <ChevronDown size={12} />
-                  </button>
-                  {stageDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
-                      {Object.entries(STAGE_LABELS)
-                        .filter(([key]) => key !== lead.currentStageId)
-                        .map(([key, label]) => (
+                {stageLabel && (
+                  <div className="relative" ref={stageDropdownRef}>
+                    <button
+                      onClick={() => setStageDropdownOpen(!stageDropdownOpen)}
+                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}
+                    >
+                      {stageLabel}
+                      <ChevronDown size={12} />
+                    </button>
+                    {stageDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
+                        {otherStages.map((stage) => (
                           <button
-                            key={key}
-                            onClick={() => handleStageChange(key)}
+                            key={stage.id}
+                            onClick={() => handleStageChange(stage)}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                           >
-                            <span className={`w-2 h-2 rounded-full ${STAGE_STYLES[key]?.split(" ")[0] ?? "bg-gray-200"}`} />
-                            {label}
+                            <span
+                              className={`w-2 h-2 rounded-full ${STAGE_STYLES[stage.slug]?.split(" ")[0] ?? "bg-gray-200"}`}
+                              style={stage.color && !STAGE_STYLES[stage.slug] ? { backgroundColor: stage.color } : undefined}
+                            />
+                            {stage.name}
                           </button>
                         ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {lead.mortgageType && (
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                     {lead.mortgageType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
