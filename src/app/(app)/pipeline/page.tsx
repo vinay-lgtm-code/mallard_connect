@@ -473,10 +473,10 @@ export default function PipelinePage() {
           The Kanban board is best viewed on a larger screen.
         </p>
         <Link
-          href="/leads"
+          href="/leads?from=pipeline"
           className="mt-3 inline-block text-sm font-semibold text-primary hover:underline"
         >
-          Switch to list view →
+          View leads list →
         </Link>
       </div>
 

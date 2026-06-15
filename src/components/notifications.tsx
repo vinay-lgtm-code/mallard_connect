@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Bell, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/hooks/useAuth";
+import { useAuth, isDemoMode } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { rowsToApp } from "@/lib/supabase/mappers";
 import { formatRelativeDate } from "@/lib/utils";
@@ -19,7 +19,7 @@ export function NotificationDropdown() {
   const [notifications, setNotifications] = useState<(Notification & { id: string })[]>([]);
 
   useEffect(() => {
-    if (!supabase || !user) return;
+    if (!supabase || !user || isDemoMode()) return;
     supabase
       .from("notifications")
       .select("*")

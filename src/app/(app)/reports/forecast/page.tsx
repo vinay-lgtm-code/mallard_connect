@@ -372,8 +372,7 @@ export default function ForecastPage() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-lg font-bold text-gray-900">Pipeline Forecast</h1>
-        <p className="text-sm text-gray-500 mt-0.5">
+        <p className="text-sm text-gray-500">
           Expected closings by month, weighted by deal confidence and your historical
           conversion rate.
         </p>

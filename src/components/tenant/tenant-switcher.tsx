@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, RotateCcw } from "lucide-react";
 import { useTenant } from "./tenant-provider";
 import { resetDemoTenant, isValidDemoSlug } from "@/lib/demo/seed";
+import { getDemoTenant } from "@/hooks/useAuth";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 
 /**
@@ -35,7 +36,7 @@ export function DemoBanner({ visible }: { visible: boolean }) {
       <div className="flex items-center gap-2 text-amber-900">
         <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500" />
         <span className="font-medium">Demo mode</span>
-        <span className="text-amber-700">— viewing {tenant?.name ?? "Sequence"}</span>
+        <span className="text-amber-700">— viewing {tenant?.name ?? getDemoTenant()?.name ?? "Sequence"}</span>
       </div>
       <div className="flex items-center gap-3">
         {isSupabaseConfigured && tenant?.slug && (
