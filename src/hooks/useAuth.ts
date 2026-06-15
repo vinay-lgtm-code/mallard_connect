@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { rowToApp } from "@/lib/supabase/mappers";
+import { getMockUsers } from "@/lib/mock-data";
 import type { User, Tenant } from "@/types";
 
 const DEMO_TENANT_ID = "mallard";
@@ -69,13 +70,15 @@ export function getDemoUser(): User | null {
   if (typeof window === "undefined") return null;
   const id = localStorage.getItem("mallard_demo_user");
   if (!id) return null;
-  const user = DEMO_USERS[id];
-  if (!user) return null;
   const overrideTenantId = localStorage.getItem(DEMO_TENANT_KEY);
-  if (overrideTenantId && DEMO_TENANTS[overrideTenantId]) {
-    return { ...user, tenantId: overrideTenantId };
-  }
-  return user;
+  const slug = overrideTenantId && DEMO_TENANTS[overrideTenantId] ? overrideTenantId : DEMO_TENANT_ID;
+  const tenantUsers = getMockUsers();
+  const persona = id === "demo-manager" ? "manager" : "advisor";
+  const tenantUser = tenantUsers.find((u) => u.role === persona);
+  if (tenantUser) return { ...tenantUser, tenantId: slug };
+  const fallback = DEMO_USERS[id];
+  if (!fallback) return null;
+  return { ...fallback, tenantId: slug };
 }
 
 export function getDemoTenant(): Tenant | null {
@@ -87,6 +90,7 @@ export function getDemoTenant(): Tenant | null {
 export function setDemoTenant(slug: string) {
   if (typeof window === "undefined") return;
   localStorage.setItem(DEMO_TENANT_KEY, slug);
+  window.dispatchEvent(new Event("demo-tenant-changed"));
 }
 
 export function setDemoUser(id: string) {
@@ -105,10 +109,25 @@ export function isDemoMode(): boolean {
   return !!localStorage.getItem("mallard_demo_user");
 }
 
+function subscribeToDemoChanges(cb: () => void) {
+  window.addEventListener("storage", cb);
+  window.addEventListener("demo-tenant-changed", cb);
+  return () => {
+    window.removeEventListener("storage", cb);
+    window.removeEventListener("demo-tenant-changed", cb);
+  };
+}
+function getDemoSnapshot() {
+  return localStorage.getItem(DEMO_TENANT_KEY) + "|" + localStorage.getItem("mallard_demo_user");
+}
+const serverSnapshot = "";
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [tenant, setTenant] = useState<Tenant | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const demoKey = useSyncExternalStore(subscribeToDemoChanges, getDemoSnapshot, () => serverSnapshot);
 
   const refreshDemoUser = useCallback(() => {
     const demo = getDemoUser();
@@ -199,7 +218,7 @@ export function useAuth() {
     );
 
     return () => subscription.unsubscribe();
-  }, [refreshDemoUser]);
+  }, [refreshDemoUser, demoKey]);
 
   const needsOnboarding = !loading && !!user && !user.tenantId;
 

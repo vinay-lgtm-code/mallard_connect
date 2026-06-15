@@ -119,12 +119,15 @@ function remapRows(rows: StoredRow[], mappingList: ColumnMapping[]): StoredRow[]
   });
 }
 
+const VISIBLE_STEPS: Step[] = ["upload", "mapping", "preview", "done"];
+
 function StepIndicator({ current, step, label }: { current: Step; step: Step; label: string }) {
-  const steps: Step[] = ["upload", "mapping", "preview", "importing", "done"];
-  const currentIdx = steps.indexOf(current);
-  const stepIdx = steps.indexOf(step);
-  const done = currentIdx > stepIdx;
-  const active = current === step;
+  const allSteps: Step[] = ["upload", "mapping", "preview", "importing", "done"];
+  const currentIdx = allSteps.indexOf(current);
+  const stepIdx = VISIBLE_STEPS.indexOf(step);
+  const fullStepIdx = allSteps.indexOf(step);
+  const done = currentIdx > fullStepIdx;
+  const active = current === step || (step === "done" && current === "importing");
 
   return (
     <div className="flex items-center gap-2">

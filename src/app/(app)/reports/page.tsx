@@ -490,13 +490,10 @@ export default function ReportsPage() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">Reports</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            KPI cards, the pipeline funnel and the leaderboard reflect current data. Only the
-            historical lead-intake trend uses nightly snapshots.
-          </p>
-        </div>
+        <p className="text-sm text-gray-500">
+          KPI cards, the pipeline funnel and the leaderboard reflect current data. Only the
+          historical lead-intake trend uses nightly snapshots.
+        </p>
         <ExportButton
           data={exportData as Record<string, unknown>[]}
           columns={[

@@ -24,7 +24,11 @@ function Header() {
         </Link>
 
         <nav className="hidden sm:flex items-center gap-6 text-sm">
-          <a href="#features" className="text-gray-600 hover:text-gray-900">Features</a>
+          <a
+            href="#features"
+            onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }}
+            className="text-gray-600 hover:text-gray-900"
+          >Features</a>
           <Link href="/demo" className="text-gray-600 hover:text-gray-900">Demo</Link>
         </nav>
 
@@ -77,6 +81,7 @@ function HeroSection() {
             </Link>
             <a
               href="#features"
+              onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }}
               className="inline-flex items-center gap-2 bg-white/10 text-white font-semibold px-6 py-3 rounded-lg hover:bg-white/20 transition-colors text-sm border border-white/20"
             >
               See how it works
