@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { Upload, Check, RefreshCw } from "lucide-react";
 import { useAuth, isDemoMode } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
+import { IMPORT_TARGET_FIELDS, autoMapColumns } from "@/lib/import/fields";
 
 type Step = "upload" | "mapping" | "preview" | "importing" | "done";
 
@@ -25,49 +26,6 @@ interface StoredRow {
   mappedData: Record<string, string | undefined>;
   matchedLeadId?: string;
   matchType?: string;
-}
-
-const TARGET_FIELDS = [
-  { value: "", label: "— Skip —" },
-  { value: "firstName", label: "First Name" },
-  { value: "lastName", label: "Last Name" },
-  { value: "name", label: "Full Name" },
-  { value: "email", label: "Email" },
-  { value: "phone", label: "Phone" },
-  { value: "source", label: "Lead Source" },
-  { value: "mortgageType", label: "Mortgage Type" },
-  { value: "readiness", label: "Readiness" },
-  { value: "factFindDate", label: "Fact Find Date" },
-  { value: "notes", label: "Case Notes" },
-  { value: "createdAt", label: "Date Added" },
-  { value: "referredBy", label: "Referred By" },
-];
-
-const AUTO_MAP_PATTERNS: Array<{ patterns: string[]; field: string }> = [
-  { patterns: ["first name", "firstname"], field: "firstName" },
-  { patterns: ["last name", "lastname", "surname"], field: "lastName" },
-  { patterns: ["client name", "name", "full name", "client"], field: "name" },
-  { patterns: ["tel number", "phone", "mobile", "telephone", "phone number", "contact number"], field: "phone" },
-  { patterns: ["email address", "email"], field: "email" },
-  { patterns: ["source", "lead source", "enquiry source"], field: "source" },
-  { patterns: ["type", "mortgage type", "product type"], field: "mortgageType" },
-  { patterns: ["readiness", "lead readiness"], field: "readiness" },
-  { patterns: ["notes", "comments", "case notes", "case updates"], field: "notes" },
-  { patterns: ["referred by", "referral", "referrer"], field: "referredBy" },
-];
-
-function autoMapColumnsClient(headers: string[]): Record<string, string> {
-  const result: Record<string, string> = {};
-  for (const header of headers) {
-    const normalized = header.toLowerCase().trim();
-    for (const { patterns, field } of AUTO_MAP_PATTERNS) {
-      if (patterns.includes(normalized)) {
-        result[header] = field;
-        break;
-      }
-    }
-  }
-  return result;
 }
 
 function parseCSVClient(text: string): { columns: string[]; rows: Record<string, string>[] } {
@@ -117,6 +75,27 @@ function remapRows(rows: StoredRow[], mappingList: ColumnMapping[]): StoredRow[]
     }
     return { ...row, mappedData };
   });
+}
+
+async function readErrorDetail(res: Response): Promise<string> {
+  const text = await res.text();
+  if (!text) return `Request failed with status ${res.status}`;
+
+  try {
+    const json = JSON.parse(text) as { error?: unknown; errors?: unknown };
+    if (Array.isArray(json.errors) && json.errors[0]) return String(json.errors[0]);
+    if (json.error) return String(json.error);
+  } catch {
+    // Fall through to the raw response body.
+  }
+
+  return text;
+}
+
+function importFailureDetail(result: { error?: unknown; errors?: unknown }): string {
+  if (Array.isArray(result.errors) && result.errors[0]) return String(result.errors[0]);
+  if (result.error) return String(result.error);
+  return "The server did not return row-level error details.";
 }
 
 const VISIBLE_STEPS: Step[] = ["upload", "mapping", "preview", "done"];
@@ -181,7 +160,7 @@ export default function ImportPage() {
         const { columns, rows } = parseCSVClient(text);
         if (columns.length === 0) throw new Error("No columns found in file.");
 
-        const columnMapping = autoMapColumnsClient(columns);
+        const columnMapping = autoMapColumns(columns);
         const toCreate: StoredRow[] = rows.map((rawData) => {
           const mappedData: Record<string, string | undefined> = {};
           for (const [csvCol, field] of Object.entries(columnMapping)) {
@@ -218,14 +197,16 @@ export default function ImportPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Upload failed with status ${res.status}`);
+        throw new Error(await readErrorDetail(res));
       }
 
       const preview = await res.json();
 
       const sourceColumns: string[] = preview.columns ?? [];
-      const autoMapping = autoMapColumnsClient(sourceColumns);
+      const autoMapping = {
+        ...autoMapColumns(sourceColumns),
+        ...(preview.columnMapping ?? {}),
+      };
       setMappings(sourceColumns.map((col: string) => ({
         sourceColumn: col,
         targetField: autoMapping[col] ?? "",
@@ -334,19 +315,18 @@ export default function ImportPage() {
       });
 
       if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || `Import failed with status ${res.status}`);
+        throw new Error(await readErrorDetail(res));
       }
 
       const result = await res.json();
       setNewCount(result.created ?? 0);
 
       if (result.failed > 0 && result.created === 0) {
-        const detail = result.errors?.[0] ?? "Unknown error";
+        const detail = importFailureDetail(result);
         throw new Error(`All rows failed to import: ${detail}`);
       }
       if (result.failed > 0) {
-        setImportError(`${result.failed} row(s) failed: ${result.errors?.[0] ?? "Unknown error"}`);
+        setImportError(`${result.failed} row(s) failed: ${importFailureDetail(result)}`);
       }
 
       setProgress(100);
@@ -457,7 +437,7 @@ export default function ImportPage() {
                         onChange={(e) => updateMapping(m.sourceColumn, e.target.value)}
                         className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white w-full max-w-xs"
                       >
-                        {TARGET_FIELDS.map((f) => (
+                        {IMPORT_TARGET_FIELDS.map((f) => (
                           <option key={f.value} value={f.value}>{f.label}</option>
                         ))}
                       </select>

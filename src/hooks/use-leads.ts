@@ -8,11 +8,40 @@ import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
 import type { Lead, Activity, Task, User } from "@/types";
 
 type RefetchFn = () => void;
+type RelationObject = { slug?: string | null; name?: string | null };
+type RelationValue = RelationObject | RelationObject[] | null | undefined;
+
+type LeadDbRow = Record<string, unknown> & {
+  lead_sources?: RelationValue;
+  pipeline_stages?: RelationValue;
+};
 
 interface LeadFilters {
   stageId?: string;
   assignedTo?: string;
   status?: string;
+}
+
+function firstRelation(row: RelationValue): RelationObject | null {
+  if (Array.isArray(row)) return row[0] ?? null;
+  return row ?? null;
+}
+
+function rowToLead(row: LeadDbRow): Lead & { id: string } {
+  const source = firstRelation(row.lead_sources);
+  const stage = firstRelation(row.pipeline_stages);
+  const app = rowToApp<Lead & { id: string }>(row);
+  const appWithFk = app as Lead & { sourceId?: string | null };
+
+  return {
+    ...app,
+    source: (source?.slug ?? app.source ?? appWithFk.sourceId ?? "other") as Lead["source"],
+    currentStageId: (stage?.slug ?? app.currentStageId) as string,
+  };
+}
+
+function rowsToLeads(rows: LeadDbRow[]): (Lead & { id: string })[] {
+  return rows.map(rowToLead);
 }
 
 export function useLeads(filters?: LeadFilters) {
@@ -31,7 +60,7 @@ export function useLeads(filters?: LeadFilters) {
 
     let query = supabase
       .from("leads")
-      .select("*")
+      .select("*, lead_sources(slug, name), pipeline_stages(slug, name)")
       .eq("tenant_id", tenantId)
       .order("updated_at", { ascending: false });
 
@@ -41,7 +70,7 @@ export function useLeads(filters?: LeadFilters) {
 
     query.then(({ data: rows, error: err }) => {
       if (err) { setError(new Error(err.message)); }
-      else { setData(rowsToApp<Lead & { id: string }>(rows ?? [])); }
+      else { setData(rowsToLeads((rows ?? []) as LeadDbRow[])); }
       setLoading(false);
     });
   }, [supabase, tenantId, filters?.stageId, filters?.assignedTo, filters?.status, useMock]);
@@ -72,13 +101,13 @@ export function useLead(leadId: string) {
     if (!supabase || !tenantId || useMock) return;
     supabase
       .from("leads")
-      .select("*")
+      .select("*, lead_sources(slug, name), pipeline_stages(slug, name)")
       .eq("id", leadId)
       .eq("tenant_id", tenantId)
       .single()
       .then(({ data: row, error: err }) => {
         if (err) { setError(new Error(err.message)); }
-        else { setData(row ? rowToApp<Lead & { id: string }>(row) : null); }
+        else { setData(row ? rowToLead(row as LeadDbRow) : null); }
         setLoading(false);
       });
   }, [supabase, tenantId, leadId, useMock]);
