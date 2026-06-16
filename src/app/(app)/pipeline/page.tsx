@@ -307,7 +307,8 @@ export default function PipelinePage() {
   function handleDragEnd(result: DropResult) {
     const { destination, source, draggableId } = result;
     if (!destination) return;
-    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+    // Same-stage reorder is visual-only; we don't persist column order or notify.
+    if (destination.droppableId === source.droppableId) return;
 
     const stageName = STAGES.find((s) => s.id === destination.droppableId)?.name ?? destination.droppableId;
 
