@@ -89,6 +89,7 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     if (!title.trim() || !dueDate || !supabase) return;
     setSaving(true);
     setError(null);

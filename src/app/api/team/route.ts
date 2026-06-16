@@ -52,6 +52,17 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient();
 
+  const { data: existing } = await supabase
+    .from("users")
+    .select("id")
+    .eq("email", email)
+    .eq("tenant_id", auth.tenantId)
+    .maybeSingle();
+
+  if (existing) {
+    return NextResponse.json({ error: "A team member with this email already exists" }, { status: 409 });
+  }
+
   const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
     email,
     password: tempPassword,

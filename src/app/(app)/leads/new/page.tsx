@@ -128,6 +128,7 @@ export default function NewLeadPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (saving) return;
     setErrors({});
     setSubmitError(null);
 
