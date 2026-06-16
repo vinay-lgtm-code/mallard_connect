@@ -129,9 +129,17 @@ function inferStageSlug(mappedData: Record<string, unknown>): string {
     "initial-contact": "initial_contact",
     "contacted": "initial_contact",
     "not-ready-yet": "not_ready_yet",
+    "not-proceeded": "not_ready_yet",
     "not-ready": "not_ready_yet",
     "nurturing": "nurturing",
+    "decision-in-principle-done": "decision_in_principle_done",
+    "decision-in-principle": "decision_in_principle_done",
+    "dip-done": "decision_in_principle_done",
+    "dip": "decision_in_principle_done",
+    "agreement-in-principle": "decision_in_principle_done",
+    "aip": "decision_in_principle_done",
     "ready-to-proceed": "ready_to_proceed",
+    "offer-accepted": "ready_to_proceed",
     "ready": "ready_to_proceed",
     "deal-done": "referred_to_mab",
     "referred-to-mab": "referred_to_mab",
@@ -140,13 +148,14 @@ function inferStageSlug(mappedData: Record<string, unknown>): string {
   if (explicitSlug && stageSynonyms[explicitSlug]) return stageSynonyms[explicitSlug];
 
   const notes = String(mappedData.notes ?? "").toLowerCase();
-  if (/\b(complet(?:e|ed|ion)|deal done|offer issued|offer accepted)\b/.test(notes)) {
+  if (/\b(complet(?:e|ed|ion)|deal done|offer issued)\b/.test(notes)) {
     return "referred_to_mab";
   }
   if (/\b(dip|decision in principle|agreement in principle|aip)\b/.test(notes)) {
-    return "ready_to_proceed";
+    return "decision_in_principle_done";
   }
-  if (/\b(not ready|future|later|hold)\b/.test(notes)) return "not_ready_yet";
+  if (/\boffer accepted\b/.test(notes)) return "ready_to_proceed";
+  if (/\b(not ready|not proceeded|future|later|hold)\b/.test(notes)) return "not_ready_yet";
   if (/\b(nurtur|checking in|follow up)\b/.test(notes)) return "nurturing";
   if (mappedData.factFindDate) return "initial_contact";
   return DEFAULT_STAGE_SLUG;
@@ -166,6 +175,7 @@ function inferredConfidence(stageSlug: string): number {
   switch (stageSlug) {
     case "referred_to_mab": return 100;
     case "ready_to_proceed": return 75;
+    case "decision_in_principle_done": return 65;
     case "nurturing": return 45;
     case "initial_contact": return 35;
     case "not_ready_yet": return 20;
@@ -416,7 +426,7 @@ export async function POST(request: NextRequest) {
     const normalizedReadiness = normalizeReadiness(typeof data.readiness === "string" ? data.readiness : undefined);
     if (normalizedReadiness) {
       data.readiness = normalizedReadiness;
-    } else if (stageSlug === "ready_to_proceed") {
+    } else if (stageSlug === "ready_to_proceed" || stageSlug === "decision_in_principle_done") {
       data.readiness = "ready-now";
     } else if (stageSlug === "initial_contact") {
       data.readiness = "1-3-months";
@@ -447,7 +457,7 @@ export async function POST(request: NextRequest) {
     const forecastBaseDate = factFindDate ?? createdAt ?? new Date();
     const inferredEstimatedClose = stage?.is_terminal
       ? null
-      : addDays(forecastBaseDate, stageSlug === "ready_to_proceed" ? 35 : 75);
+      : addDays(forecastBaseDate, stageSlug === "ready_to_proceed" || stageSlug === "decision_in_principle_done" ? 35 : 75);
     if (explicitEstimatedCloseDate) {
       data.estimatedCloseDate = dateOnly(explicitEstimatedCloseDate);
     } else if (inferredEstimatedClose) {

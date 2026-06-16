@@ -248,9 +248,10 @@ add_text_box(slide, Inches(1), Inches(1.6), Inches(11), Inches(0.5),
 stages = [
     ("New\nEnquiry", RGBColor(0xE0, 0xE7, 0xFF), RGBColor(0x43, 0x38, 0xCA), "5"),
     ("Initial\nContact", RGBColor(0xDB, 0xEA, 0xFE), RGBColor(0x1D, 0x4E, 0xD8), "3"),
-    ("Not Ready\nYet", AMBER_LIGHT, RGBColor(0x92, 0x40, 0x0E), "12"),
+    ("Not\nproceeded.", AMBER_LIGHT, RGBColor(0x92, 0x40, 0x0E), "12"),
     ("Nurturing", GREEN_LIGHT, RGBColor(0x16, 0x65, 0x34), "8"),
-    ("Ready to\nProceed", BLUE_LIGHT, RGBColor(0x1D, 0x4E, 0xD8), "4"),
+    ("DIP\ndone", RGBColor(0xCC, 0xFB, 0xF1), RGBColor(0x0F, 0x76, 0x6E), "2"),
+    ("Ready to\nproceed", BLUE_LIGHT, RGBColor(0x1D, 0x4E, 0xD8), "4"),
     ("Referred\nto MAB", PURPLE_LIGHT, PURPLE, "6"),
     ("Won /\nCompleted", RGBColor(0xDC, 0xFC, 0xE7), GREEN, "3"),
     ("Lost /\nGone Cold", RGBColor(0xFE, 0xE2, 0xE2), RED, "9"),
@@ -260,7 +261,7 @@ for i, (name, bg_color, text_color, count) in enumerate(stages):
     x = Inches(0.7) + Inches(i * 1.55)
     y = Inches(2.5)
     card = add_shape(slide, x, y, Inches(1.35), Inches(1.8), bg_color, 0.05)
-    if i == 2:  # Not Ready Yet - highlighted
+    if i == 2:  # Not proceeded. - highlighted
         card.line.color.rgb = AMBER
         card.line.width = Pt(3)
     else:
@@ -275,12 +276,12 @@ for i, (name, bg_color, text_color, count) in enumerate(stages):
         add_text_box(slide, x + Inches(1.35), y + Inches(0.65), Inches(0.2), Inches(0.4),
                      "→", font_size=16, color=GRAY, alignment=PP_ALIGN.CENTER)
 
-# Callout for "Not Ready Yet"
+# Callout for "Not proceeded."
 callout = add_shape(slide, Inches(2.8), Inches(4.7), Inches(7.5), Inches(1.2), AMBER_LIGHT, 0.03)
 callout.line.color.rgb = AMBER
 callout.line.width = Pt(2)
 add_text_box(slide, Inches(3.1), Inches(4.85), Inches(7), Inches(0.35),
-             '"Not Ready Yet" is a first-class stage — not an afterthought.',
+             '"Not proceeded." is a first-class stage — not an afterthought.',
              font_size=16, color=RGBColor(0x92, 0x40, 0x0E), bold=True)
 add_text_box(slide, Inches(3.1), Inches(5.25), Inches(7), Inches(0.5),
              "This is where Mallard's leads currently fall through cracks. The system highlights it with amber borders, "
@@ -381,7 +382,7 @@ make_screen_slide(
     "Della", "Desktop", "yuS5D",
     [
         "6 color-coded stage columns: New Enquiry → Deal Done",
-        '"Not Ready Yet" column highlighted with amber border — the key stage',
+        '"Not proceeded." column highlighted with amber border — the key stage',
         "Prospect cards show: name, type, assigned avatar, time context",
         "Overdue badges in red on cards that need attention",
         "Filter and search in the toolbar",
@@ -479,7 +480,7 @@ make_screen_slide(
     "Field Sales", "Mobile", "xNuto",
     [
         "Horizontal stage pills — tap to filter by stage",
-        "\"Not Ready Yet\" selected, showing 12 leads",
+        "\"Not proceeded.\" selected, showing 12 leads",
         "Prospect cards with avatar, name, type summary",
         "Color-coded badges: Overdue, Due today, scheduled date, On track",
         "Bottom nav with Pipeline tab active",
