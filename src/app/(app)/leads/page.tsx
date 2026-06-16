@@ -15,6 +15,7 @@ const STAGE_STYLES: Record<string, string> = {
   initial_contact: "bg-blue-100 text-blue-700",
   not_ready_yet: "bg-amber-100 text-amber-700",
   nurturing: "bg-green-100 text-green-700",
+  decision_in_principle_done: "bg-teal-100 text-teal-700",
   ready_to_proceed: "bg-blue-100 text-blue-700",
   referred_to_mab: "bg-purple-100 text-purple-700",
 };
@@ -22,9 +23,10 @@ const STAGE_STYLES: Record<string, string> = {
 const STAGE_LABELS: Record<string, string> = {
   new_enquiry: "New Enquiry",
   initial_contact: "Initial Contact",
-  not_ready_yet: "Not Ready Yet",
+  not_ready_yet: "Not proceeded.",
   nurturing: "Nurturing",
-  ready_to_proceed: "Ready to Proceed",
+  decision_in_principle_done: "Decision in Principle done",
+  ready_to_proceed: "Ready to proceed",
   referred_to_mab: "Deal Done",
 };
 
@@ -47,9 +49,10 @@ const ALL_STAGES = [
   { value: "", label: "All Stages" },
   { value: "new_enquiry", label: "New Enquiry" },
   { value: "initial_contact", label: "Initial Contact" },
-  { value: "not_ready_yet", label: "Not Ready Yet" },
+  { value: "not_ready_yet", label: "Not proceeded." },
   { value: "nurturing", label: "Nurturing" },
-  { value: "ready_to_proceed", label: "Ready to Proceed" },
+  { value: "decision_in_principle_done", label: "Decision in Principle done" },
+  { value: "ready_to_proceed", label: "Ready to proceed" },
   { value: "referred_to_mab", label: "Deal Done" },
 ];
 

@@ -118,7 +118,7 @@ function FeaturesSection() {
       icon: GitBranch,
       title: "Visual pipeline",
       description:
-        "Drag-and-drop Kanban with a first-class “Not Ready Yet” stage — the column where most prospects currently fall through the cracks.",
+        "Drag-and-drop Kanban with a first-class “Not proceeded.” stage — the column where most prospects currently fall through the cracks.",
     },
     {
       icon: Mail,

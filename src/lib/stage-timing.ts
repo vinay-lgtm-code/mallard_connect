@@ -83,6 +83,7 @@ export const DEMO_STAGE_RAG_CONFIG: StageRagConfigMap = {
   initial_contact: { expectedDays: 7, amberPct: 75 },
   not_ready_yet: { expectedDays: 60, amberPct: 75 },
   nurturing: { expectedDays: 30, amberPct: 75 },
+  decision_in_principle_done: { expectedDays: 14, amberPct: 75 },
   ready_to_proceed: { expectedDays: 14, amberPct: 75 },
   referred_to_mab: { expectedDays: null, amberPct: 75 },
 };

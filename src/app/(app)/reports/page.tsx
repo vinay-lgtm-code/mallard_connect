@@ -39,6 +39,7 @@ const STAGE_COLORS: Record<string, string> = {
   initial_contact: "#3b82f6",
   not_ready_yet: "#f59e0b",
   nurturing: "#22c55e",
+  decision_in_principle_done: "#14b8a6",
   ready_to_proceed: "#1d4ed8",
   referred_to_mab: "#a855f7",
 };
@@ -333,9 +334,10 @@ function TeamLeaderboard({ rows }: { rows: TeamRow[] }) {
 const KNOWN_STAGES: { id: string; name: string }[] = [
   { id: "new_enquiry", name: "New Enquiry" },
   { id: "initial_contact", name: "Initial Contact" },
-  { id: "not_ready_yet", name: "Not Ready Yet" },
+  { id: "not_ready_yet", name: "Not proceeded." },
   { id: "nurturing", name: "Nurturing" },
-  { id: "ready_to_proceed", name: "Ready to Proceed" },
+  { id: "decision_in_principle_done", name: "Decision in Principle done" },
+  { id: "ready_to_proceed", name: "Ready to proceed" },
   { id: "referred_to_mab", name: "Deal Done" },
 ];
 

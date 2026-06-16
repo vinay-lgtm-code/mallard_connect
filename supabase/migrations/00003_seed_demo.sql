@@ -17,28 +17,31 @@ INSERT INTO tenants (id, name, slug, primary_color, plan, seat_limit, is_demo) V
 INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal) VALUES
   ('00000000-0000-0000-0000-000000000001', 'New Enquiry', 'new_enquiry', 0, '#6366f1', false),
   ('00000000-0000-0000-0000-000000000001', 'Initial Contact', 'initial_contact', 1, '#3b82f6', false),
-  ('00000000-0000-0000-0000-000000000001', 'Not Ready Yet', 'not_ready_yet', 2, '#f59e0b', false),
+  ('00000000-0000-0000-0000-000000000001', 'Not proceeded.', 'not_ready_yet', 2, '#f59e0b', false),
   ('00000000-0000-0000-0000-000000000001', 'Nurturing', 'nurturing', 3, '#22c55e', false),
-  ('00000000-0000-0000-0000-000000000001', 'Ready to Proceed', 'ready_to_proceed', 4, '#2563eb', false),
-  ('00000000-0000-0000-0000-000000000001', 'Deal Done', 'referred_to_mab', 5, '#a855f7', true);
+  ('00000000-0000-0000-0000-000000000001', 'Decision in Principle done', 'decision_in_principle_done', 4, '#14b8a6', false),
+  ('00000000-0000-0000-0000-000000000001', 'Ready to proceed', 'ready_to_proceed', 5, '#2563eb', false),
+  ('00000000-0000-0000-0000-000000000001', 'Deal Done', 'referred_to_mab', 6, '#a855f7', true);
 
 -- Friends Capital stages
 INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal) VALUES
   ('00000000-0000-0000-0000-000000000002', 'New Enquiry', 'new_enquiry', 0, '#6366f1', false),
   ('00000000-0000-0000-0000-000000000002', 'Initial Contact', 'initial_contact', 1, '#3b82f6', false),
-  ('00000000-0000-0000-0000-000000000002', 'Not Ready Yet', 'not_ready_yet', 2, '#f59e0b', false),
+  ('00000000-0000-0000-0000-000000000002', 'Not proceeded.', 'not_ready_yet', 2, '#f59e0b', false),
   ('00000000-0000-0000-0000-000000000002', 'Nurturing', 'nurturing', 3, '#22c55e', false),
-  ('00000000-0000-0000-0000-000000000002', 'Ready to Proceed', 'ready_to_proceed', 4, '#2563eb', false),
-  ('00000000-0000-0000-0000-000000000002', 'Deal Done', 'referred_to_mab', 5, '#a855f7', true);
+  ('00000000-0000-0000-0000-000000000002', 'Decision in Principle done', 'decision_in_principle_done', 4, '#14b8a6', false),
+  ('00000000-0000-0000-0000-000000000002', 'Ready to proceed', 'ready_to_proceed', 5, '#2563eb', false),
+  ('00000000-0000-0000-0000-000000000002', 'Deal Done', 'referred_to_mab', 6, '#a855f7', true);
 
 -- Acme stages
 INSERT INTO pipeline_stages (tenant_id, name, slug, position, color, is_terminal) VALUES
   ('00000000-0000-0000-0000-000000000003', 'New Enquiry', 'new_enquiry', 0, '#6366f1', false),
   ('00000000-0000-0000-0000-000000000003', 'Initial Contact', 'initial_contact', 1, '#3b82f6', false),
-  ('00000000-0000-0000-0000-000000000003', 'Not Ready Yet', 'not_ready_yet', 2, '#f59e0b', false),
+  ('00000000-0000-0000-0000-000000000003', 'Not proceeded.', 'not_ready_yet', 2, '#f59e0b', false),
   ('00000000-0000-0000-0000-000000000003', 'Nurturing', 'nurturing', 3, '#22c55e', false),
-  ('00000000-0000-0000-0000-000000000003', 'Ready to Proceed', 'ready_to_proceed', 4, '#2563eb', false),
-  ('00000000-0000-0000-0000-000000000003', 'Deal Done', 'referred_to_mab', 5, '#a855f7', true);
+  ('00000000-0000-0000-0000-000000000003', 'Decision in Principle done', 'decision_in_principle_done', 4, '#14b8a6', false),
+  ('00000000-0000-0000-0000-000000000003', 'Ready to proceed', 'ready_to_proceed', 5, '#2563eb', false),
+  ('00000000-0000-0000-0000-000000000003', 'Deal Done', 'referred_to_mab', 6, '#a855f7', true);
 
 -- ============================================================
 -- Lead sources (based on Mallard's actual spreadsheet)
