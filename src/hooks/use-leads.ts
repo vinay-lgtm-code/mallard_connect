@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser, getMockLeads, getMockActivities, getMockTasks, getMockUsers } from "@/lib/mock-data";
@@ -8,11 +9,59 @@ import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
 import type { Lead, Activity, Task, User } from "@/types";
 
 type RefetchFn = () => void;
+type RelationObject = { slug?: string | null; name?: string | null };
+type RelationValue = RelationObject | RelationObject[] | null | undefined;
+
+type LeadDbRow = Record<string, unknown> & {
+  lead_sources?: RelationValue;
+  pipeline_stages?: RelationValue;
+};
 
 interface LeadFilters {
   stageId?: string;
   assignedTo?: string;
   status?: string;
+}
+
+function firstRelation(row: RelationValue): RelationObject | null {
+  if (Array.isArray(row)) return row[0] ?? null;
+  return row ?? null;
+}
+
+function rowToLead(row: LeadDbRow): Lead & { id: string } {
+  const source = firstRelation(row.lead_sources);
+  const stage = firstRelation(row.pipeline_stages);
+  const app = rowToApp<Lead & { id: string }>(row);
+  const appWithFk = app as Lead & { sourceId?: string | null };
+
+  return {
+    ...app,
+    source: (source?.slug ?? app.source ?? appWithFk.sourceId ?? "other") as Lead["source"],
+    currentStageId: (stage?.slug ?? app.currentStageId) as string,
+  };
+}
+
+function rowsToLeads(rows: LeadDbRow[]): (Lead & { id: string })[] {
+  return rows.map(rowToLead);
+}
+
+const LEAD_SELECT = "*, lead_sources(slug, name), pipeline_stages(slug, name)";
+
+function rawLeadMatchesFilters(
+  row: Record<string, unknown>,
+  filters?: LeadFilters
+): boolean {
+  if (!filters) return true;
+  if (filters.assignedTo && row.assigned_to !== filters.assignedTo) return false;
+  if (filters.status && row.status !== filters.status) return false;
+  if (filters.stageId && row.current_stage_id !== filters.stageId) return false;
+  return true;
+}
+
+function sortLeadsByUpdatedAt(leads: (Lead & { id: string })[]) {
+  return [...leads].sort(
+    (a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()
+  );
 }
 
 export function useLeads(filters?: LeadFilters) {
@@ -21,36 +70,116 @@ export function useLeads(filters?: LeadFilters) {
   const demo = user ? isDemoUser(user.id) : false;
   const useMock = demo;
   const tenantId = user?.tenantId;
+  const stageFilter = filters?.stageId;
+  const assignedFilter = filters?.assignedTo;
+  const statusFilter = filters?.status;
 
   const [data, setData] = useState<(Lead & { id: string })[]>([]);
   const [loading, setLoading] = useState(!useMock);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    if (useMock || !supabase || !tenantId) return;
+  const fetchLeads = useCallback(() => {
+    if (useMock || !supabase || !tenantId) return Promise.resolve();
 
     let query = supabase
       .from("leads")
-      .select("*")
+      .select(LEAD_SELECT)
       .eq("tenant_id", tenantId)
       .order("updated_at", { ascending: false });
 
-    if (filters?.stageId) query = query.eq("current_stage_id", filters.stageId);
-    if (filters?.assignedTo) query = query.eq("assigned_to", filters.assignedTo);
-    if (filters?.status) query = query.eq("status", filters.status);
+    if (stageFilter) query = query.eq("current_stage_id", stageFilter);
+    if (assignedFilter) query = query.eq("assigned_to", assignedFilter);
+    if (statusFilter) query = query.eq("status", statusFilter);
 
-    query.then(({ data: rows, error: err }) => {
-      if (err) { setError(new Error(err.message)); }
-      else { setData(rowsToApp<Lead & { id: string }>(rows ?? [])); }
+    return query.then(({ data: rows, error: err }) => {
+      if (err) {
+        setError(new Error(err.message));
+      } else {
+        setData(rowsToLeads((rows ?? []) as LeadDbRow[]));
+      }
       setLoading(false);
     });
-  }, [supabase, tenantId, filters?.stageId, filters?.assignedTo, filters?.status, useMock]);
+  }, [supabase, tenantId, stageFilter, assignedFilter, statusFilter, useMock]);
+
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
+    fetchLeads();
+  }, [fetchLeads, useMock, supabase, tenantId]);
+
+  useEffect(() => {
+    if (useMock || !supabase || !tenantId) return;
+
+    const activeFilters: LeadFilters | undefined =
+      stageFilter || assignedFilter || statusFilter
+        ? { stageId: stageFilter, assignedTo: assignedFilter, status: statusFilter }
+        : undefined;
+
+    const upsertLead = async (leadId: string) => {
+      const { data: row, error: err } = await supabase
+        .from("leads")
+        .select(LEAD_SELECT)
+        .eq("id", leadId)
+        .eq("tenant_id", tenantId)
+        .maybeSingle();
+
+      if (err || !row) {
+        setData((prev) => prev.filter((lead) => lead.id !== leadId));
+        return;
+      }
+
+      const lead = rowToLead(row as LeadDbRow);
+      setData((prev) => {
+        const idx = prev.findIndex((item) => item.id === leadId);
+        if (idx === -1) return sortLeadsByUpdatedAt([lead, ...prev]);
+        const next = [...prev];
+        next[idx] = lead;
+        return sortLeadsByUpdatedAt(next);
+      });
+    };
+
+    const channel = supabase
+      .channel(`leads:${tenantId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "leads",
+          filter: `tenant_id=eq.${tenantId}`,
+        },
+        (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+          if (payload.eventType === "DELETE") {
+            const deletedId = payload.old.id as string | undefined;
+            if (deletedId) {
+              setData((prev) => prev.filter((lead) => lead.id !== deletedId));
+            }
+            return;
+          }
+
+          const row = payload.new;
+          const leadId = row.id as string | undefined;
+          if (!leadId) return;
+
+          if (!rawLeadMatchesFilters(row, activeFilters)) {
+            setData((prev) => prev.filter((lead) => lead.id !== leadId));
+            return;
+          }
+
+          void upsertLead(leadId);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [supabase, tenantId, stageFilter, assignedFilter, statusFilter, useMock]);
 
   if (useMock) {
     let leads = getMockLeads() as (Lead & { id: string })[];
-    if (filters?.stageId) leads = leads.filter((l) => l.currentStageId === filters.stageId);
-    if (filters?.assignedTo) leads = leads.filter((l) => l.assignedTo === filters.assignedTo);
-    if (filters?.status) leads = leads.filter((l) => l.status === filters.status);
+    if (stageFilter) leads = leads.filter((l) => l.currentStageId === stageFilter);
+    if (assignedFilter) leads = leads.filter((l) => l.assignedTo === assignedFilter);
+    if (statusFilter) leads = leads.filter((l) => l.status === statusFilter);
     return { leads, loading: false, error: null };
   }
 
@@ -72,13 +201,13 @@ export function useLead(leadId: string) {
     if (!supabase || !tenantId || useMock) return;
     supabase
       .from("leads")
-      .select("*")
+      .select(LEAD_SELECT)
       .eq("id", leadId)
       .eq("tenant_id", tenantId)
       .single()
       .then(({ data: row, error: err }) => {
         if (err) { setError(new Error(err.message)); }
-        else { setData(row ? rowToApp<Lead & { id: string }>(row) : null); }
+        else { setData(row ? rowToLead(row as LeadDbRow) : null); }
         setLoading(false);
       });
   }, [supabase, tenantId, leadId, useMock]);

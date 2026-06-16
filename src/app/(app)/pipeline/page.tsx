@@ -210,7 +210,7 @@ export default function PipelinePage() {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const { leads: firestoreLeads, loading } = useLeads();
+  const { leads: supabaseLeads, loading } = useLeads();
   const { users } = useTenantUsers();
   const isManager = user?.role === "admin" || user?.role === "manager";
   // Adviser filter (manager/admin only) — "" means All advisers
@@ -233,8 +233,8 @@ export default function PipelinePage() {
     stageName: string;
   } | null>(null);
 
-  // baseLeads = full set (drag mutates this); leads = optimistic view used for drag updates.
-  const baseLeads = firestoreLeads;
+  // baseLeads = live Supabase snapshot (realtime); leads = optimistic view during drag.
+  const baseLeads = supabaseLeads;
   const leads = localLeads ?? baseLeads;
 
   // Per-stage RAG config keyed by slug. Demo mode uses sensible defaults; real mode
@@ -281,10 +281,28 @@ export default function PipelinePage() {
     return leads.filter((l) => l.assignedTo === adviserFilter);
   }, [leads, isManager, adviserFilter]);
 
-  // Sync local state when Firestore updates (but not during a pending drag)
-  if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
-    setLocalLeads(null);
-  }
+  const defaultSlug = STAGES[0].id;
+
+  // Resolve a lead's stored current_stage_id to a column slug. Supabase stores a UUID
+  // FK; if that UUID is in slugById, map it to its slug. Demo leads (and any value
+  // that isn't a known UUID) are already slugs. Null stages fall into the first column.
+  const stageSlugOf = (currentStageId: string | null | undefined): string => {
+    if (!currentStageId) return defaultSlug;
+    return slugById[currentStageId] ?? currentStageId;
+  };
+
+  // Drop the optimistic overlay once realtime has delivered the matching server row.
+  useEffect(() => {
+    if (pendingDrag || localLeads === null) return;
+
+    const stillWaiting = localLeads.some((local) => {
+      const server = baseLeads.find((lead) => lead.id === local.id);
+      if (!server) return false;
+      return stageSlugOf(local.currentStageId) !== stageSlugOf(server.currentStageId);
+    });
+
+    if (!stillWaiting) setLocalLeads(null);
+  }, [baseLeads, pendingDrag, localLeads, slugById, defaultSlug]);
 
   function handleDragEnd(result: DropResult) {
     const { destination, source, draggableId } = result;
@@ -293,21 +311,17 @@ export default function PipelinePage() {
 
     const stageName = STAGES.find((s) => s.id === destination.droppableId)?.name ?? destination.droppableId;
 
-    // Optimistically update local state. Reset the stage-entered clock so the card
-    // immediately shows "Today" / green in its new column. When we know the real
-    // stage UUID, store that (matches what we'll write); grouping normalizes it back
-    // to the slug. Moving to a terminal stage also closes the lead, so reflect
-    // status=converted optimistically.
+    // Optimistically update local state. Keep currentStageId as the column slug so
+    // grouping matches the realtime payload once Postgres confirms the move.
     const nowIso = new Date().toISOString();
     const destSlug = destination.droppableId;
-    const optimisticStageId = idBySlug[destSlug] ?? destSlug;
     const isTerminal = terminalSlugs.has(destSlug);
     setLocalLeads(
       (baseLeads).map((lead) =>
         lead.id === draggableId
           ? {
               ...lead,
-              currentStageId: optimisticStageId,
+              currentStageId: destSlug,
               currentStageEnteredAt: nowIso,
               ...(isTerminal
                 ? { status: "converted" as Lead["status"], convertedAt: nowIso }
@@ -422,17 +436,6 @@ export default function PipelinePage() {
     setLocalLeads(null);
     setPendingDrag(null);
   }
-
-  const defaultSlug = STAGES[0].id;
-
-  // Resolve a lead's stored current_stage_id to a column slug. Real Supabase leads
-  // store a UUID FK; if that UUID is in slugById, map it to its slug. Demo leads (and
-  // any value that isn't a known UUID) are already slugs, so use them as-is.
-  // Null stages fall into the first column so they're always visible.
-  const stageSlugOf = (currentStageId: string | null | undefined): string => {
-    if (!currentStageId) return defaultSlug;
-    return slugById[currentStageId] ?? currentStageId;
-  };
 
   // Backfill leads that have null current_stage_id (created before stage
   // assignment was added). Runs once when stages and leads are both loaded.
