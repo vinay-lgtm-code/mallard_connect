@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "security:service-role-scope": "node scripts/check-service-role-tenant-scope.mjs"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^17.0.0",

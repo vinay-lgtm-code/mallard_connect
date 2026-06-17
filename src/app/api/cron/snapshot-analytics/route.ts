@@ -7,6 +7,7 @@ import {
   trailingMonths,
   type SnapshotLead,
 } from "@/lib/analytics/compute";
+import { requireCronAuth } from "@/lib/cron/auth";
 
 // Nightly analytics snapshots.
 //
@@ -14,8 +15,8 @@ import {
 //   - daily   '0 3 * * *'   -> ?period=current   (rolling current-month-to-date)
 //   - monthly '0 2 1 * *'   -> ?period=previous   (finalize the month that just ended)
 //
-// Auth mirrors run-cadences: CRON_SECRET bearer token required in production,
-// and enforced in any environment where CRON_SECRET is set.
+// CRON_SECRET bearer token is required in production and enforced in any
+// environment where CRON_SECRET is set.
 
 const TENANT_PAGE_SIZE = 1000;
 const LEAD_PAGE_SIZE = 1000;
@@ -23,21 +24,9 @@ const LEAD_PAGE_SIZE = 1000;
 // snapshot row exists yet (so /reports has history going forward).
 const BACKFILL_MONTHS = 6;
 
-function authorized(request: NextRequest): boolean {
-  const auth = request.headers.get("authorization");
-  if (process.env.NODE_ENV === "production") {
-    return !!process.env.CRON_SECRET && auth === `Bearer ${process.env.CRON_SECRET}`;
-  }
-  if (process.env.CRON_SECRET) {
-    return auth === `Bearer ${process.env.CRON_SECRET}`;
-  }
-  return true;
-}
-
 export async function GET(request: NextRequest) {
-  if (!authorized(request)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const periodParam = request.nextUrl.searchParams.get("period") === "previous" ? "previous" : "current";
   const now = new Date();

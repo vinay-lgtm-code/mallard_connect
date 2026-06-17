@@ -83,6 +83,7 @@ export async function runDueCadenceSteps(): Promise<{
           .from("users")
           .select("full_name")
           .eq("id", lead.assigned_to)
+          .eq("tenant_id", tenant_id)
           .single();
         adviserName = adviser?.full_name ?? "";
       }

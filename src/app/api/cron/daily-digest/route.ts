@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendDailyDigestEmail } from "@/lib/email/client";
+import { requireCronAuth } from "@/lib/cron/auth";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
@@ -42,18 +43,8 @@ function getSourceLabel(source: LeadSourceRelation): string {
 }
 
 export async function GET(request: NextRequest) {
-  // ── Auth ─────────────────────────────────────────────────────────────
-  if (process.env.NODE_ENV === "production") {
-    const auth = request.headers.get("authorization");
-    if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  } else if (process.env.CRON_SECRET) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabase = createServiceClient();
   const now = new Date();
@@ -142,6 +133,7 @@ export async function GET(request: NextRequest) {
         const { data: leads } = await supabase
           .from("leads")
           .select("id, first_name, last_name, phone, mortgage_type, source_id, lead_sources(name, slug)")
+          .eq("tenant_id", user.tenant_id)
           .in("id", Array.from(allTaskLeadIds));
 
         for (const l of leads ?? []) {
