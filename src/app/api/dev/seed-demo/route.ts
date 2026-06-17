@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { appToRow } from "@/lib/supabase/mappers";
 import { seedTenantCadencesAndTemplates } from "@/lib/cadences/seed-tenant";
+import { requireCronAuth } from "@/lib/cron/auth";
 import * as mallard from "@/lib/mock-data/mallard";
 import * as friendsCapital from "@/lib/mock-data/friends-capital";
 import * as acme from "@/lib/mock-data/acme";
@@ -21,12 +22,8 @@ const SEEDS = {
 type Slug = keyof typeof SEEDS;
 
 export async function POST(request: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
-    const auth = request.headers.get("authorization");
-    if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const url = new URL(request.url);
   const slugParam = url.searchParams.get("slug");
