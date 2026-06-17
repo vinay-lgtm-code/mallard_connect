@@ -6,6 +6,7 @@ import { useTodayTasks, useOverdueTasks } from "@/hooks/use-tasks";
 import { useWeeklyActivitySummary } from "@/hooks/use-weekly-activity-summary";
 import { formatDistanceToNow } from "date-fns";
 import { getInitials } from "@/lib/utils";
+import { hasCapability } from "@/lib/auth/roles";
 import type { Activity, User } from "@/types";
 
 interface KpiCardProps {
@@ -375,7 +376,7 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  const isManager = user.role === "admin" || user.role === "manager";
+  const isManager = hasCapability(user.role, "viewAllPipeline");
 
   return isManager ? (
     <ManagerDashboard userId={user.id} />

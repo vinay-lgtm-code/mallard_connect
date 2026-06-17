@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { seedTenantCadencesAndTemplates } from "@/lib/cadences/seed-tenant";
+import {
+  findActiveProvisionByEmail,
+  findProvisionByClaimToken,
+  isProvisionedPocEmail,
+} from "@/lib/provisioning/organization-provisions";
 
 const DEFAULT_STAGES = [
   { name: "New Enquiry", slug: "new_enquiry", position: 0, color: "#6366f1", is_terminal: false },
@@ -22,11 +27,11 @@ const DEFAULT_SOURCES = [
 
 export async function POST(request: NextRequest) {
   let body: {
-    uid?: string;
     firmName?: string;
     slug?: string;
     primaryColor?: string;
     seatLimit?: number;
+    claimToken?: string;
   };
   try {
     body = await request.json();
@@ -34,15 +39,36 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { uid, firmName, slug, primaryColor, seatLimit } = body;
-  if (!uid || !firmName || !slug) {
-    return NextResponse.json({ error: "uid, firmName, slug are required" }, { status: 400 });
+  const { firmName, slug, primaryColor, seatLimit, claimToken } = body;
+  if (!firmName || !slug) {
+    return NextResponse.json({ error: "firmName and slug are required" }, { status: 400 });
   }
   if (!/^[a-z0-9-]+$/.test(slug)) {
     return NextResponse.json({ error: "Slug must be lowercase alphanumeric with dashes" }, { status: 400 });
   }
 
   const supabase = createServiceClient();
+  const authHeader = request.headers.get("authorization");
+  const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
+  if (!token) {
+    return NextResponse.json({ error: "Missing token" }, { status: 401 });
+  }
+
+  const { data: { user: authUser }, error: authError } = await supabase.auth.getUser(token);
+  if (authError || !authUser?.email) {
+    return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+  }
+
+  const provision = claimToken
+    ? await findProvisionByClaimToken(supabase, claimToken)
+    : await findActiveProvisionByEmail(supabase, authUser.email);
+
+  if (!provision || provision.status !== "provisioned" || !isProvisionedPocEmail(provision, authUser.email)) {
+    return NextResponse.json(
+      { error: "This workspace can only be created by the provisioned organization contact." },
+      { status: 403 },
+    );
+  }
 
   const { data: existingTenant } = await supabase
     .from("tenants")
@@ -73,17 +99,35 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  await supabase.auth.admin.updateUserById(uid, {
+  const { data: claimedProvision, error: claimErr } = await supabase
+    .from("organization_provisions")
+    .update({
+      tenant_id: tenant.id,
+      status: "claimed",
+      claimed_at: new Date().toISOString(),
+      updated_by_email: authUser.email,
+    })
+    .eq("id", provision.id)
+    .eq("status", "provisioned")
+    .is("tenant_id", null)
+    .select("id")
+    .maybeSingle();
+
+  if (claimErr || !claimedProvision) {
+    await supabase.from("tenants").delete().eq("id", tenant.id);
+    return NextResponse.json(
+      { error: claimErr?.message ?? "This organization has already been claimed" },
+      { status: 409 },
+    );
+  }
+
+  await supabase.auth.admin.updateUserById(authUser.id, {
     app_metadata: { role: "manager", tenant_id: tenant.id },
   });
 
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.admin.getUserById(uid);
-
   await supabase.from("users").upsert(
     {
-      id: uid,
+      id: authUser.id,
       tenant_id: tenant.id,
       email: authUser?.email ?? "",
       full_name: (authUser?.user_metadata?.full_name as string) ?? "",

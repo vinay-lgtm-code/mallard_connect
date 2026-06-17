@@ -10,6 +10,7 @@ import { ExportButton } from "@/components/export-button";
 import type { Lead, User } from "@/types";
 import { periodMonthFor, monthBoundsUTC } from "@/lib/analytics/compute";
 import { isDemoUser } from "@/lib/mock-data";
+import { hasCapability } from "@/lib/auth/roles";
 import { TrendingUp, Users, Clock, Target } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -357,7 +358,7 @@ export default function ReportsPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
-    if (!loading && user && user.role === "advisor") router.push("/dashboard");
+    if (!loading && user && !hasCapability(user.role, "viewReports")) router.push("/dashboard");
   }, [user, loading, router]);
 
   useEffect(() => {
@@ -571,7 +572,7 @@ export default function ReportsPage() {
     );
   }
 
-  if (user.role === "advisor") return null;
+  if (!hasCapability(user.role, "viewReports")) return null;
 
   const isLoading = leadsLoading || usersLoading || stagesLoading;
   const sourceEntries = Object.entries(stats.leadsBySource).sort((a, b) => b[1] - a[1]);

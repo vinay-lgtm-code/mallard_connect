@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { readOnboarding, writeOnboarding, clearOnboarding } from "@/lib/onboarding/state";
+import { readOnboarding, writeOnboarding } from "@/lib/onboarding/state";
 import { clearDemoUser } from "@/hooks/useAuth";
 
 const COLORS = ["#1A5653", "#0F172A", "#7C3AED", "#0369A1", "#B45309", "#BE185D"];
@@ -129,6 +129,8 @@ function LinkExpiredError() {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const claimToken = searchParams.get("claim") ?? undefined;
   const [firmName, setFirmName] = useState("");
   const [slug, setSlug] = useState("");
   const [primaryColor, setPrimaryColor] = useState(COLORS[0]);
@@ -172,20 +174,26 @@ export default function OnboardingPage() {
       const {
         data: { user },
       } = await supabase.auth.getUser();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-      if (!user) {
+      if (!user || !session?.access_token) {
         router.push("/login");
         return;
       }
 
       const res = await fetch("/api/onboarding/provision", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${session.access_token}`,
+        },
         body: JSON.stringify({
-          uid: user.id,
           firmName,
           slug,
           primaryColor,
+          claimToken,
         }),
       });
 
@@ -201,8 +209,7 @@ export default function OnboardingPage() {
 
       await supabase.auth.refreshSession();
       clearDemoUser();
-      clearOnboarding();
-      router.push("/dashboard");
+      router.push("/onboarding/invite");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {

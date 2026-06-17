@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeads, useTenantUsers } from "@/hooks/use-leads";
 import { formatCurrency } from "@/lib/utils";
+import { hasCapability } from "@/lib/auth/roles";
 import type { Lead, User } from "@/types";
 import { Wallet, Scale, Target, CalendarClock } from "lucide-react";
 
@@ -243,7 +244,7 @@ export default function ForecastPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
-    if (!loading && user && user.role === "advisor") router.push("/dashboard");
+    if (!loading && user && !hasCapability(user.role, "viewForecast")) router.push("/dashboard");
   }, [user, loading, router]);
 
   const forecast = useMemo(() => {
@@ -363,7 +364,7 @@ export default function ForecastPage() {
     );
   }
 
-  if (user.role === "advisor") return null;
+  if (!hasCapability(user.role, "viewForecast")) return null;
 
   const isLoading = leadsLoading || usersLoading;
   const maxWeighted = Math.max(...forecast.monthRows.map((r) => r.weighted), 0);

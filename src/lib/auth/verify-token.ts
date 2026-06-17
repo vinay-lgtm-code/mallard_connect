@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { hasCapability, type RoleCapability } from "@/lib/auth/roles";
+import type { UserRole } from "@/types";
 
 export interface AuthResult {
   uid: string;
@@ -14,7 +16,8 @@ type VerifyFailure = { ok: false; status: 401 | 403; error: string };
 type VerifyResult = VerifySuccess | VerifyFailure;
 
 interface VerifyOptions {
-  requireRole?: ("admin" | "manager")[];
+  requireRole?: UserRole[];
+  requireCapability?: RoleCapability;
 }
 
 export async function verifyToken(
@@ -45,7 +48,11 @@ export async function verifyToken(
     email: (profile.email as string) ?? "",
   };
 
-  if (options?.requireRole && !options.requireRole.includes(auth.role as "admin" | "manager")) {
+  if (options?.requireRole && !options.requireRole.includes(auth.role as UserRole)) {
+    return { ok: false, status: 403, error: "Forbidden" };
+  }
+
+  if (options?.requireCapability && !hasCapability(auth.role, options.requireCapability)) {
     return { ok: false, status: 403, error: "Forbidden" };
   }
 

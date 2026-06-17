@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/server";
 import { sendOAuthWelcomeEmail } from "@/lib/email/client";
+import {
+  findActiveProvisionByEmail,
+  isProvisionedPocEmail,
+} from "@/lib/provisioning/organization-provisions";
 
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
@@ -18,8 +23,23 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(new URL("/dashboard", origin));
       }
 
+      if (!user?.email) {
+        return NextResponse.redirect(new URL("/login?error=auth_callback_failed", origin));
+      }
+
+      const serviceSupabase = createServiceClient();
+      const provision = await findActiveProvisionByEmail(serviceSupabase, user.email).catch((err) => {
+        console.error("[auth/callback] provision lookup failed:", err);
+        return null;
+      });
+
+      if (!provision || provision.status !== "provisioned" || !isProvisionedPocEmail(provision, user.email)) {
+        await supabase.auth.signOut();
+        return NextResponse.redirect(new URL("/signup?error=invite_required", origin));
+      }
+
       // First-time OAuth signup — send welcome email (non-blocking)
-      if (user?.email && user.created_at) {
+      if (user.email && user.created_at) {
         const ageMs = Date.now() - new Date(user.created_at).getTime();
         if (ageMs < 2 * 60 * 1000) {
           const fullName = user.user_metadata?.full_name ?? user.user_metadata?.name ?? "";
