@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, ChevronLeft, X, Plus } from "lucide-react";
+import { ChevronRight, ChevronLeft, X, Plus, ShieldCheck, UsersRound } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { roleLabel } from "@/lib/auth/roles";
 import {
   readOnboarding,
   writeOnboarding,
@@ -14,6 +15,11 @@ import {
 } from "@/lib/onboarding/state";
 
 const MAX_INVITES = 20;
+
+const ROLE_HELP: Record<OnboardingInviteRole, string> = {
+  advisor: "Works their own leads and pipeline.",
+  manager: "Manages team, pipeline, forecasts, and reports.",
+};
 
 function fallbackName(email: string): string {
   return email.split("@")[0]?.replace(/[._-]+/g, " ") || email;
@@ -160,26 +166,33 @@ export default function OnboardingInvitePage() {
         </div>
       )}
 
-      <div className="mb-6 rounded-lg border border-gray-100 p-4">
-        <h2 className="text-sm font-bold text-gray-900">Case Manager</h2>
-        <p className="mt-1 text-xs text-gray-500">
-          Optional. Case Managers can add and allocate leads and view everyone's pipeline, but cannot access Reports or Forecast.
-        </p>
-        <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2">
-          <input
-            type="text"
-            value={caseManager.fullName}
-            onChange={(e) => setCaseManager((prev) => ({ ...prev, fullName: e.target.value }))}
-            placeholder="Full name"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <input
-            type="email"
-            value={caseManager.email}
-            onChange={(e) => setCaseManager((prev) => ({ ...prev, email: e.target.value }))}
-            placeholder="case.manager@firm.co.uk"
-            className="border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
+      <div className="mb-6 rounded-lg border border-teal-100 bg-teal-50/50 p-4">
+        <div className="flex items-start gap-3">
+          <div className="mt-0.5 flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-teal-100 text-teal-700">
+            <ShieldCheck size={17} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-gray-900">Case Manager</h2>
+            <p className="mt-1 text-xs leading-5 text-gray-600">
+              Optional. Case Managers can add and allocate leads and view everyone's pipeline, but cannot access Reports or Forecast.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2">
+              <input
+                type="text"
+                value={caseManager.fullName}
+                onChange={(e) => setCaseManager((prev) => ({ ...prev, fullName: e.target.value }))}
+                placeholder="Full name"
+                className="border border-teal-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <input
+                type="email"
+                value={caseManager.email}
+                onChange={(e) => setCaseManager((prev) => ({ ...prev, email: e.target.value }))}
+                placeholder="case.manager@firm.co.uk"
+                className="border border-teal-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+          </div>
         </div>
       </div>
 
@@ -190,7 +203,7 @@ export default function OnboardingInvitePage() {
               <div>
                 <p className="text-sm font-medium text-gray-900">{inv.fullName}</p>
                 <p className="text-xs text-gray-500">
-                  {inv.email} · {inv.role === "advisor" ? "Advisor" : "Manager"}
+                  {inv.email} · {roleLabel(inv.role)}
                 </p>
               </div>
               <button
@@ -208,6 +221,10 @@ export default function OnboardingInvitePage() {
 
       {invites.length < MAX_INVITES && (
         <div className="rounded-lg border border-dashed border-gray-200 p-4 mb-5">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
+            <UsersRound size={16} className="text-gray-400" />
+            Team invitations
+          </div>
           <div className="grid grid-cols-12 gap-2.5">
             <input
               type="email"
@@ -226,7 +243,7 @@ export default function OnboardingInvitePage() {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as OnboardingInviteRole)}
-              className="col-span-10 md:col-span-2 border border-gray-200 rounded-lg px-2 py-2 text-sm"
+              className="col-span-10 md:col-span-2 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
             >
               <option value="advisor">Advisor</option>
               <option value="manager">Manager</option>
@@ -243,6 +260,7 @@ export default function OnboardingInvitePage() {
           <p className="mt-2 text-xs text-gray-400">
             {MAX_INVITES - invites.length} invite{invites.length === MAX_INVITES - 1 ? "" : "s"} remaining.
           </p>
+          <p className="mt-1 text-xs text-gray-500">{ROLE_HELP[role]}</p>
         </div>
       )}
 

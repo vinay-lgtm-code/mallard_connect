@@ -13,7 +13,6 @@ export default function SignUpPage() {
     ? "Sequence access is invite-only. Use your organization invite or ask your manager for access."
     : null;
   const [fullName, setFullName] = useState("");
-  const [organisation, setOrganisation] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -41,7 +40,7 @@ export default function SignUpPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, fullName, organisation, claimToken }),
+        body: JSON.stringify({ email, password, fullName, claimToken }),
       });
 
       const data = await res.json();
@@ -101,7 +100,7 @@ export default function SignUpPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
           <p className="text-sm text-gray-500 mt-1">
-            Use your organization invite to join Sequence.
+            Use your organization invite to create your Sequence login.
           </p>
         </div>
 
@@ -124,21 +123,6 @@ export default function SignUpPage() {
               autoComplete="name"
               className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Jane Smith"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Organisation
-            </label>
-            <input
-              type="text"
-              value={organisation}
-              onChange={(e) => setOrganisation(e.target.value)}
-              required
-              autoComplete="organization"
-              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Acme Mortgages"
             />
           </div>
 

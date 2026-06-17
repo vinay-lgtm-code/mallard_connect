@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
-import { hasCapability, type RoleCapability } from "@/lib/auth/roles";
+import { hasCapability, roleLabel, type RoleCapability } from "@/lib/auth/roles";
 import { NotificationDropdown } from "@/components/notifications";
 import { DemoBanner } from "@/components/tenant/tenant-switcher";
 import { IdleTimeoutModal } from "@/components/idle-timeout-modal";
@@ -159,7 +159,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="min-w-0">
               <p className="text-white text-sm font-medium truncate">{user.fullName}</p>
-              <p className="text-white/50 text-xs capitalize">{user.role}</p>
+              <p className="text-white/50 text-xs">{roleLabel(user.role)}</p>
             </div>
           </div>
         </div>

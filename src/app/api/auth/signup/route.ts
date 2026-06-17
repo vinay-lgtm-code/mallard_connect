@@ -43,14 +43,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
-  let body: { email?: string; password?: string; fullName?: string; organisation?: string; claimToken?: string };
+  let body: { email?: string; password?: string; fullName?: string; claimToken?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { email, password, fullName, organisation, claimToken } = body;
+  const { email, password, fullName, claimToken } = body;
   if (!email || !password || !fullName) {
     return NextResponse.json({ error: "email, password, and fullName are required" }, { status: 400 });
   }
@@ -93,7 +93,6 @@ export async function POST(request: NextRequest) {
     options: {
       data: {
         full_name: fullName,
-        organisation,
         organization_provision_id: provision.id,
       },
       redirectTo: claimToken
