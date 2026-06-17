@@ -3,15 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { hasCapability } from "@/lib/auth/roles";
 
 const ROLE_OPTIONS = [
-  { value: "advisor", label: "Advisor" },
-  { value: "case_manager", label: "Case Manager" },
-  { value: "manager", label: "Manager" },
+  { value: "advisor", label: "Advisor", description: "Works their own leads and pipeline." },
+  { value: "case_manager", label: "Case Manager", description: "Can add and allocate leads and view everyone's pipeline. No Reports or Forecast access." },
+  { value: "manager", label: "Manager", description: "Manages team, pipeline, forecasts, reports, and settings." },
 ];
 
 export default function InviteTeamMemberPage() {
@@ -32,6 +32,7 @@ export default function InviteTeamMemberPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const selectedRole = ROLE_OPTIONS.find((r) => r.value === form.role) ?? ROLE_OPTIONS[0];
 
   if (!user || !hasCapability(user.role, "manageTeam")) return null;
 
@@ -166,6 +167,13 @@ export default function InviteTeamMemberPage() {
                 <option key={r.value} value={r.value}>{r.label}</option>
               ))}
             </select>
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-gray-400" />
+              <span>
+                <strong className="text-gray-900">{selectedRole.label}:</strong>{" "}
+                {selectedRole.description}
+              </span>
+            </div>
           </div>
 
           {error && (
