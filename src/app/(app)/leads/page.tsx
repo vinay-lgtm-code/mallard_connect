@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser } from "@/lib/mock-data";
 import { formatRelativeDate } from "@/lib/utils";
+import { hasCapability } from "@/lib/auth/roles";
 import type { LeadStatus, Readiness } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
@@ -95,7 +96,7 @@ export default function LeadsPage() {
       });
   }, [demo, supabase, user?.tenantId]);
 
-  const isManager = user?.role === "admin" || user?.role === "manager";
+  const canViewAllPipeline = hasCapability(user?.role, "viewAllPipeline");
 
   const resolvedStageId = stageFilter ? slugToId[stageFilter] || stageFilter : undefined;
   const { leads, loading } = useLeads({
@@ -174,7 +175,7 @@ export default function LeadsPage() {
             ))}
           </select>
 
-          {isManager && (
+          {canViewAllPipeline && (
             <select
               value={assignedFilter}
               onChange={(e) => setAssignedFilter(e.target.value)}
@@ -218,7 +219,7 @@ export default function LeadsPage() {
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stage</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Readiness</th>
-                  {isManager && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned</th>}
+                  {canViewAllPipeline && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned</th>}
                   <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Updated</th>
                 </tr>
               </thead>
@@ -250,7 +251,7 @@ export default function LeadsPage() {
                       <td className="px-5 py-3.5 text-gray-600">
                         {lead.readiness ? READINESS_LABELS[lead.readiness] : "—"}
                       </td>
-                      {isManager && (
+                      {canViewAllPipeline && (
                         <td className="px-5 py-3.5 text-gray-600">
                           {userMap[lead.assignedTo] ?? lead.assignedTo ?? "—"}
                         </td>

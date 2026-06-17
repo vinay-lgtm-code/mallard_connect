@@ -407,12 +407,11 @@ interface SendTeamInviteParams {
   to: string;
   fullName: string;
   role: string;
-  tempPassword: string;
-  loginUrl: string;
+  inviteUrl: string;
 }
 
 function formatLabel(slug: string): string {
-  return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function infoRow(label: string, value: string) {
@@ -423,22 +422,18 @@ export async function sendTeamInviteEmail({
   to,
   fullName,
   role,
-  tempPassword,
-  loginUrl,
+  inviteUrl,
 }: SendTeamInviteParams) {
   const body = `
     <p style="margin:0 0 16px;color:#374151;font-size:15px;">
-      Welcome, <strong>${esc(fullName)}</strong>! You've been added to Sequence as a <strong>${esc(formatLabel(role))}</strong>.
+      Welcome, <strong>${esc(fullName)}</strong>! You've been invited to Sequence as a <strong>${esc(formatLabel(role))}</strong>.
     </p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
-      <tr><td style="padding:20px;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          ${infoRow("Email", esc(to))}
-          ${infoRow("Temporary Password", `<code style="background:#e5e7eb;padding:2px 8px;border-radius:4px;font-size:14px;">${esc(tempPassword)}</code>`)}
-        </table>
-      </td></tr>
-    </table>
-    <p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Please change your password after your first login.</p>`;
+    <p style="margin:0;color:#6b7280;font-size:14px;">
+      Use this invitation to set your password and join your team's workspace.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:16px;">${infoRow("Email", esc(to))}</td></tr>
+    </table>`;
 
   return getResend().emails.send({
     from: FROM(),
@@ -448,8 +443,45 @@ export async function sendTeamInviteEmail({
       preheader: "You've been added to Sequence — log in to get started",
       heading: "Welcome to Sequence",
       body,
-      ctaLabel: "Log In to Sequence",
-      ctaUrl: loginUrl,
+      ctaLabel: "Accept Invitation",
+      ctaUrl: inviteUrl,
+    }),
+  });
+}
+
+// ── Organization provisioning invite (sent to Org PoC) ─────────────────
+
+interface SendOrgProvisionInviteParams {
+  to: string;
+  fullName: string;
+  companyName: string;
+  claimUrl: string;
+}
+
+export async function sendOrgProvisionInviteEmail({
+  to,
+  fullName,
+  companyName,
+  claimUrl,
+}: SendOrgProvisionInviteParams) {
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Hi <strong>${esc(fullName)}</strong>, your Sequence workspace for <strong>${esc(companyName)}</strong> is ready to set up.
+    </p>
+    <p style="margin:0;color:#6b7280;font-size:14px;">
+      Use this link to create your account, confirm your workspace URL, and invite your team.
+    </p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: "Your Sequence workspace is ready",
+    html: brandedHtml({
+      preheader: "Create your Sequence account and set up your workspace",
+      heading: "Set up your Sequence workspace",
+      body,
+      ctaLabel: "Set Up Workspace",
+      ctaUrl: claimUrl,
     }),
   });
 }

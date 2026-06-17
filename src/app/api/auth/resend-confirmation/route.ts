@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendSignupConfirmationEmail } from "@/lib/email/client";
+import { normalizeEmail } from "@/lib/provisioning/domains";
+import {
+  findActiveProvisionByEmail,
+  isProvisionedPocEmail,
+} from "@/lib/provisioning/organization-provisions";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
@@ -48,14 +53,22 @@ export async function POST(request: NextRequest) {
   if (!email) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
+  const normalizedEmail = normalizeEmail(email);
 
   const supabase = createServiceClient();
+  const provision = await findActiveProvisionByEmail(supabase, normalizedEmail).catch((error) => {
+    console.error("[resend-confirmation] provision lookup error:", error);
+    return null;
+  });
+  if (!provision || provision.status !== "provisioned" || !isProvisionedPocEmail(provision, normalizedEmail)) {
+    return NextResponse.json({ sent: true });
+  }
 
   // Look up user by email to get their name for the email template.
   // Always return success to prevent email enumeration.
   const { data: userData } = await supabase.auth.admin.listUsers();
   const existingUser = userData?.users?.find(
-    (u) => u.email === email && !u.email_confirmed_at
+    (u) => u.email === normalizedEmail && !u.email_confirmed_at
   );
 
   if (!existingUser) {
@@ -64,12 +77,12 @@ export async function POST(request: NextRequest) {
 
   const fullName =
     (existingUser.user_metadata?.full_name as string) ??
-    email.split("@")[0];
+    normalizedEmail.split("@")[0];
 
   const { data: linkData, error: linkErr } =
     await supabase.auth.admin.generateLink({
       type: "signup",
-      email,
+      email: normalizedEmail,
       password: undefined as unknown as string,
       options: {
         data: existingUser.user_metadata,
@@ -89,7 +102,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    await sendSignupConfirmationEmail({ to: email, fullName, confirmUrl });
+    await sendSignupConfirmationEmail({ to: normalizedEmail, fullName, confirmUrl });
   } catch (err) {
     console.error(
       "[resend-confirmation] Email send failed:",

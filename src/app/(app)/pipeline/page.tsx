@@ -14,6 +14,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { getInitials, formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { isDemoUser } from "@/lib/mock-data";
+import { hasCapability } from "@/lib/auth/roles";
 import {
   daysInStage,
   ragStatus,
@@ -213,8 +214,8 @@ export default function PipelinePage() {
   const demo = user ? isDemoUser(user.id) : false;
   const { leads: firestoreLeads, loading } = useLeads();
   const { users } = useTenantUsers();
-  const isManager = user?.role === "admin" || user?.role === "manager";
-  // Adviser filter (manager/admin only) — "" means All advisers
+  const canViewAllPipeline = hasCapability(user?.role, "viewAllPipeline");
+  // Adviser filter (all-pipeline roles only) — "" means All advisers
   const [adviserFilter, setAdviserFilter] = useState("");
 
   // Map of adviser id -> display name, used to render assigned-adviser initials on cards.
@@ -278,9 +279,9 @@ export default function PipelinePage() {
   // visibleLeads = what the board renders. Filter only applies for managers with a
   // selection; a stale filter can never hide leads for a non-manager.
   const visibleLeads = useMemo(() => {
-    if (!isManager || !adviserFilter) return leads;
+    if (!canViewAllPipeline || !adviserFilter) return leads;
     return leads.filter((l) => l.assignedTo === adviserFilter);
-  }, [leads, isManager, adviserFilter]);
+  }, [leads, canViewAllPipeline, adviserFilter]);
 
   // Sync local state when Firestore updates (but not during a pending drag)
   if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
@@ -483,7 +484,7 @@ export default function PipelinePage() {
 
       {/* Desktop Kanban */}
       <div className="hidden md:flex md:flex-col h-full">
-        {isManager && (
+        {canViewAllPipeline && (
           <div className="flex items-center justify-end gap-2 px-4 pt-4">
             <label htmlFor="adviser-filter" className="text-sm font-medium text-gray-600">
               Adviser

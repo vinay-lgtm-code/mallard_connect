@@ -22,7 +22,7 @@ const cache = new Map<string, { timestamp: number; data: ReportData }>();
 const CACHE_TTL_MS = 5 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
-  const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
+  const result = await verifyToken(request, { requireCapability: "viewReports" });
   if (!result.ok) return authError(result);
   const { auth } = result;
 

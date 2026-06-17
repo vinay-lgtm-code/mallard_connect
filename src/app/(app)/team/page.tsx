@@ -8,11 +8,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useTenantUsers } from "@/hooks/use-leads";
 import { useLeads } from "@/hooks/use-leads";
 import { getInitials } from "@/lib/utils";
+import { hasCapability, roleLabel } from "@/lib/auth/roles";
 import type { User, UserRole } from "@/types";
 
 const ROLE_STYLES: Record<UserRole, string> = {
   admin: "bg-purple-100 text-purple-700",
   manager: "bg-blue-100 text-blue-700",
+  case_manager: "bg-teal-100 text-teal-700",
   advisor: "bg-gray-100 text-gray-600",
 };
 
@@ -21,7 +23,7 @@ export default function TeamPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user && user.role === "advisor") {
+    if (user && !hasCapability(user.role, "manageTeam")) {
       router.replace("/dashboard");
     }
   }, [user, router]);
@@ -39,7 +41,7 @@ export default function TeamPage() {
     return map;
   }, [leads]);
 
-  if (!user || user.role === "advisor") return null;
+  if (!user || !hasCapability(user.role, "manageTeam")) return null;
 
   const loading = usersLoading || leadsLoading;
 
@@ -85,8 +87,8 @@ export default function TeamPage() {
                     <p className="font-semibold text-gray-900 truncate">{member.fullName}</p>
                     <p className="text-xs text-gray-500 truncate mt-0.5">{member.email}</p>
                     <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full capitalize ${ROLE_STYLES[member.role]}`}>
-                        {member.role}
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${ROLE_STYLES[member.role]}`}>
+                        {roleLabel(member.role)}
                       </span>
                       <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${member.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                         {member.isActive ? "Active" : "Inactive"}

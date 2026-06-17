@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
+import { hasCapability, type RoleCapability } from "@/lib/auth/roles";
 import { NotificationDropdown } from "@/components/notifications";
 import { DemoBanner } from "@/components/tenant/tenant-switcher";
 import { IdleTimeoutModal } from "@/components/idle-timeout-modal";
@@ -27,17 +28,23 @@ import { createClient } from "@/lib/supabase/client";
 import { useState } from "react";
 
 const NAV_ITEMS = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard, adminOnly: false },
-  { href: "/pipeline", label: "Pipeline", icon: GitBranch, adminOnly: false },
-  { href: "/leads", label: "Leads", icon: Users, adminOnly: false },
-  { href: "/cadences", label: "Cadences", icon: Zap, adminOnly: false, comingSoon: true },
-  { href: "/templates", label: "Templates", icon: FileText, adminOnly: true, comingSoon: true },
-  { href: "/team", label: "Team", icon: UserPlus, adminOnly: true },
-  { href: "/reports", label: "Reports", icon: BarChart3, adminOnly: true },
-  { href: "/reports/forecast", label: "Forecast", icon: TrendingUp, adminOnly: true },
-  { href: "/import", label: "Import", icon: Upload, adminOnly: true },
-  { href: "/settings", label: "Settings", icon: Settings, adminOnly: false },
-];
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/pipeline", label: "Pipeline", icon: GitBranch },
+  { href: "/leads", label: "Leads", icon: Users },
+  { href: "/cadences", label: "Cadences", icon: Zap, comingSoon: true },
+  { href: "/templates", label: "Templates", icon: FileText, capability: "manageTemplates", comingSoon: true },
+  { href: "/team", label: "Team", icon: UserPlus, capability: "manageTeam" },
+  { href: "/reports", label: "Reports", icon: BarChart3, capability: "viewReports" },
+  { href: "/reports/forecast", label: "Forecast", icon: TrendingUp, capability: "viewForecast" },
+  { href: "/import", label: "Import", icon: Upload, capability: "importLeads" },
+  { href: "/settings", label: "Settings", icon: Settings },
+] satisfies {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+  capability?: RoleCapability;
+  comingSoon?: boolean;
+}[];
 
 // Order matters: more specific prefixes must come before their parents so the
 // startsWith lookup below resolves the correct title (e.g. /reports/forecast).
@@ -88,7 +95,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const visibleNavItems = NAV_ITEMS.filter(
-    (item) => !item.adminOnly || user.role === "admin" || user.role === "manager"
+    (item) => !item.capability || hasCapability(user.role, item.capability)
   );
 
   // Active nav = the longest href that prefixes the current path, so nested
