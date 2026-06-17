@@ -21,6 +21,7 @@ import {
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import { hasCapability, roleLabel, type RoleCapability } from "@/lib/auth/roles";
+import { isSequenceAdminEmail } from "@/lib/provisioning/domains";
 import { NotificationDropdown } from "@/components/notifications";
 import { DemoBanner } from "@/components/tenant/tenant-switcher";
 import { IdleTimeoutModal } from "@/components/idle-timeout-modal";
@@ -106,6 +107,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   const pageTitle =
     Object.entries(PAGE_TITLES).find(([key]) => pathname.startsWith(key))?.[1] ?? "Sequence";
+  const showAdminTools = isSequenceAdminEmail(user.email);
 
   async function handleSignOut() {
     if (getDemoUser()) {
@@ -202,6 +204,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   >
                     Settings
                   </Link>
+                  {showAdminTools && (
+                    <Link
+                      href="/admin/organizations"
+                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      onClick={() => setUserMenuOpen(false)}
+                    >
+                      Organization Provisioning
+                    </Link>
+                  )}
                   <button
                     onClick={handleSignOut}
                     className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-gray-50"
