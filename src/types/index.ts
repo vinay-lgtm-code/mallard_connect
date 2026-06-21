@@ -277,6 +277,25 @@ export interface Document {
   updatedAt: string;
 }
 
+// ===== Document Requests =====
+
+export type DocumentRequestStatus = "pending" | "completed" | "expired" | "cancelled";
+
+export interface DocumentRequest {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  requestedBy: string;
+  leadEmail: string;
+  requestedCategories: DocumentCategory[];
+  message: string | null;
+  status: DocumentRequestStatus;
+  expiresAt: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ImportRecord {
   id: string;
   uploadedBy: string;

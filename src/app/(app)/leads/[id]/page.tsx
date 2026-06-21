@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus, Pencil, X } from "lucide-react";
+import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus, Pencil, X, Send } from "lucide-react";
 import { format } from "date-fns";
 import { useLead, useLeadActivities, useLeadTasks, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
@@ -16,6 +16,7 @@ import { isCadencesTemplatesEnabled, isDocumentsEnabled } from "@/lib/feature-fl
 import { useLeadDocuments } from "@/hooks/use-documents";
 import { UploadDocument } from "@/components/documents/upload-document";
 import { DocumentList } from "@/components/documents/document-list";
+import { RequestDocumentsModal } from "@/components/documents/request-documents-modal";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType } from "@/types";
 
@@ -218,6 +219,7 @@ export default function LeadDetailPage() {
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
   const [showCadenceModal, setShowCadenceModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showRequestDocsModal, setShowRequestDocsModal] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState(false);
   const [followUpDateValue, setFollowUpDateValue] = useState("");
   const [savingFollowUp, setSavingFollowUp] = useState(false);
@@ -1094,10 +1096,23 @@ export default function LeadDetailPage() {
         {activeTab === "documents" && isDocumentsEnabled() && (
           <div className="space-y-4">
             {!demo && (
-              <UploadDocument
-                leadId={id}
-                onUploaded={() => { refetchDocuments(); refetchActivities(); }}
-              />
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <UploadDocument
+                    leadId={id}
+                    onUploaded={() => { refetchDocuments(); refetchActivities(); }}
+                  />
+                </div>
+                {lead.email && (
+                  <button
+                    onClick={() => setShowRequestDocsModal(true)}
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 hover:bg-primary-dark transition-colors"
+                  >
+                    <Send size={20} />
+                    <span className="text-xs font-semibold">Request from client</span>
+                  </button>
+                )}
+              </div>
             )}
             <DocumentList
               documents={documents}
@@ -1105,6 +1120,17 @@ export default function LeadDetailPage() {
               onDeleted={refetchDocuments}
             />
           </div>
+        )}
+
+        {showRequestDocsModal && lead && (
+          <RequestDocumentsModal
+            leadId={id}
+            leadEmail={lead.email}
+            leadFirstName={lead.firstName}
+            open={showRequestDocsModal}
+            onClose={() => setShowRequestDocsModal(false)}
+            onSent={() => { setShowRequestDocsModal(false); refetchActivities(); }}
+          />
         )}
       </div>
     </>
