@@ -12,7 +12,10 @@ import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
 import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
 import { EditableField } from "@/components/leads/editable-field";
 import { isDemoUser } from "@/lib/mock-data";
-import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
+import { isCadencesTemplatesEnabled, isDocumentsEnabled } from "@/lib/feature-flags";
+import { useLeadDocuments } from "@/hooks/use-documents";
+import { UploadDocument } from "@/components/documents/upload-document";
+import { DocumentList } from "@/components/documents/document-list";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType } from "@/types";
 
@@ -56,7 +59,7 @@ const ACTIVITY_LABEL: Record<ActivityType, string> = {
   "stage-change": "Stage change",
 };
 
-type Tab = "overview" | "activity" | "qualification" | "followups";
+type Tab = "overview" | "activity" | "qualification" | "followups" | "documents";
 
 type StageOption = {
   id: string;
@@ -203,6 +206,7 @@ export default function LeadDetailPage() {
   const { lead, loading, refetch: refetchLead } = useLead(id);
   const { activities, refetch: refetchActivities } = useLeadActivities(id);
   const { tasks, refetch: refetchTasks } = useLeadTasks(id);
+  const { documents, refetch: refetchDocuments } = useLeadDocuments(id);
   const supabase = useSupabase();
   const { users: tenantUsers } = useTenantUsers();
 
@@ -472,6 +476,7 @@ export default function LeadDetailPage() {
     { id: "activity", label: "Notes & Activity" },
     { id: "qualification", label: "Qualification" },
     { id: "followups", label: "Follow-ups" },
+    ...(isDocumentsEnabled() ? [{ id: "documents" as Tab, label: "Documents" }] : []),
   ];
 
   return (
@@ -1083,6 +1088,22 @@ export default function LeadDetailPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === "documents" && isDocumentsEnabled() && (
+          <div className="space-y-4">
+            {!demo && (
+              <UploadDocument
+                leadId={id}
+                onUploaded={() => { refetchDocuments(); refetchActivities(); }}
+              />
+            )}
+            <DocumentList
+              documents={documents}
+              users={tenantUsers}
+              onDeleted={refetchDocuments}
+            />
           </div>
         )}
       </div>
