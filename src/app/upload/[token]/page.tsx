@@ -11,7 +11,7 @@ interface RequestData {
   firmName: string;
   requestedCategories: DocumentCategory[];
   message: string | null;
-  uploadedDocuments: { id: string; category: string; file_name: string }[];
+  uploadedCategories: string[];
 }
 
 type UploadState = "idle" | "uploading" | "done" | "error";
@@ -39,8 +39,7 @@ export default function ClientUploadPage() {
       .then((d: RequestData | null) => {
         if (d) {
           setData(d);
-          const existing = new Set(d.uploadedDocuments.map((doc) => doc.category));
-          setUploadedCats(existing);
+          setUploadedCats(new Set(d.uploadedCategories));
         }
         setLoading(false);
       })

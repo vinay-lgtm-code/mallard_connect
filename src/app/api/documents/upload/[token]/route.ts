@@ -30,13 +30,17 @@ export async function GET(
   }
 
   const supabase = createServiceClient();
+  const requestedCats = req.requested_categories as string[];
   const { data: existingDocs } = await supabase
     .from("documents")
-    .select("id, category, file_name, file_size, created_at")
+    .select("category")
     .eq("lead_id", req.lead_id)
     .eq("tenant_id", req.tenant_id)
     .eq("is_archived", false)
-    .order("created_at", { ascending: false });
+    .in("category", requestedCats)
+    .gte("created_at", req.created_at);
+
+  const uploadedCategories = [...new Set((existingDocs ?? []).map((d) => d.category))];
 
   const lead = Array.isArray(req.leads) ? req.leads[0] : req.leads;
   const tenant = Array.isArray(req.tenants) ? req.tenants[0] : req.tenants;
@@ -46,7 +50,7 @@ export async function GET(
     firmName: tenant?.name ?? "Your adviser",
     requestedCategories: req.requested_categories,
     message: req.message,
-    uploadedDocuments: existingDocs ?? [],
+    uploadedCategories,
   });
 }
 
