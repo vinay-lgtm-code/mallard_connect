@@ -246,6 +246,37 @@ export interface NotificationPreferences {
   stageChanges: boolean;
 }
 
+// ===== Documents =====
+
+export type DocumentCategory =
+  | "proof_of_id"
+  | "proof_of_address"
+  | "bank_statement"
+  | "payslip"
+  | "tax_return"
+  | "credit_report"
+  | "valuation"
+  | "mortgage_offer"
+  | "dip"
+  | "insurance"
+  | "other";
+
+export interface Document {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  uploadedBy: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  storagePath: string;
+  category: DocumentCategory;
+  description: string | null;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ImportRecord {
   id: string;
   uploadedBy: string;
