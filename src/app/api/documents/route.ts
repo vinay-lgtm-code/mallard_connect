@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
+import path from "node:path";
 import { createServiceClient } from "@/lib/supabase/server";
 import { verifyToken, authError } from "@/lib/auth/verify-token";
 import { uploadDocumentSchema, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "@/schemas/document";
@@ -78,7 +79,8 @@ export async function POST(request: NextRequest) {
   }
 
   const docId = randomUUID();
-  const storagePath = `${auth.tenantId}/${parsed.data.leadId}/${docId}/${file.name}`;
+  const safeName = path.basename(file.name).replace(/[^A-Za-z0-9._-]/g, "_").slice(0, 200) || "file";
+  const storagePath = `${auth.tenantId}/${parsed.data.leadId}/${docId}/${safeName}`;
 
   const buffer = Buffer.from(await file.arrayBuffer());
   const { error: uploadError } = await supabase.storage
