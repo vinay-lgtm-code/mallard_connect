@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
+import { useTenantUsers } from "@/hooks/use-leads";
 import { isDemoUser } from "@/lib/mock-data";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
 
@@ -99,10 +100,16 @@ export default function NewLeadPage() {
   const router = useRouter();
   const { user } = useAuth();
   const supabase = useSupabase();
+  const { users: tenantUsers } = useTenantUsers();
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<FieldErrors>({});
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [assignedTo, setAssignedTo] = useState("");
+
+  const activeAdvisers = tenantUsers.filter(
+    (u) => u.isActive && (u.role === "advisor" || u.role === "admin" || u.role === "manager")
+  );
 
   const [form, setForm] = useState({
     firstName: "",
@@ -197,6 +204,7 @@ export default function NewLeadPage() {
         sourceId = sourceRow?.id ?? null;
       }
 
+      const effectiveAssignee = assignedTo || user.id;
       const { data: newLead, error: insertErr } = await supabase.from("leads").insert({
         tenant_id: user.tenantId,
         first_name: form.firstName,
@@ -209,7 +217,7 @@ export default function NewLeadPage() {
         status: "active",
         current_stage_id: firstStage?.id ?? null,
         current_stage_entered_at: new Date().toISOString(),
-        assigned_to: user.id,
+        assigned_to: effectiveAssignee,
         next_follow_up_date: form.followUpDate ? new Date(form.followUpDate).toISOString() : null,
         follow_up_reason: form.followUpReason || null,
         follow_up_notes: form.reminderNote || null,
@@ -224,7 +232,7 @@ export default function NewLeadPage() {
         await supabase.from("tasks").insert({
           tenant_id: user.tenantId,
           lead_id: newLead.id,
-          assigned_to: user.id,
+          assigned_to: effectiveAssignee,
           created_by: user.id,
           title: `Follow up: ${form.firstName} ${form.lastName}`,
           description: form.reminderNote || null,
@@ -325,6 +333,22 @@ export default function NewLeadPage() {
               error={errors.source}
               required
             />
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Assign to</label>
+              <select
+                value={assignedTo}
+                onChange={(e) => setAssignedTo(e.target.value)}
+                className="w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white border-gray-300"
+              >
+                <option value="">Me ({user?.fullName ?? "current user"})</option>
+                {activeAdvisers
+                  .filter((u) => u.id !== user?.id)
+                  .map((u) => (
+                    <option key={u.id} value={u.id}>{u.fullName} ({u.role})</option>
+                  ))}
+              </select>
+            </div>
 
             <SelectField
               label="Mortgage Type"
