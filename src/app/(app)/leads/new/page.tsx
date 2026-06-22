@@ -143,7 +143,7 @@ export default function NewLeadPage() {
       lastName: form.lastName,
       phone: form.phone,
       email: form.email || undefined,
-      source: form.source as CreateLeadInput["source"],
+      source: (form.source || undefined) as CreateLeadInput["source"],
       mortgageType: form.mortgageType as CreateLeadInput["mortgageType"] || undefined,
       readiness: form.readiness as CreateLeadInput["readiness"] || undefined,
       notes: form.notes || undefined,
@@ -331,7 +331,6 @@ export default function NewLeadPage() {
               options={SOURCE_OPTIONS}
               placeholder="Select source…"
               error={errors.source}
-              required
             />
 
             <div>
