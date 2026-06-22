@@ -3,6 +3,7 @@
 import { useState, useRef, type DragEvent, type ChangeEvent } from "react";
 import { Upload, X, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { DOCUMENT_CATEGORIES, CATEGORY_LABELS, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "@/schemas/document";
 import type { DocumentCategory } from "@/types";
 
@@ -21,6 +22,7 @@ function formatFileSize(bytes: number): string {
 
 export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [category, setCategory] = useState<DocumentCategory>("other");
@@ -68,12 +70,9 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
     setError(null);
 
     try {
-      const token = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("sb-"))
-        ?.split("=")
-        .slice(1)
-        .join("=");
+      const session = await supabase?.auth.getSession();
+      const token = session?.data?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
 
       const formData = new FormData();
       formData.append("file", file);
@@ -83,7 +82,7 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
 
       const res = await fetch("/api/documents", {
         method: "POST",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 

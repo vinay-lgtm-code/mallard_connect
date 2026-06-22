@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Send, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { DOCUMENT_CATEGORIES, CATEGORY_LABELS } from "@/schemas/document";
 import type { DocumentCategory } from "@/types";
 
@@ -32,6 +33,7 @@ export function RequestDocumentsModal({
   onSent,
 }: RequestDocumentsModalProps) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const [email, setEmail] = useState(leadEmail ?? "");
   const [selected, setSelected] = useState<Set<DocumentCategory>>(new Set(DEFAULT_CATEGORIES));
   const [message, setMessage] = useState("");
@@ -55,18 +57,15 @@ export function RequestDocumentsModal({
     setError(null);
 
     try {
-      const token = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("sb-"))
-        ?.split("=")
-        .slice(1)
-        .join("=");
+      const session = await supabase?.auth.getSession();
+      const token = session?.data?.session?.access_token;
+      if (!token) throw new Error("Not authenticated");
 
       const res = await fetch("/api/documents/request", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
           leadId,
