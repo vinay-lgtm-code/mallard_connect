@@ -17,7 +17,7 @@ export const createLeadSchema = z.object({
   lastName: z.string().min(1).max(100),
   email: z.string().email().optional(),
   phone: z.string().min(5),
-  source: z.enum(["website", "referral", "phone", "walk-in", "social", "mab-import", "other"]),
+  source: z.enum(["website", "referral", "phone", "walk-in", "social", "mab-import", "other"]).optional(),
   mortgageType: mortgageTypeEnum.optional(),
   readiness: z
     .enum(["ready-now", "1-3-months", "3-6-months", "6-12-months", "exploring"])
