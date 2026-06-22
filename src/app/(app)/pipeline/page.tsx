@@ -212,7 +212,7 @@ export default function PipelinePage() {
   const { user } = useAuth();
   const supabase = useSupabase();
   const demo = user ? isDemoUser(user.id) : false;
-  const { leads: firestoreLeads, loading } = useLeads();
+  const { leads: firestoreLeads, loading, refetch: refetchLeads } = useLeads();
   const { users } = useTenantUsers();
   const canViewAllPipeline = hasCapability(user?.role, "viewAllPipeline");
   // Adviser filter (all-pipeline roles only) — "" means All advisers
@@ -234,6 +234,7 @@ export default function PipelinePage() {
     toStageId: string;
     stageName: string;
   } | null>(null);
+  const [stageError, setStageError] = useState<string | null>(null);
 
   // baseLeads = full set (drag mutates this); leads = optimistic view used for drag updates.
   const baseLeads = firestoreLeads;
@@ -283,16 +284,12 @@ export default function PipelinePage() {
     return leads.filter((l) => l.assignedTo === adviserFilter);
   }, [leads, canViewAllPipeline, adviserFilter]);
 
-  // Sync local state when Firestore updates (but not during a pending drag)
-  if (!pendingDrag && localLeads !== null && JSON.stringify(localLeads) !== JSON.stringify(firestoreLeads)) {
-    setLocalLeads(null);
-  }
-
   function handleDragEnd(result: DropResult) {
     const { destination, source, draggableId } = result;
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
 
+    setStageError(null);
     const stageName = STAGES.find((s) => s.id === destination.droppableId)?.name ?? destination.droppableId;
 
     // Optimistically update local state. Reset the stage-entered clock so the card
@@ -305,7 +302,7 @@ export default function PipelinePage() {
     const optimisticStageId = idBySlug[destSlug] ?? destSlug;
     const isTerminal = terminalSlugs.has(destSlug);
     setLocalLeads(
-      (baseLeads).map((lead) =>
+      leads.map((lead) =>
         lead.id === draggableId
           ? {
               ...lead,
@@ -333,87 +330,73 @@ export default function PipelinePage() {
     const { leadId, toStageId, stageName } = pendingDrag;
 
     try {
-      if (supabase) {
-        const nowIso = new Date().toISOString();
-        // Resolve the real stage UUID from the slug when we have it (current_stage_id
-        // and history.stage_id are FKs to pipeline_stages). In real Supabase mode we
-        // write the UUID; in demo mode (no map) we keep the slug. history.stage_slug
-        // is always set.
-        const stageUuid = idBySlug[toStageId] ?? null;
-        const isTerminal = terminalSlugs.has(toStageId);
-
-        // Move the lead and reset its stage-entered clock. A terminal stage closes
-        // the lead: set status=converted + converted_at so the BEFORE UPDATE trigger
-        // (capture_confidence_at_close) fires and records confidence_at_close /
-        // closed_outcome. Non-terminal moves leave status untouched.
-        const leadUpdate: Record<string, unknown> = {
-          current_stage_id: stageUuid ?? toStageId,
-          current_stage_entered_at: nowIso,
-          updated_at: nowIso,
-        };
-        if (isTerminal) {
-          leadUpdate.status = "converted";
-          leadUpdate.converted_at = nowIso;
-        }
-        await supabase
-          .from("leads")
-          .update(leadUpdate)
-          .eq("id", leadId)
-          .eq("tenant_id", user.tenantId);
-
-        // Close the previous open stage-history row for this lead.
-        await supabase
-          .from("lead_stage_history")
-          .update({ exited_at: nowIso })
-          .eq("lead_id", leadId)
-          .is("exited_at", null);
-
-        // Open a new stage-history row.
-        await supabase.from("lead_stage_history").insert({
-          tenant_id: user.tenantId,
-          lead_id: leadId,
-          stage_id: stageUuid,
-          stage_slug: toStageId,
-          entered_at: nowIso,
-        });
-
-        await supabase.from("activities").insert({
-          tenant_id: user.tenantId,
-          lead_id: leadId,
-          performed_by: user.id,
-          activity_type: "stage-change",
-          title: `Stage changed to ${stageName}`,
-          description: note || null,
-          metadata: null,
-        });
-
-        fetch("/api/cadences/enroll", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ leadId, stageId: toStageId }),
-        }).catch((err) => console.error("Cadence enrollment failed:", err));
-
-        // Stage-change email notification (fire-and-forget)
-        supabase.auth.getSession().then(({ data: { session } }) => {
-          if (!session?.access_token) return;
-          fetch("/api/notifications/stage-change", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${session.access_token}`,
-            },
-            body: JSON.stringify({
-              leadId,
-              toStageName: stageName,
-              note: note || null,
-              terminal: isTerminal,
-            }),
-          }).catch(() => {});
-        });
+      if (!supabase || demo) {
+        setPendingDrag(null);
+        return;
       }
+
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token;
+      if (!token) throw new Error("Missing auth session");
+
+      const res = await fetch("/api/leads/stage-change", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          leadId,
+          stageSlug: toStageId,
+          note: note || null,
+        }),
+      });
+
+      if (!res.ok) {
+        const detail = await res.json().catch(() => null) as { error?: string } | null;
+        throw new Error(detail?.error ?? "Failed to change lead stage");
+      }
+
+      const result = await res.json() as {
+        stage: { id: string; slug: string; name: string; isTerminal: boolean };
+      };
+
+      setIdBySlug((prev) => ({ ...prev, [result.stage.slug]: result.stage.id }));
+      setSlugById((prev) => ({ ...prev, [result.stage.id]: result.stage.slug }));
+      setTerminalSlugs((prev) => {
+        const next = new Set(prev);
+        if (result.stage.isTerminal) next.add(result.stage.slug);
+        else next.delete(result.stage.slug);
+        return next;
+      });
+
+      await refetchLeads();
+      setLocalLeads(null);
+
+      fetch("/api/cadences/enroll", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ leadId, stageId: toStageId }),
+      }).catch((err) => console.error("Cadence enrollment failed:", err));
+
+      // Stage-change email notification (fire-and-forget)
+      fetch("/api/notifications/stage-change", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          leadId,
+          toStageName: result.stage.name || stageName,
+          note: note || null,
+          terminal: result.stage.isTerminal,
+        }),
+      }).catch(() => {});
     } catch (err) {
       console.error("Failed to update stage:", err);
       setLocalLeads(null);
+      setStageError(err instanceof Error ? err.message : "Failed to update stage. Please try again.");
     } finally {
       setPendingDrag(null);
     }
@@ -484,6 +467,11 @@ export default function PipelinePage() {
 
       {/* Desktop Kanban */}
       <div className="hidden md:flex md:flex-col h-full">
+        {stageError && (
+          <div className="mx-4 mt-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {stageError}
+          </div>
+        )}
         {canViewAllPipeline && (
           <div className="flex items-center justify-end gap-2 px-4 pt-4">
             <label htmlFor="adviser-filter" className="text-sm font-medium text-gray-600">

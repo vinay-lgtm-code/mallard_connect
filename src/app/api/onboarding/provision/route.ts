@@ -7,16 +7,7 @@ import {
   findProvisionByClaimToken,
   isProvisionedPocEmail,
 } from "@/lib/provisioning/organization-provisions";
-
-const DEFAULT_STAGES = [
-  { name: "New Enquiry", slug: "new_enquiry", position: 0, color: "#6366f1", is_terminal: false },
-  { name: "Initial Contact", slug: "initial_contact", position: 1, color: "#3b82f6", is_terminal: false },
-  { name: "Not proceeded.", slug: "not_ready_yet", position: 2, color: "#f59e0b", is_terminal: false },
-  { name: "Nurturing", slug: "nurturing", position: 3, color: "#22c55e", is_terminal: false },
-  { name: "Decision in Principle done", slug: "decision_in_principle_done", position: 4, color: "#14b8a6", is_terminal: false },
-  { name: "Ready to proceed", slug: "ready_to_proceed", position: 5, color: "#2563eb", is_terminal: false },
-  { name: "Deal Done", slug: "referred_to_mab", position: 6, color: "#a855f7", is_terminal: true },
-];
+import { DEFAULT_PIPELINE_STAGES } from "@/lib/pipeline-stages";
 
 const DEFAULT_SOURCES = [
   { name: "Website", slug: "website" },
@@ -268,7 +259,14 @@ export async function POST(request: NextRequest) {
 
   await supabase
     .from("pipeline_stages")
-    .insert(DEFAULT_STAGES.map((s) => ({ ...s, tenant_id: tenant.id })));
+    .insert(DEFAULT_PIPELINE_STAGES.map((s) => ({
+      name: s.name,
+      slug: s.slug,
+      position: s.position,
+      color: s.color,
+      is_terminal: s.isTerminal,
+      tenant_id: tenant.id,
+    })));
 
   await supabase
     .from("lead_sources")
