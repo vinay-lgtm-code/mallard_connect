@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeads, useTenantUsers } from "@/hooks/use-leads";
 import { formatCurrency } from "@/lib/utils";
-import { hasCapability } from "@/lib/auth/roles";
 import type { Lead, User } from "@/types";
-import { Wallet, Scale, Target, CalendarClock } from "lucide-react";
+import { Wallet, Scale, Target, CalendarClock, Download } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -51,6 +50,18 @@ function dealValueOf(lead: Lead): number {
   const v = lead.dealValue;
   if (v == null || Number.isNaN(v)) return 0;
   return v;
+}
+
+function escapeCsvValue(value: unknown): string {
+  if (value === null || value === undefined) return "";
+  let str = String(value);
+  if (/^[=+\-@\t\r]/.test(str)) {
+    str = "'" + str;
+  }
+  if (str.includes(",") || str.includes('"') || str.includes("\n") || str.includes("\r")) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
 }
 
 // ─── KPI Card (mirrors reports/page.tsx) ────────────────────────────────────────
@@ -244,7 +255,7 @@ export default function ForecastPage() {
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
-    if (!loading && user && !hasCapability(user.role, "viewForecast")) router.push("/dashboard");
+    if (!loading && user && user.role === "advisor") router.push("/dashboard");
   }, [user, loading, router]);
 
   const forecast = useMemo(() => {
@@ -356,6 +367,50 @@ export default function ForecastPage() {
     };
   }, [leads, users]);
 
+  const handleExportCsv = useCallback(() => {
+    const lines: string[] = [];
+
+    lines.push("Forecast by Month");
+    lines.push(
+      ["Month", "Deals", "Total Value", "Weighted", "Expected Close"]
+        .map(escapeCsvValue)
+        .join(",")
+    );
+    for (const row of forecast.monthRows) {
+      lines.push(
+        [row.label, row.dealCount, Math.round(row.total), Math.round(row.weighted), Math.round(row.expected)]
+          .map(escapeCsvValue)
+          .join(",")
+      );
+    }
+
+    lines.push("");
+
+    lines.push("Forecast by Advisor");
+    lines.push(
+      ["Advisor", "Deals", "Total Value", "Weighted", "Expected Close"]
+        .map(escapeCsvValue)
+        .join(",")
+    );
+    for (const row of forecast.adviserRows) {
+      lines.push(
+        [row.name, row.dealCount, Math.round(row.total), Math.round(row.weighted), Math.round(row.expected)]
+          .map(escapeCsvValue)
+          .join(",")
+      );
+    }
+
+    const blob = new Blob([lines.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = "pipeline-forecast.csv";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [forecast.monthRows, forecast.adviserRows]);
+
   if (loading || !user) {
     return (
       <div className="flex justify-center py-16">
@@ -364,7 +419,7 @@ export default function ForecastPage() {
     );
   }
 
-  if (!hasCapability(user.role, "viewForecast")) return null;
+  if (user.role === "advisor") return null;
 
   const isLoading = leadsLoading || usersLoading;
   const maxWeighted = Math.max(...forecast.monthRows.map((r) => r.weighted), 0);
@@ -372,11 +427,22 @@ export default function ForecastPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div>
-        <p className="text-sm text-gray-500">
-          Expected closings by month, weighted by deal confidence and your historical
-          conversion rate.
-        </p>
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h1 className="text-lg font-bold text-gray-900">Pipeline Forecast</h1>
+          <p className="text-sm text-gray-500 mt-0.5">
+            Expected closings by month, weighted by deal confidence and your historical
+            conversion rate.
+          </p>
+        </div>
+        <button
+          onClick={handleExportCsv}
+          disabled={forecast.monthRows.length === 0 && forecast.adviserRows.length === 0}
+          className="inline-flex items-center gap-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 px-3 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <Download size={15} />
+          Export CSV
+        </button>
       </div>
 
       {isLoading ? (
