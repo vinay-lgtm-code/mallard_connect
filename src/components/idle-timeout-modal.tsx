@@ -7,6 +7,7 @@ import { getDemoUser, clearDemoUser } from "@/hooks/useAuth";
 
 const IDLE_LIMIT_MS = 4 * 60 * 1000; // 4 min before warning
 const COUNTDOWN_SECONDS = 60;
+const TIMEOUT_LIMIT_MS = IDLE_LIMIT_MS + COUNTDOWN_SECONDS * 1000;
 const ACTIVITY_EVENTS = ["mousemove", "mousedown", "keydown", "scroll", "touchstart"] as const;
 
 export function IdleTimeoutModal() {
@@ -14,12 +15,19 @@ export function IdleTimeoutModal() {
   const [secondsLeft, setSecondsLeft] = useState(COUNTDOWN_SECONDS);
   const [showWarning, setShowWarning] = useState(false);
   const showWarningRef = useRef(false);
+  const lastActivityAtRef = useRef(Date.now());
   const idleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const clearTimers = useCallback(() => {
-    if (idleTimer.current) clearTimeout(idleTimer.current);
-    if (countdownTimer.current) clearInterval(countdownTimer.current);
+    if (idleTimer.current) {
+      clearTimeout(idleTimer.current);
+      idleTimer.current = null;
+    }
+    if (countdownTimer.current) {
+      clearInterval(countdownTimer.current);
+      countdownTimer.current = null;
+    }
   }, []);
 
   const signOut = useCallback(async () => {
@@ -33,49 +41,93 @@ export function IdleTimeoutModal() {
     router.push("/login");
   }, [clearTimers, router]);
 
+  const getMsUntilTimeout = useCallback(() => {
+    return lastActivityAtRef.current + TIMEOUT_LIMIT_MS - Date.now();
+  }, []);
+
+  const updateCountdown = useCallback(() => {
+    const msUntilTimeout = getMsUntilTimeout();
+    if (msUntilTimeout <= 0) {
+      void signOut();
+      return false;
+    }
+    setSecondsLeft(Math.ceil(msUntilTimeout / 1000));
+    return true;
+  }, [getMsUntilTimeout, signOut]);
+
   const startCountdown = useCallback(() => {
-    setSecondsLeft(COUNTDOWN_SECONDS);
+    if (!updateCountdown()) return;
+
     setShowWarning(true);
     showWarningRef.current = true;
-    countdownTimer.current = setInterval(() => {
-      setSecondsLeft((prev) => {
-        if (prev <= 1) {
-          signOut();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, [signOut]);
+
+    if (!countdownTimer.current) {
+      countdownTimer.current = setInterval(updateCountdown, 1000);
+    }
+  }, [updateCountdown]);
 
   const resetIdleTimer = useCallback(() => {
+    if (getMsUntilTimeout() <= 0) {
+      void signOut();
+      return;
+    }
     if (showWarningRef.current) return;
     clearTimers();
+    lastActivityAtRef.current = Date.now();
     idleTimer.current = setTimeout(startCountdown, IDLE_LIMIT_MS);
-  }, [clearTimers, startCountdown]);
+  }, [clearTimers, getMsUntilTimeout, signOut, startCountdown]);
+
+  const syncTimeoutState = useCallback(() => {
+    if (!showWarningRef.current && Date.now() - lastActivityAtRef.current < IDLE_LIMIT_MS) return;
+
+    if (getMsUntilTimeout() <= 0) {
+      void signOut();
+      return;
+    }
+
+    startCountdown();
+  }, [getMsUntilTimeout, signOut, startCountdown]);
 
   const handleStaySignedIn = useCallback(() => {
+    if (getMsUntilTimeout() <= 0) {
+      void signOut();
+      return;
+    }
+
     clearTimers();
     setShowWarning(false);
     showWarningRef.current = false;
     setSecondsLeft(COUNTDOWN_SECONDS);
+    lastActivityAtRef.current = Date.now();
     idleTimer.current = setTimeout(startCountdown, IDLE_LIMIT_MS);
-  }, [clearTimers, startCountdown]);
+  }, [clearTimers, getMsUntilTimeout, signOut, startCountdown]);
 
   useEffect(() => {
     idleTimer.current = setTimeout(startCountdown, IDLE_LIMIT_MS);
 
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        syncTimeoutState();
+      }
+    };
+
     for (const event of ACTIVITY_EVENTS) {
       window.addEventListener(event, resetIdleTimer, { passive: true });
     }
+    window.addEventListener("focus", syncTimeoutState);
+    window.addEventListener("pageshow", syncTimeoutState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
       clearTimers();
       for (const event of ACTIVITY_EVENTS) {
         window.removeEventListener(event, resetIdleTimer);
       }
+      window.removeEventListener("focus", syncTimeoutState);
+      window.removeEventListener("pageshow", syncTimeoutState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, [startCountdown, resetIdleTimer, clearTimers]);
+  }, [startCountdown, resetIdleTimer, syncTimeoutState, clearTimers]);
 
   if (!showWarning) return null;
 
