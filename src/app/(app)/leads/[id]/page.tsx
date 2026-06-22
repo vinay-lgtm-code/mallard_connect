@@ -980,7 +980,7 @@ export default function LeadDetailPage() {
                 <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Deal</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Est. Commission (£)</label>
+                    <label className="text-xs font-medium text-gray-600">Forecast Amount (£)</label>
                     <input
                       type="number"
                       value={qualDealValue}
