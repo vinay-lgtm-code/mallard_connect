@@ -36,6 +36,24 @@ const READINESS_OPTIONS = [
   { value: "exploring", label: "Just exploring" },
 ];
 
+const AMOUNT_SAVED_OPTIONS = [
+  { value: "under-5k", label: "Under £5,000" },
+  { value: "5k-10k", label: "£5,000 – £10,000" },
+  { value: "10k-25k", label: "£10,000 – £25,000" },
+  { value: "25k-50k", label: "£25,000 – £50,000" },
+  { value: "50k-100k", label: "£50,000 – £100,000" },
+  { value: "over-100k", label: "Over £100,000" },
+];
+
+const DEPOSIT_OPTIONS = [
+  { value: "under-10k", label: "Under £10,000" },
+  { value: "10k-25k", label: "£10,000 – £25,000" },
+  { value: "25k-50k", label: "£25,000 – £50,000" },
+  { value: "50k-100k", label: "£50,000 – £100,000" },
+  { value: "100k-250k", label: "£100,000 – £250,000" },
+  { value: "over-250k", label: "Over £250,000" },
+];
+
 const FOLLOW_UP_REASON_OPTIONS = [
   { value: "saving_deposit", label: "Saving deposit" },
   { value: "improving_credit", label: "Improving credit score" },
@@ -120,6 +138,8 @@ export default function NewLeadPage() {
     mortgageType: "",
     readiness: "",
     notes: "",
+    amountSaved: "",
+    deposit: "",
     followUpDate: "",
     followUpReason: "",
     reminderEmail1: "",
@@ -147,6 +167,8 @@ export default function NewLeadPage() {
       mortgageType: form.mortgageType as CreateLeadInput["mortgageType"] || undefined,
       readiness: form.readiness as CreateLeadInput["readiness"] || undefined,
       notes: form.notes || undefined,
+      amountSaved: form.amountSaved || undefined,
+      deposit: form.deposit || undefined,
       followUpDate: form.followUpDate || undefined,
       followUpReason: form.followUpReason as CreateLeadInput["followUpReason"] || undefined,
       reminderEmails: [form.reminderEmail1, form.reminderEmail2, form.reminderEmail3].filter(Boolean),
@@ -219,6 +241,8 @@ export default function NewLeadPage() {
         current_stage_entered_at: new Date().toISOString(),
         assigned_to: effectiveAssignee,
         next_follow_up_date: form.followUpDate ? new Date(form.followUpDate).toISOString() : null,
+        amount_saved: form.amountSaved || null,
+        deposit: form.deposit || null,
         follow_up_reason: form.followUpReason || null,
         follow_up_notes: form.reminderNote || null,
         tags: [],
@@ -363,6 +387,22 @@ export default function NewLeadPage() {
               onChange={(e) => set("readiness", e.target.value)}
               options={READINESS_OPTIONS}
               placeholder="Select readiness…"
+            />
+
+            <SelectField
+              label="Amount Saved"
+              value={form.amountSaved}
+              onChange={(e) => set("amountSaved", e.target.value)}
+              options={AMOUNT_SAVED_OPTIONS}
+              placeholder="Select amount saved…"
+            />
+
+            <SelectField
+              label="Deposit"
+              value={form.deposit}
+              onChange={(e) => set("deposit", e.target.value)}
+              options={DEPOSIT_OPTIONS}
+              placeholder="Select deposit…"
             />
 
             <div>
