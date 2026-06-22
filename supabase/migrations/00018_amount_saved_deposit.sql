@@ -1,0 +1,2 @@
+ALTER TABLE leads ADD COLUMN amount_saved TEXT;
+ALTER TABLE leads ADD COLUMN deposit TEXT;
