@@ -23,6 +23,8 @@ export const createLeadSchema = z.object({
     .enum(["ready-now", "1-3-months", "3-6-months", "6-12-months", "exploring"])
     .optional(),
   notes: z.string().max(2000).optional(),
+  amountSaved: z.string().optional(),
+  deposit: z.string().optional(),
   followUpDate: isoDateString.optional(),
   followUpReason: z.string().max(500).optional(),
   reminderEmails: z.array(z.string().email()).max(3).optional(),

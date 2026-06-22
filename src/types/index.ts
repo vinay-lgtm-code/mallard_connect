@@ -79,6 +79,8 @@ export interface Lead {
   readiness: Readiness | null;
   propertyValue: number | null;
   depositAmount: number | null;
+  amountSaved: string | null;
+  deposit: string | null;
   loanAmount: number | null;
   dealValue: number | null;
   estimatedCloseDate: string | null;
