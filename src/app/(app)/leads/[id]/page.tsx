@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus, Pencil, X } from "lucide-react";
+import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus, Pencil, X, Send } from "lucide-react";
 import { format } from "date-fns";
 import { useLead, useLeadActivities, useLeadTasks, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
@@ -12,7 +12,11 @@ import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
 import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
 import { EditableField } from "@/components/leads/editable-field";
 import { isDemoUser } from "@/lib/mock-data";
-import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
+import { isCadencesTemplatesEnabled, isDocumentsEnabled } from "@/lib/feature-flags";
+import { useLeadDocuments } from "@/hooks/use-documents";
+import { UploadDocument } from "@/components/documents/upload-document";
+import { DocumentList } from "@/components/documents/document-list";
+import { RequestDocumentsModal } from "@/components/documents/request-documents-modal";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType } from "@/types";
 
@@ -21,6 +25,7 @@ const STAGE_STYLES: Record<string, string> = {
   initial_contact: "bg-blue-100 text-blue-700",
   not_ready_yet: "bg-amber-100 text-amber-700",
   nurturing: "bg-green-100 text-green-700",
+  decision_in_principle_done: "bg-teal-100 text-teal-700",
   ready_to_proceed: "bg-blue-100 text-blue-700",
   referred_to_mab: "bg-purple-100 text-purple-700",
 };
@@ -28,9 +33,10 @@ const STAGE_STYLES: Record<string, string> = {
 const STAGE_LABELS: Record<string, string> = {
   new_enquiry: "New Enquiry",
   initial_contact: "Initial Contact",
-  not_ready_yet: "Not Ready Yet",
+  not_ready_yet: "Not proceeded.",
   nurturing: "Nurturing",
-  ready_to_proceed: "Ready to Proceed",
+  decision_in_principle_done: "Decision in Principle done",
+  ready_to_proceed: "Ready to proceed",
   referred_to_mab: "Deal Done",
 };
 
@@ -54,7 +60,14 @@ const ACTIVITY_LABEL: Record<ActivityType, string> = {
   "stage-change": "Stage change",
 };
 
-type Tab = "overview" | "activity" | "qualification" | "followups";
+type Tab = "overview" | "activity" | "qualification" | "followups" | "documents";
+
+type StageOption = {
+  id: string;
+  slug: string;
+  name: string;
+  color: string | null;
+};
 
 function getInitials(first: string, last: string) {
   return `${first[0] ?? ""}${last[0] ?? ""}`.toUpperCase();
@@ -194,6 +207,7 @@ export default function LeadDetailPage() {
   const { lead, loading, refetch: refetchLead } = useLead(id);
   const { activities, refetch: refetchActivities } = useLeadActivities(id);
   const { tasks, refetch: refetchTasks } = useLeadTasks(id);
+  const { documents, refetch: refetchDocuments } = useLeadDocuments(id);
   const supabase = useSupabase();
   const { users: tenantUsers } = useTenantUsers();
 
@@ -205,9 +219,11 @@ export default function LeadDetailPage() {
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
   const [showCadenceModal, setShowCadenceModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showRequestDocsModal, setShowRequestDocsModal] = useState(false);
   const [editingFollowUp, setEditingFollowUp] = useState(false);
   const [followUpDateValue, setFollowUpDateValue] = useState("");
   const [savingFollowUp, setSavingFollowUp] = useState(false);
+  const [stageOptions, setStageOptions] = useState<StageOption[]>([]);
 
   const stageDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -222,6 +238,38 @@ export default function LeadDetailPage() {
       return () => document.removeEventListener("mousedown", handleClickOutside);
     }
   }, [stageDropdownOpen]);
+
+  useEffect(() => {
+    if (demo) {
+      setStageOptions(
+        Object.entries(STAGE_LABELS).map(([slug, name]) => ({
+          id: slug,
+          slug,
+          name,
+          color: null,
+        }))
+      );
+      return;
+    }
+
+    if (!supabase || !user?.tenantId) return;
+
+    supabase
+      .from("pipeline_stages")
+      .select("id, slug, name, color")
+      .eq("tenant_id", user.tenantId)
+      .order("position")
+      .then(({ data }) => {
+        setStageOptions(
+          (data ?? []).map((stage) => ({
+            id: stage.id,
+            slug: stage.slug,
+            name: stage.name,
+            color: stage.color,
+          }))
+        );
+      });
+  }, [demo, supabase, user?.tenantId]);
 
   // Qualification state — controlled, pre-populated from lead
   const [qualEmployment, setQualEmployment] = useState("");
@@ -276,14 +324,14 @@ export default function LeadDetailPage() {
     }
   }
 
-  async function handleStageChange(stageId: string) {
+  async function handleStageChange(stage: StageOption) {
     setStageDropdownOpen(false);
     if (!user) return;
     if (demo) return;
     if (!supabase) return;
     try {
       await supabase.from("leads").update({
-        current_stage_id: stageId,
+        current_stage_id: stage.id,
         updated_at: new Date().toISOString(),
       }).eq("id", id);
       await supabase.from("activities").insert({
@@ -291,7 +339,7 @@ export default function LeadDetailPage() {
         lead_id: id,
         performed_by: user.id,
         activity_type: "stage-change",
-        title: `Stage changed to ${STAGE_LABELS[stageId] ?? stageId}`,
+        title: `Stage changed to ${stage.name}`,
         description: null,
         metadata: null,
       });
@@ -418,14 +466,19 @@ export default function LeadDetailPage() {
   }
 
   const assigneeName = tenantUsers.find(u => u.id === lead.assignedTo)?.fullName;
-  const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-700";
-  const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
+  const currentStage = stageOptions.find((stage) => stage.id === lead.currentStageId || stage.slug === lead.currentStageId);
+  const stageStyle = STAGE_STYLES[currentStage?.slug ?? ""] ?? "bg-gray-100 text-gray-700";
+  const stageLabel = currentStage?.name ?? "";
+  const otherStages = stageOptions.filter(
+    (stage) => stage.id !== lead.currentStageId && stage.slug !== lead.currentStageId
+  );
 
   const tabs: { id: Tab; label: string }[] = [
     { id: "overview", label: "Overview" },
     { id: "activity", label: "Notes & Activity" },
     { id: "qualification", label: "Qualification" },
     { id: "followups", label: "Follow-ups" },
+    ...(isDocumentsEnabled() ? [{ id: "documents" as Tab, label: "Documents" }] : []),
   ];
 
   return (
@@ -474,31 +527,34 @@ export default function LeadDetailPage() {
                 {lead.firstName} {lead.lastName}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
-                <div className="relative" ref={stageDropdownRef}>
-                  <button
-                    onClick={() => setStageDropdownOpen(!stageDropdownOpen)}
-                    className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}
-                  >
-                    {stageLabel}
-                    <ChevronDown size={12} />
-                  </button>
-                  {stageDropdownOpen && (
-                    <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
-                      {Object.entries(STAGE_LABELS)
-                        .filter(([key]) => key !== lead.currentStageId)
-                        .map(([key, label]) => (
+                {stageLabel && (
+                  <div className="relative" ref={stageDropdownRef}>
+                    <button
+                      onClick={() => setStageDropdownOpen(!stageDropdownOpen)}
+                      className={`inline-flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}
+                    >
+                      {stageLabel}
+                      <ChevronDown size={12} />
+                    </button>
+                    {stageDropdownOpen && (
+                      <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
+                        {otherStages.map((stage) => (
                           <button
-                            key={key}
-                            onClick={() => handleStageChange(key)}
+                            key={stage.id}
+                            onClick={() => handleStageChange(stage)}
                             className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
                           >
-                            <span className={`w-2 h-2 rounded-full ${STAGE_STYLES[key]?.split(" ")[0] ?? "bg-gray-200"}`} />
-                            {label}
+                            <span
+                              className={`w-2 h-2 rounded-full ${STAGE_STYLES[stage.slug]?.split(" ")[0] ?? "bg-gray-200"}`}
+                              style={stage.color && !STAGE_STYLES[stage.slug] ? { backgroundColor: stage.color } : undefined}
+                            />
+                            {stage.name}
                           </button>
                         ))}
-                    </div>
-                  )}
-                </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {lead.mortgageType && (
                   <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
                     {lead.mortgageType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
@@ -1035,6 +1091,46 @@ export default function LeadDetailPage() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === "documents" && isDocumentsEnabled() && (
+          <div className="space-y-4">
+            {!demo && (
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <UploadDocument
+                    leadId={id}
+                    onUploaded={() => { refetchDocuments(); refetchActivities(); }}
+                  />
+                </div>
+                {lead.email && (
+                  <button
+                    onClick={() => setShowRequestDocsModal(true)}
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 hover:bg-primary-dark transition-colors"
+                  >
+                    <Send size={20} />
+                    <span className="text-xs font-semibold">Request from client</span>
+                  </button>
+                )}
+              </div>
+            )}
+            <DocumentList
+              documents={documents}
+              users={tenantUsers}
+              onDeleted={refetchDocuments}
+            />
+          </div>
+        )}
+
+        {showRequestDocsModal && lead && (
+          <RequestDocumentsModal
+            leadId={id}
+            leadEmail={lead.email}
+            leadFirstName={lead.firstName}
+            open={showRequestDocsModal}
+            onClose={() => setShowRequestDocsModal(false)}
+            onSent={() => { setShowRequestDocsModal(false); refetchActivities(); }}
+          />
         )}
       </div>
     </>

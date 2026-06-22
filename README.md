@@ -12,7 +12,7 @@ Sequence is that layer. It plugs into existing data sources, runs cadences autom
 
 ## What's inside
 
-- **Pipeline (Kanban + list)** with a first-class "Not Ready Yet" stage — the column where most leads currently die.
+- **Pipeline (Kanban + list)** with a first-class "Not proceeded." stage — the column where most leads currently die.
 - **Cadences** — multi-step automations (Day 0 email, Day 7 SMS, Day 30 reminder) tied to stage changes or triggered manually. Three starter cadences seeded per firm: FTB deposit-saving, remortgage warm-up, cold re-engagement.
 - **Activity logging** — call, email, meeting, note, SMS, WhatsApp. One-click quick-log on the lead page; full timeline on every prospect.
 - **Email/SMS templates** with variables. Templates feed both cadences and ad-hoc activity logging.
@@ -142,7 +142,7 @@ sequenceDiagram
     participant Run as run-cadences
     participant Resend as Resend
 
-    Lead->>Pipeline: Stage change → "Not Ready Yet"
+    Lead->>Pipeline: Stage change → "Not proceeded."
     Pipeline->>FS: Find cadences with trigger.stageId match
     FS-->>Pipeline: [FTB nurture cadence]
     Pipeline->>FS: Create cadenceEnrollment {currentStep:0, nextRunAt: now}

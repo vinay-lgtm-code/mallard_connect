@@ -1,17 +1,22 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { clearDemoUser } from "@/hooks/useAuth";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
+  const claimToken = searchParams.get("claim") ?? undefined;
+  const initialError = searchParams.get("error") === "invite_required"
+    ? "Sequence access is invite-only. Use your organization invite or ask your manager for access."
+    : null;
   const [fullName, setFullName] = useState("");
-  const [organisation, setOrganisation] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(initialError);
   const [loading, setLoading] = useState(false);
 
   const [confirmSent, setConfirmSent] = useState(false);
@@ -35,7 +40,7 @@ export default function SignUpPage() {
       const res = await fetch("/api/auth/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password, fullName, organisation }),
+        body: JSON.stringify({ email, password, fullName, claimToken }),
       });
 
       const data = await res.json();
@@ -94,7 +99,9 @@ export default function SignUpPage() {
             </svg>
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Create Account</h1>
-          <p className="text-sm text-gray-500 mt-1">Join Sequence</p>
+          <p className="text-sm text-gray-500 mt-1">
+            Use your organization invite to create your Sequence login.
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -116,21 +123,6 @@ export default function SignUpPage() {
               autoComplete="name"
               className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
               placeholder="Jane Smith"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
-              Organisation
-            </label>
-            <input
-              type="text"
-              value={organisation}
-              onChange={(e) => setOrganisation(e.target.value)}
-              required
-              autoComplete="organization"
-              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
-              placeholder="Acme Mortgages"
             />
           </div>
 

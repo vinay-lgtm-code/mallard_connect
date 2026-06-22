@@ -407,12 +407,11 @@ interface SendTeamInviteParams {
   to: string;
   fullName: string;
   role: string;
-  tempPassword: string;
-  loginUrl: string;
+  inviteUrl: string;
 }
 
 function formatLabel(slug: string): string {
-  return slug.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  return slug.replace(/[-_]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 function infoRow(label: string, value: string) {
@@ -423,22 +422,18 @@ export async function sendTeamInviteEmail({
   to,
   fullName,
   role,
-  tempPassword,
-  loginUrl,
+  inviteUrl,
 }: SendTeamInviteParams) {
   const body = `
     <p style="margin:0 0 16px;color:#374151;font-size:15px;">
-      Welcome, <strong>${esc(fullName)}</strong>! You've been added to Sequence as a <strong>${esc(formatLabel(role))}</strong>.
+      Welcome, <strong>${esc(fullName)}</strong>! You've been invited to Sequence as a <strong>${esc(formatLabel(role))}</strong>.
     </p>
-    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
-      <tr><td style="padding:20px;">
-        <table width="100%" cellpadding="0" cellspacing="0">
-          ${infoRow("Email", esc(to))}
-          ${infoRow("Temporary Password", `<code style="background:#e5e7eb;padding:2px 8px;border-radius:4px;font-size:14px;">${esc(tempPassword)}</code>`)}
-        </table>
-      </td></tr>
-    </table>
-    <p style="margin:16px 0 0;color:#6b7280;font-size:13px;">Please change your password after your first login.</p>`;
+    <p style="margin:0;color:#6b7280;font-size:14px;">
+      Use this invitation to set your password and join your team's workspace.
+    </p>
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-top:16px;background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;">
+      <tr><td style="padding:16px;">${infoRow("Email", esc(to))}</td></tr>
+    </table>`;
 
   return getResend().emails.send({
     from: FROM(),
@@ -448,8 +443,45 @@ export async function sendTeamInviteEmail({
       preheader: "You've been added to Sequence — log in to get started",
       heading: "Welcome to Sequence",
       body,
-      ctaLabel: "Log In to Sequence",
-      ctaUrl: loginUrl,
+      ctaLabel: "Accept Invitation",
+      ctaUrl: inviteUrl,
+    }),
+  });
+}
+
+// ── Organization provisioning invite (sent to Org PoC) ─────────────────
+
+interface SendOrgProvisionInviteParams {
+  to: string;
+  fullName: string;
+  companyName: string;
+  claimUrl: string;
+}
+
+export async function sendOrgProvisionInviteEmail({
+  to,
+  fullName,
+  companyName,
+  claimUrl,
+}: SendOrgProvisionInviteParams) {
+  const body = `
+    <p style="margin:0 0 16px;color:#374151;font-size:15px;">
+      Hi <strong>${esc(fullName)}</strong>, your Sequence workspace for <strong>${esc(companyName)}</strong> is ready to set up.
+    </p>
+    <p style="margin:0;color:#6b7280;font-size:14px;">
+      Use this link to create your account, confirm your workspace URL, and invite your team.
+    </p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: "Your Sequence workspace is ready",
+    html: brandedHtml({
+      preheader: "Create your Sequence account and set up your workspace",
+      heading: "Set up your Sequence workspace",
+      body,
+      ctaLabel: "Set Up Workspace",
+      ctaUrl: claimUrl,
     }),
   });
 }
@@ -792,6 +824,67 @@ export async function sendPasswordResetEmail({
       ctaLabel: "Reset Password",
       ctaUrl: resetUrl,
       footer: "If you didn't request a password reset, you can safely ignore this email.",
+    }),
+  });
+}
+
+// ── Document upload request (outbound, sent to leads/clients) ───────────
+
+interface SendDocumentRequestParams {
+  to: string;
+  leadFirstName: string;
+  adviserName: string;
+  firmName: string;
+  categories: string[];
+  message?: string;
+  uploadUrl: string;
+}
+
+export async function sendDocumentRequestEmail({
+  to,
+  leadFirstName,
+  adviserName,
+  firmName,
+  categories,
+  message,
+  uploadUrl,
+}: SendDocumentRequestParams) {
+  const safeName = esc(leadFirstName);
+  const safeAdviser = esc(adviserName);
+  const safeFirm = esc(firmName);
+  const categoriesList = categories
+    .map((c) => `<li style="padding:4px 0;color:#374151;font-size:14px;">${esc(c.replace(/_/g, " ").replace(/\b\w/g, (ch) => ch.toUpperCase()))}</li>`)
+    .join("");
+
+  const messageBlock = message
+    ? `<div style="margin:16px 0;padding:12px 16px;background-color:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;font-style:italic;color:#6b7280;font-size:14px;">&ldquo;${esc(message)}&rdquo;</div>`
+    : "";
+
+  const body = `
+    <p style="margin:0 0 12px;color:#374151;font-size:15px;">
+      Hi <strong>${safeName}</strong>,
+    </p>
+    <p style="margin:0 0 12px;color:#374151;font-size:15px;">
+      ${safeAdviser} at ${safeFirm} has requested the following documents for your mortgage application.
+    </p>
+    ${messageBlock}
+    <p style="margin:16px 0 8px;color:#6b7280;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;">Documents requested</p>
+    <ul style="margin:0 0 16px;padding-left:20px;">${categoriesList}</ul>
+    <p style="margin:0;color:#6b7280;font-size:13px;">
+      Please upload them using the secure link below. This link expires in 14 days.
+    </p>`;
+
+  return getResend().emails.send({
+    from: FROM(),
+    to: [to],
+    subject: `Documents needed for your mortgage application`,
+    html: brandedHtml({
+      preheader: `${adviserName} at ${firmName} has requested documents from you`,
+      heading: "Documents Requested",
+      body,
+      ctaLabel: "Upload Your Documents",
+      ctaUrl: uploadUrl,
+      footer: `This email was sent on behalf of ${firmName} via Sequence. Your documents are encrypted and only visible to your adviser.`,
     }),
   });
 }

@@ -13,11 +13,13 @@ import { createClient } from "@/lib/supabase/client";
 import { rowsToApp, rowToApp } from "@/lib/supabase/mappers";
 import { useState, useCallback, useMemo } from "react";
 import { getInitials, formatRelativeDate } from "@/lib/utils";
+import { hasCapability, roleLabel } from "@/lib/auth/roles";
 import type { User, Activity, UserRole } from "@/types";
 
 const ROLE_STYLES: Record<UserRole, string> = {
   admin: "bg-purple-100 text-purple-700",
   manager: "bg-blue-100 text-blue-700",
+  case_manager: "bg-teal-100 text-teal-700",
   advisor: "bg-gray-100 text-gray-600",
 };
 
@@ -26,6 +28,7 @@ const STAGE_STYLES: Record<string, string> = {
   initial_contact: "bg-blue-100 text-blue-700",
   not_ready_yet: "bg-amber-100 text-amber-700",
   nurturing: "bg-green-100 text-green-700",
+  decision_in_principle_done: "bg-teal-100 text-teal-700",
   ready_to_proceed: "bg-blue-100 text-blue-700",
   referred_to_mab: "bg-purple-100 text-purple-700",
 };
@@ -33,9 +36,10 @@ const STAGE_STYLES: Record<string, string> = {
 const STAGE_LABELS: Record<string, string> = {
   new_enquiry: "New Enquiry",
   initial_contact: "Initial Contact",
-  not_ready_yet: "Not Ready Yet",
+  not_ready_yet: "Not proceeded.",
   nurturing: "Nurturing",
-  ready_to_proceed: "Ready to Proceed",
+  decision_in_principle_done: "Decision in Principle done",
+  ready_to_proceed: "Ready to proceed",
   referred_to_mab: "Deal Done",
 };
 
@@ -56,7 +60,7 @@ export default function TeamMemberPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (currentUser && currentUser.role === "advisor") {
+    if (currentUser && !hasCapability(currentUser.role, "manageTeam")) {
       router.replace("/dashboard");
     }
   }, [currentUser, router]);
@@ -120,7 +124,7 @@ export default function TeamMemberPage() {
   const { leads, loading: leadsLoading } = useLeads({ assignedTo: id });
   const { users: allUsers } = useTenantUsers();
 
-  const isManager = currentUser?.role === "admin" || currentUser?.role === "manager";
+  const isManager = hasCapability(currentUser?.role, "manageTeam");
 
   const activeLeads = useMemo(() => leads.filter((l) => l.status === "active"), [leads]);
   const convertedLeads = useMemo(() => leads.filter((l) => l.status === "converted"), [leads]);
@@ -141,7 +145,7 @@ export default function TeamMemberPage() {
     return map;
   }, [leads]);
 
-  if (!currentUser || currentUser.role === "advisor") return null;
+  if (!currentUser || !hasCapability(currentUser.role, "manageTeam")) return null;
 
   if (memberLoading) {
     return (
@@ -376,8 +380,8 @@ export default function TeamMemberPage() {
             <h1 className="text-xl font-bold text-gray-900">{member.fullName}</h1>
             <p className="text-sm text-gray-500 mt-0.5">{member.email}</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full capitalize ${ROLE_STYLES[member.role]}`}>
-                {member.role}
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ROLE_STYLES[member.role]}`}>
+                {roleLabel(member.role)}
               </span>
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${member.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
                 {member.isActive ? "Active" : "Inactive"}

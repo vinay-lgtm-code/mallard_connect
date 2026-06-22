@@ -1,13 +1,16 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { useLeads } from "@/hooks/use-leads";
 import { useTenantUsers, useAnalyticsSnapshots } from "@/hooks/use-leads";
 import { ExportButton } from "@/components/export-button";
 import type { Lead, User } from "@/types";
 import { periodMonthFor, monthBoundsUTC } from "@/lib/analytics/compute";
+import { isDemoUser } from "@/lib/mock-data";
+import { hasCapability } from "@/lib/auth/roles";
 import { TrendingUp, Users, Clock, Target } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -37,6 +40,7 @@ const STAGE_COLORS: Record<string, string> = {
   initial_contact: "#3b82f6",
   not_ready_yet: "#f59e0b",
   nurturing: "#22c55e",
+  decision_in_principle_done: "#14b8a6",
   ready_to_proceed: "#1d4ed8",
   referred_to_mab: "#a855f7",
 };
@@ -46,6 +50,27 @@ function toDate(ts: unknown): Date | null {
   if (ts instanceof Date) return ts;
   if (typeof ts === "string") return new Date(ts);
   return null;
+}
+
+function formatCsvDate(ts: unknown): string {
+  const date = toDate(ts);
+  if (!date || Number.isNaN(date.getTime())) return "";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function isUuidLike(value: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+}
+
+function humanizeIdentifier(value: string): string {
+  return value
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .replace(/\b\w/g, (char) => char.toUpperCase());
 }
 
 function getMonthLabel(date: Date): string {
@@ -310,24 +335,77 @@ function TeamLeaderboard({ rows }: { rows: TeamRow[] }) {
 const KNOWN_STAGES: { id: string; name: string }[] = [
   { id: "new_enquiry", name: "New Enquiry" },
   { id: "initial_contact", name: "Initial Contact" },
-  { id: "not_ready_yet", name: "Not Ready Yet" },
+  { id: "not_ready_yet", name: "Not proceeded." },
   { id: "nurturing", name: "Nurturing" },
-  { id: "ready_to_proceed", name: "Ready to Proceed" },
+  { id: "decision_in_principle_done", name: "Decision in Principle done" },
+  { id: "ready_to_proceed", name: "Ready to proceed" },
   { id: "referred_to_mab", name: "Deal Done" },
 ];
 
 export default function ReportsPage() {
   const { user, loading } = useAuth();
+  const supabase = useSupabase();
   const router = useRouter();
+  const demo = user ? isDemoUser(user.id) : false;
 
   const { leads, loading: leadsLoading } = useLeads();
   const { users, loading: usersLoading } = useTenantUsers();
   const { snapshots } = useAnalyticsSnapshots();
+  const [stageNameByKey, setStageNameByKey] = useState<Record<string, string>>(() =>
+    Object.fromEntries(KNOWN_STAGES.map((stage) => [stage.id, stage.name]))
+  );
+  const [stagesLoading, setStagesLoading] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
-    if (!loading && user && user.role === "advisor") router.push("/dashboard");
+    if (!loading && user && !hasCapability(user.role, "viewReports")) router.push("/dashboard");
   }, [user, loading, router]);
+
+  useEffect(() => {
+    const defaultStageNames = Object.fromEntries(KNOWN_STAGES.map((stage) => [stage.id, stage.name]));
+
+    if (demo || !supabase || !user?.tenantId) {
+      setStageNameByKey(defaultStageNames);
+      setStagesLoading(false);
+      return;
+    }
+
+    const supabaseClient = supabase;
+    const tenantId = user.tenantId;
+    let cancelled = false;
+    setStagesLoading(true);
+
+    async function loadStages() {
+      try {
+        const { data, error } = await supabaseClient
+          .from("pipeline_stages")
+          .select("id, slug, name")
+          .eq("tenant_id", tenantId);
+
+        if (cancelled) return;
+        if (error) {
+          console.error("Failed to load pipeline stages for reports export:", error);
+          setStageNameByKey(defaultStageNames);
+          return;
+        }
+
+        const names = { ...defaultStageNames };
+        for (const row of data ?? []) {
+          names[row.id] = row.name;
+          names[row.slug] = row.name;
+        }
+        setStageNameByKey(names);
+      } finally {
+        if (!cancelled) setStagesLoading(false);
+      }
+    }
+
+    void loadStages();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [demo, supabase, user?.tenantId]);
 
   // ── Computed KPIs ────────────────────────────────────────────────────────────
 
@@ -460,16 +538,29 @@ export default function ReportsPage() {
 
   // ── CSV export data ──────────────────────────────────────────────────────────
 
+  const userNameById = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const u of users) {
+      map[u.id] = u.fullName;
+    }
+    return map;
+  }, [users]);
+
   const exportData = useMemo(() => {
     if (!leads) return [];
     return leads.map((l) => ({
       ...l,
-      createdAt: toDate(l.createdAt)?.toISOString() ?? "",
-      updatedAt: toDate(l.updatedAt)?.toISOString() ?? "",
-      convertedAt: toDate(l.convertedAt)?.toISOString() ?? "",
-      nextFollowUpDate: toDate(l.nextFollowUpDate)?.toISOString() ?? "",
+      currentStageId: l.currentStageId
+        ? stageNameByKey[l.currentStageId] ??
+          (isUuidLike(l.currentStageId) ? "Unknown stage" : humanizeIdentifier(l.currentStageId))
+        : "",
+      assignedTo: l.assignedTo ? userNameById[l.assignedTo] ?? "Unknown team member" : "Unassigned",
+      createdAt: formatCsvDate(l.createdAt),
+      updatedAt: formatCsvDate(l.updatedAt),
+      convertedAt: formatCsvDate(l.convertedAt),
+      nextFollowUpDate: formatCsvDate(l.nextFollowUpDate),
     }));
-  }, [leads]);
+  }, [leads, stageNameByKey, userNameById]);
 
   // ── Guard ────────────────────────────────────────────────────────────────────
 
@@ -481,26 +572,23 @@ export default function ReportsPage() {
     );
   }
 
-  if (user.role === "advisor") return null;
+  if (!hasCapability(user.role, "viewReports")) return null;
 
-  const isLoading = leadsLoading || usersLoading;
+  const isLoading = leadsLoading || usersLoading || stagesLoading;
   const sourceEntries = Object.entries(stats.leadsBySource).sort((a, b) => b[1] - a[1]);
+  const exportReady = !leadsLoading && !usersLoading && !stagesLoading;
 
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">Reports</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            KPI cards, the pipeline funnel and the leaderboard reflect current data. Only the
-            historical lead-intake trend uses nightly snapshots.
-          </p>
-        </div>
+        <p className="text-sm text-gray-500">
+          KPI cards, the pipeline funnel and the leaderboard reflect current data. Only the
+          historical lead-intake trend uses nightly snapshots.
+        </p>
         <ExportButton
-          data={exportData as Record<string, unknown>[]}
+          data={exportReady ? (exportData as Record<string, unknown>[]) : []}
           columns={[
-            { key: "id", header: "ID" },
             { key: "firstName", header: "First Name" },
             { key: "lastName", header: "Last Name" },
             { key: "email", header: "Email" },

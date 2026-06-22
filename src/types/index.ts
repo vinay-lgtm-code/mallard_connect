@@ -1,4 +1,4 @@
-export type UserRole = "admin" | "manager" | "advisor";
+export type UserRole = "admin" | "manager" | "advisor" | "case_manager";
 
 export type LeadSource =
   | "website"
@@ -244,6 +244,56 @@ export interface NotificationPreferences {
   reminders: boolean;
   assignments: boolean;
   stageChanges: boolean;
+}
+
+// ===== Documents =====
+
+export type DocumentCategory =
+  | "proof_of_id"
+  | "proof_of_address"
+  | "bank_statement"
+  | "payslip"
+  | "tax_return"
+  | "credit_report"
+  | "valuation"
+  | "mortgage_offer"
+  | "dip"
+  | "insurance"
+  | "other";
+
+export interface Document {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  uploadedBy: string;
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  storagePath: string;
+  category: DocumentCategory;
+  description: string | null;
+  isArchived: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ===== Document Requests =====
+
+export type DocumentRequestStatus = "pending" | "completed" | "expired" | "cancelled";
+
+export interface DocumentRequest {
+  id: string;
+  tenantId: string;
+  leadId: string;
+  requestedBy: string;
+  leadEmail: string;
+  requestedCategories: DocumentCategory[];
+  message: string | null;
+  status: DocumentRequestStatus;
+  expiresAt: string;
+  completedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface ImportRecord {

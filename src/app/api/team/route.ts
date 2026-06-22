@@ -2,17 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendTeamInviteEmail } from "@/lib/email/client";
 import { verifyToken, authError } from "@/lib/auth/verify-token";
+import { createInviteToken, inviteExpiry } from "@/lib/invitations";
+import { normalizeEmail } from "@/lib/provisioning/domains";
 
-type UserRole = "admin" | "manager" | "advisor";
-
-function generateTempPassword(): string {
-  const chars = "ABCDEFGHJKMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789";
-  let password = "";
-  for (let i = 0; i < 12; i++) {
-    password += chars[Math.floor(Math.random() * chars.length)];
-  }
-  return `${password}!1`;
-}
+type UserRole = "admin" | "manager" | "advisor" | "case_manager";
 
 export async function GET(request: NextRequest) {
   const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
@@ -46,47 +39,51 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "email and fullName are required" }, { status: 400 });
   }
 
-  const validRoles: UserRole[] = ["advisor", "manager"];
+  const validRoles: UserRole[] = ["advisor", "manager", "case_manager"];
   const userRole: UserRole = validRoles.includes(role as UserRole) ? (role as UserRole) : "advisor";
-  const tempPassword = generateTempPassword();
+  const normalizedEmail = normalizeEmail(email);
 
   const supabase = createServiceClient();
 
-  const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
-    email,
-    password: tempPassword,
-    email_confirm: true,
-    app_metadata: { role: userRole, tenant_id: auth.tenantId },
-    user_metadata: { full_name: fullName },
-  });
+  const { data: existingUser } = await supabase
+    .from("users")
+    .select("id")
+    .eq("tenant_id", auth.tenantId)
+    .eq("email", normalizedEmail)
+    .maybeSingle();
 
-  if (authErr || !authData.user) {
-    return NextResponse.json({ error: authErr?.message ?? "Failed to create user" }, { status: 422 });
+  if (existingUser) {
+    return NextResponse.json({ error: "That user is already on this team" }, { status: 409 });
   }
 
-  const uid = authData.user.id;
-
-  await supabase.from("users").insert({
-    id: uid,
+  const { token, tokenHash } = createInviteToken();
+  const { data: invite, error: inviteErr } = await supabase.from("team_invitations").insert({
     tenant_id: auth.tenantId,
-    email,
+    email: email.trim(),
+    normalized_email: normalizedEmail,
     full_name: fullName,
     role: userRole,
-    is_active: true,
-  });
+    token_hash: tokenHash,
+    expires_at: inviteExpiry(),
+    invited_by: auth.uid,
+  }).select("id").single();
+
+  if (inviteErr || !invite) {
+    const status = inviteErr?.code === "23505" ? 409 : 422;
+    return NextResponse.json({ error: inviteErr?.message ?? "Failed to create invite" }, { status });
+  }
 
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
     await sendTeamInviteEmail({
-      to: email,
+      to: normalizedEmail,
       fullName,
       role: userRole,
-      tempPassword,
-      loginUrl: `${appUrl}/login`,
+      inviteUrl: `${appUrl}/accept-invite?token=${encodeURIComponent(token)}`,
     });
   } catch { /* email failure is non-fatal */ }
 
-  return NextResponse.json({ id: uid, email, fullName, role: userRole }, { status: 201 });
+  return NextResponse.json({ id: invite.id, email: normalizedEmail, fullName, role: userRole }, { status: 201 });
 }
 
 export async function PATCH(request: NextRequest) {
@@ -117,7 +114,7 @@ export async function PATCH(request: NextRequest) {
   const updates: Record<string, unknown> = {};
 
   if (role !== undefined) {
-    const validRoles: UserRole[] = ["admin", "advisor", "manager"];
+    const validRoles: UserRole[] = ["admin", "advisor", "manager", "case_manager"];
     if (!validRoles.includes(role as UserRole)) {
       return NextResponse.json({ error: "Invalid role" }, { status: 400 });
     }

@@ -5,3 +5,7 @@ export function isCadencesTemplatesEnabled(): boolean {
 export function isCadencesTemplatesEnabledServer(): boolean {
   return process.env.NEXT_PUBLIC_ENABLE_CADENCES_TEMPLATES === "true";
 }
+
+export function isDocumentsEnabled(): boolean {
+  return process.env.NEXT_PUBLIC_ENABLE_DOCUMENTS === "true";
+}

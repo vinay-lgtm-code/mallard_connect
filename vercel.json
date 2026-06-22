@@ -20,10 +20,6 @@
     {
       "path": "/api/cron/snapshot-analytics?period=previous",
       "schedule": "0 2 1 * *"
-    },
-    {
-      "path": "/api/cron/daily-digest",
-      "schedule": "0 6 * * *"
     }
   ]
 }

@@ -7,13 +7,26 @@
 const KEY = "sequence_onboarding";
 
 export type DataSource = "brevo" | "mab" | "other";
+export type OnboardingInviteRole = "manager" | "advisor";
+
+export type OnboardingInvite = {
+  email: string;
+  fullName: string;
+  role: OnboardingInviteRole;
+};
+
+export type OnboardingCaseManager = {
+  email: string;
+  fullName: string;
+};
 
 export type OnboardingState = {
   firmName?: string;
   slug?: string;
   primaryColor?: string;
   logoUrl?: string;
-  invites?: { email: string; fullName?: string; role: "manager" | "advisor" }[];
+  invites?: OnboardingInvite[];
+  caseManager?: OnboardingCaseManager;
   dataSource?: DataSource;
   brevoApiKey?: string;
   otherCrmName?: string;

@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendSignupConfirmationEmail } from "@/lib/email/client";
+import { normalizeEmail } from "@/lib/provisioning/domains";
+import {
+  findActiveProvisionByEmail,
+  findProvisionByClaimToken,
+  isProvisionedPocEmail,
+} from "@/lib/provisioning/organization-provisions";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
@@ -37,14 +43,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
   }
 
-  let body: { email?: string; password?: string; fullName?: string; organisation?: string };
+  let body: { email?: string; password?: string; fullName?: string; claimToken?: string };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { email, password, fullName, organisation } = body;
+  const { email, password, fullName, claimToken } = body;
   if (!email || !password || !fullName) {
     return NextResponse.json({ error: "email, password, and fullName are required" }, { status: 400 });
   }
@@ -54,14 +60,44 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceClient();
+  const normalizedEmail = normalizeEmail(email);
+
+  let provision = null;
+  try {
+    provision = claimToken
+      ? await findProvisionByClaimToken(supabase, claimToken)
+      : await findActiveProvisionByEmail(supabase, normalizedEmail);
+  } catch (error) {
+    console.error("[signup] provision lookup error:", error);
+    return NextResponse.json({ error: "Unable to verify organization access" }, { status: 500 });
+  }
+
+  if (!provision || !isProvisionedPocEmail(provision, normalizedEmail)) {
+    return NextResponse.json(
+      { error: "Sequence access is invite-only. Ask your manager or Sequence admin for an invitation." },
+      { status: 403 },
+    );
+  }
+
+  if (provision.status !== "provisioned") {
+    return NextResponse.json(
+      { error: "This organization has already been set up. Ask your manager for a team invite." },
+      { status: 403 },
+    );
+  }
 
   const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
     type: "signup",
-    email,
+    email: normalizedEmail,
     password,
     options: {
-      data: { full_name: fullName, organisation },
-      redirectTo: `${APP_URL}/onboarding`,
+      data: {
+        full_name: fullName,
+        organization_provision_id: provision.id,
+      },
+      redirectTo: claimToken
+        ? `${APP_URL}/onboarding?claim=${encodeURIComponent(claimToken)}`
+        : `${APP_URL}/onboarding`,
     },
   });
 
@@ -79,7 +115,7 @@ export async function POST(request: NextRequest) {
 
   try {
     await sendSignupConfirmationEmail({
-      to: email,
+      to: normalizedEmail,
       fullName,
       confirmUrl,
     });

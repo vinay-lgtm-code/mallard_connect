@@ -1,8 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendDailyDigestEmail } from "@/lib/email/client";
+import { requireCronAuth } from "@/lib/cron/auth";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
+
+type LeadSourceRelation = { name?: string | null; slug?: string | null } | { name?: string | null; slug?: string | null }[] | null;
 
 function startOfWeek(d: Date): Date {
   const day = d.getDay();
@@ -34,19 +37,14 @@ function formatShortDate(iso: string): string {
   return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
 }
 
+function getSourceLabel(source: LeadSourceRelation): string {
+  const row = Array.isArray(source) ? source[0] : source;
+  return row?.name ?? row?.slug ?? "";
+}
+
 export async function GET(request: NextRequest) {
-  // ── Auth ─────────────────────────────────────────────────────────────
-  if (process.env.NODE_ENV === "production") {
-    const auth = request.headers.get("authorization");
-    if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  } else if (process.env.CRON_SECRET) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   const supabase = createServiceClient();
   const now = new Date();
@@ -96,7 +94,7 @@ export async function GET(request: NextRequest) {
           .lte("due_date", sundayIso),
         supabase
           .from("leads")
-          .select("id, first_name, last_name, phone, mortgage_type, source, updated_at")
+          .select("id, first_name, last_name, phone, mortgage_type, source_id, lead_sources(name, slug), updated_at")
           .eq("tenant_id", user.tenant_id)
           .eq("assigned_to", user.id)
           .eq("status", "active")
@@ -123,16 +121,29 @@ export async function GET(request: NextRequest) {
       for (const t of overdueTasks ?? []) if (t.lead_id) allTaskLeadIds.add(t.lead_id);
       for (const t of filteredWeekTasks) if (t.lead_id) allTaskLeadIds.add(t.lead_id);
 
-      const leadMap = new Map<string, { first_name: string; last_name: string; phone: string; mortgage_type: string; source: string }>();
+      const leadMap = new Map<string, {
+        first_name: string | null;
+        last_name: string | null;
+        phone: string | null;
+        mortgage_type: string | null;
+        lead_sources: LeadSourceRelation;
+      }>();
 
       if (allTaskLeadIds.size > 0) {
         const { data: leads } = await supabase
           .from("leads")
-          .select("id, first_name, last_name, phone, mortgage_type, source")
+          .select("id, first_name, last_name, phone, mortgage_type, source_id, lead_sources(name, slug)")
+          .eq("tenant_id", user.tenant_id)
           .in("id", Array.from(allTaskLeadIds));
 
         for (const l of leads ?? []) {
-          leadMap.set(l.id, l);
+          leadMap.set(l.id, l as {
+            first_name: string | null;
+            last_name: string | null;
+            phone: string | null;
+            mortgage_type: string | null;
+            lead_sources: LeadSourceRelation;
+          });
         }
       }
 
@@ -146,7 +157,7 @@ export async function GET(request: NextRequest) {
           lastName: lead.last_name ?? "",
           phone: lead.phone ?? "",
           mortgageType: lead.mortgage_type ?? "",
-          source: lead.source ?? "",
+          source: getSourceLabel(lead.lead_sources),
           taskTitle: task.title ?? undefined,
           dueDate: task.due_date ? formatShortDate(task.due_date) : undefined,
           isOverdue,
@@ -167,7 +178,7 @@ export async function GET(request: NextRequest) {
         lastName: l.last_name ?? "",
         phone: l.phone ?? "",
         mortgageType: l.mortgage_type ?? "",
-        source: l.source ?? "",
+        source: getSourceLabel(l.lead_sources as LeadSourceRelation),
       }));
 
       // ── 5. Send ───────────────────────────────────────────────────

@@ -6,6 +6,7 @@ import { useTodayTasks, useOverdueTasks } from "@/hooks/use-tasks";
 import { useWeeklyActivitySummary } from "@/hooks/use-weekly-activity-summary";
 import { formatDistanceToNow } from "date-fns";
 import { getInitials } from "@/lib/utils";
+import { hasCapability } from "@/lib/auth/roles";
 import type { Activity, User } from "@/types";
 
 interface KpiCardProps {
@@ -27,9 +28,10 @@ function KpiCard({ label, value, colorClass, bgClass }: KpiCardProps) {
 const PIPELINE_STAGE_CONFIG = [
   { id: "new_enquiry", name: "New Enquiry", color: "bg-indigo-500" },
   { id: "initial_contact", name: "Initial Contact", color: "bg-blue-500" },
-  { id: "not_ready_yet", name: "Not Ready Yet", color: "bg-amber-500" },
+  { id: "not_ready_yet", name: "Not proceeded.", color: "bg-amber-500" },
   { id: "nurturing", name: "Nurturing", color: "bg-green-500" },
-  { id: "ready_to_proceed", name: "Ready to Proceed", color: "bg-blue-600" },
+  { id: "decision_in_principle_done", name: "Decision in Principle done", color: "bg-teal-500" },
+  { id: "ready_to_proceed", name: "Ready to proceed", color: "bg-blue-600" },
   { id: "referred_to_mab", name: "Deal Done", color: "bg-purple-500" },
 ];
 
@@ -374,7 +376,7 @@ export default function DashboardPage() {
 
   if (!user) return null;
 
-  const isManager = user.role === "admin" || user.role === "manager";
+  const isManager = hasCapability(user.role, "viewAllPipeline");
 
   return isManager ? (
     <ManagerDashboard userId={user.id} />

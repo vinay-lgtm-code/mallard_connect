@@ -3,13 +3,15 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle } from "lucide-react";
+import { ArrowLeft, CheckCircle, ShieldCheck } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
+import { hasCapability } from "@/lib/auth/roles";
 
 const ROLE_OPTIONS = [
-  { value: "advisor", label: "Advisor" },
-  { value: "manager", label: "Manager" },
+  { value: "advisor", label: "Advisor", description: "Works their own leads and pipeline." },
+  { value: "case_manager", label: "Case Manager", description: "Can add and allocate leads and view everyone's pipeline. No Reports or Forecast access." },
+  { value: "manager", label: "Manager", description: "Manages team, pipeline, forecasts, reports, and settings." },
 ];
 
 export default function InviteTeamMemberPage() {
@@ -17,7 +19,7 @@ export default function InviteTeamMemberPage() {
   const router = useRouter();
 
   useEffect(() => {
-    if (user && user.role === "advisor") {
+    if (user && !hasCapability(user.role, "manageTeam")) {
       router.replace("/dashboard");
     }
   }, [user, router]);
@@ -30,8 +32,9 @@ export default function InviteTeamMemberPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const selectedRole = ROLE_OPTIONS.find((r) => r.value === form.role) ?? ROLE_OPTIONS[0];
 
-  if (!user || user.role === "advisor") return null;
+  if (!user || !hasCapability(user.role, "manageTeam")) return null;
 
   function set(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -87,7 +90,7 @@ export default function InviteTeamMemberPage() {
         </div>
         <h2 className="text-xl font-bold text-gray-900">Invitation Sent!</h2>
         <p className="text-sm text-gray-500">
-          An invite email with login instructions has been sent to{" "}
+          An invite email with setup instructions has been sent to{" "}
           <span className="font-semibold text-gray-700">{form.email}</span>.
         </p>
         <div className="flex flex-col gap-2 pt-2">
@@ -121,7 +124,7 @@ export default function InviteTeamMemberPage() {
       <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
         <h1 className="text-lg font-bold text-gray-900 mb-1">Invite Team Member</h1>
         <p className="text-sm text-gray-500 mb-5">
-          They will receive an email with a temporary password to log in.
+          They will receive an email to set their password and join the workspace.
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
@@ -164,6 +167,13 @@ export default function InviteTeamMemberPage() {
                 <option key={r.value} value={r.value}>{r.label}</option>
               ))}
             </select>
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
+              <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-gray-400" />
+              <span>
+                <strong className="text-gray-900">{selectedRole.label}:</strong>{" "}
+                {selectedRole.description}
+              </span>
+            </div>
           </div>
 
           {error && (

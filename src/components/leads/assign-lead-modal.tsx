@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { useTenantUsers, useLeads } from "@/hooks/use-leads";
 import { getInitials } from "@/lib/utils";
 import { notifyAssignment } from "@/lib/email/notify-client";
+import { roleLabel } from "@/lib/auth/roles";
 
 interface AssignLeadModalProps {
   leadId: string;
@@ -131,7 +132,7 @@ export function AssignLeadModal({
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500 capitalize">{member.role}</p>
+                    <p className="text-xs text-gray-500">{roleLabel(member.role)}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
                     <p className="text-sm font-semibold text-gray-700">{leadCount}</p>

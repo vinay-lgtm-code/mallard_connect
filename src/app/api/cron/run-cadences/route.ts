@@ -3,21 +3,13 @@ import { createServiceClient } from "@/lib/supabase/server";
 import { sendReminderEmail } from "@/lib/email/client";
 import { runDueCadenceSteps } from "@/lib/cadences/run";
 import { isCadencesTemplatesEnabledServer } from "@/lib/feature-flags";
+import { requireCronAuth } from "@/lib/cron/auth";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
 
 export async function GET(request: NextRequest) {
-  if (process.env.NODE_ENV === "production") {
-    const auth = request.headers.get("authorization");
-    if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  } else if (process.env.CRON_SECRET) {
-    const auth = request.headers.get("authorization");
-    if (auth !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-  }
+  const authError = requireCronAuth(request);
+  if (authError) return authError;
 
   // ── 1. Task reminders ────────────────────────────────────────────────
   const supabase = createServiceClient();
@@ -66,7 +58,11 @@ export async function GET(request: NextRequest) {
         leadUrl: `${APP_URL}/leads/${task.lead_id}`,
       });
 
-      await supabase.from("tasks").update({ reminder_sent: true }).eq("id", task.id);
+      await supabase
+        .from("tasks")
+        .update({ reminder_sent: true })
+        .eq("id", task.id)
+        .eq("tenant_id", task.tenant_id);
 
       sent++;
       reminderLog.push({ taskId: task.id, recipients: reminderEmails, ok: true });

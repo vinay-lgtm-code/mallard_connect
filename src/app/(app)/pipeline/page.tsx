@@ -14,6 +14,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { getInitials, formatCurrency } from "@/lib/utils";
 import { format } from "date-fns";
 import { isDemoUser } from "@/lib/mock-data";
+import { hasCapability } from "@/lib/auth/roles";
 import {
   daysInStage,
   ragStatus,
@@ -38,9 +39,10 @@ interface StageConfig {
 const STAGES: StageConfig[] = [
   { id: "new_enquiry", name: "New Enquiry", color: "text-indigo-700", headerBg: "bg-indigo-50", badgeBg: "bg-indigo-100 text-indigo-700" },
   { id: "initial_contact", name: "Initial Contact", color: "text-blue-700", headerBg: "bg-blue-50", badgeBg: "bg-blue-100 text-blue-700" },
-  { id: "not_ready_yet", name: "Not Ready Yet", color: "text-amber-700", headerBg: "bg-amber-50", badgeBg: "bg-amber-100 text-amber-700" },
+  { id: "not_ready_yet", name: "Not proceeded.", color: "text-amber-700", headerBg: "bg-amber-50", badgeBg: "bg-amber-100 text-amber-700" },
   { id: "nurturing", name: "Nurturing", color: "text-green-700", headerBg: "bg-green-50", badgeBg: "bg-green-100 text-green-700" },
-  { id: "ready_to_proceed", name: "Ready to Proceed", color: "text-blue-700", headerBg: "bg-blue-50", badgeBg: "bg-blue-100 text-blue-700" },
+  { id: "decision_in_principle_done", name: "Decision in Principle done", color: "text-teal-700", headerBg: "bg-teal-50", badgeBg: "bg-teal-100 text-teal-700" },
+  { id: "ready_to_proceed", name: "Ready to proceed", color: "text-blue-700", headerBg: "bg-blue-50", badgeBg: "bg-blue-100 text-blue-700" },
   { id: "referred_to_mab", name: "Deal Done", color: "text-purple-700", headerBg: "bg-purple-50", badgeBg: "bg-purple-100 text-purple-700" },
 ];
 
@@ -212,8 +214,8 @@ export default function PipelinePage() {
   const demo = user ? isDemoUser(user.id) : false;
   const { leads: supabaseLeads, loading } = useLeads();
   const { users } = useTenantUsers();
-  const isManager = user?.role === "admin" || user?.role === "manager";
-  // Adviser filter (manager/admin only) — "" means All advisers
+  const canViewAllPipeline = hasCapability(user?.role, "viewAllPipeline");
+  // Adviser filter (all-pipeline roles only) — "" means All advisers
   const [adviserFilter, setAdviserFilter] = useState("");
 
   // Map of adviser id -> display name, used to render assigned-adviser initials on cards.
@@ -277,9 +279,9 @@ export default function PipelinePage() {
   // visibleLeads = what the board renders. Filter only applies for managers with a
   // selection; a stale filter can never hide leads for a non-manager.
   const visibleLeads = useMemo(() => {
-    if (!isManager || !adviserFilter) return leads;
+    if (!canViewAllPipeline || !adviserFilter) return leads;
     return leads.filter((l) => l.assignedTo === adviserFilter);
-  }, [leads, isManager, adviserFilter]);
+  }, [leads, canViewAllPipeline, adviserFilter]);
 
   const defaultSlug = STAGES[0].id;
 
@@ -477,16 +479,16 @@ export default function PipelinePage() {
           The Kanban board is best viewed on a larger screen.
         </p>
         <Link
-          href="/leads"
+          href="/leads?from=pipeline"
           className="mt-3 inline-block text-sm font-semibold text-primary hover:underline"
         >
-          Switch to list view →
+          View leads list →
         </Link>
       </div>
 
       {/* Desktop Kanban */}
       <div className="hidden md:flex md:flex-col h-full">
-        {isManager && (
+        {canViewAllPipeline && (
           <div className="flex items-center justify-end gap-2 px-4 pt-4">
             <label htmlFor="adviser-filter" className="text-sm font-medium text-gray-600">
               Adviser
