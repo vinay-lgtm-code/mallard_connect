@@ -55,9 +55,19 @@ export function useLeads(filters?: LeadFilters) {
   const [loading, setLoading] = useState(!useMock);
   const [error, setError] = useState<Error | null>(null);
 
-  useEffect(() => {
-    if (useMock || !supabase || !tenantId) return;
+  const refetch: RefetchFn = useCallback(() => {
+    if (useMock) {
+      setLoading(false);
+      return;
+    }
+    if (!supabase || !tenantId) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
+    setError(null);
     let query = supabase
       .from("leads")
       .select("*, lead_sources(slug, name), pipeline_stages(slug, name)")
@@ -75,15 +85,19 @@ export function useLeads(filters?: LeadFilters) {
     });
   }, [supabase, tenantId, filters?.stageId, filters?.assignedTo, filters?.status, useMock]);
 
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
   if (useMock) {
     let leads = getMockLeads() as (Lead & { id: string })[];
     if (filters?.stageId) leads = leads.filter((l) => l.currentStageId === filters.stageId);
     if (filters?.assignedTo) leads = leads.filter((l) => l.assignedTo === filters.assignedTo);
     if (filters?.status) leads = leads.filter((l) => l.status === filters.status);
-    return { leads, loading: false, error: null };
+    return { leads, loading: false, error: null, refetch };
   }
 
-  return { leads: data, loading, error };
+  return { leads: data, loading, error, refetch };
 }
 
 export function useLead(leadId: string) {
