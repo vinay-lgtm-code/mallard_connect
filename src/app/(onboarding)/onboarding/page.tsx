@@ -1,13 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { readOnboarding, writeOnboarding } from "@/lib/onboarding/state";
 import { clearDemoUser } from "@/hooks/useAuth";
 
 const COLORS = ["#1A5653", "#0F172A", "#7C3AED", "#0369A1", "#B45309", "#BE185D"];
+const LOGO_ACCEPT = ".svg,.png,.jpg,.jpeg,.webp";
+const LOGO_TYPES = ["image/svg+xml", "image/png", "image/jpeg", "image/webp"];
+const LOGO_EXTENSIONS = [".svg", ".png", ".jpg", ".jpeg", ".webp"];
+const MAX_LOGO_SIZE = 2 * 1024 * 1024;
 
 function slugify(s: string) {
   return s
@@ -16,6 +21,23 @@ function slugify(s: string) {
     .replace(/[^\w\s-]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function validateLogo(file: File): string | null {
+  const extension = file.name.slice(file.name.lastIndexOf(".")).toLowerCase();
+  if (!LOGO_TYPES.includes(file.type) && !LOGO_EXTENSIONS.includes(extension)) {
+    return "Logo must be an SVG, PNG, JPEG, or WebP file.";
+  }
+  if (file.size > MAX_LOGO_SIZE) {
+    return `Logo is too large (${formatFileSize(file.size)}). Maximum is 2 MB.`;
+  }
+  return null;
 }
 
 function parseHashError(): { code: string; description: string } | null {
@@ -134,6 +156,10 @@ export default function OnboardingPage() {
   const [firmName, setFirmName] = useState("");
   const [slug, setSlug] = useState("");
   const [primaryColor, setPrimaryColor] = useState(COLORS[0]);
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
   const [slugTouched, setSlugTouched] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -159,12 +185,53 @@ export default function OnboardingPage() {
   }, []);
 
   useEffect(() => {
+    if (!logoFile) {
+      setLogoPreviewUrl(null);
+      return;
+    }
+    const nextUrl = URL.createObjectURL(logoFile);
+    setLogoPreviewUrl(nextUrl);
+    return () => URL.revokeObjectURL(nextUrl);
+  }, [logoFile]);
+
+  useEffect(() => {
     if (!slugTouched) setSlug(slugify(firmName));
   }, [firmName, slugTouched]);
+
+  function handleLogoChange(e: ChangeEvent<HTMLInputElement>) {
+    const selected = e.target.files?.[0] ?? null;
+    if (!selected) return;
+
+    const validationError = validateLogo(selected);
+    if (validationError) {
+      setLogoFile(null);
+      setLogoError(validationError);
+      e.target.value = "";
+      return;
+    }
+
+    setLogoError(null);
+    setLogoFile(selected);
+  }
+
+  function clearLogo() {
+    setLogoFile(null);
+    setLogoError(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    if (logoFile) {
+      const validationError = validateLogo(logoFile);
+      if (validationError) {
+        setLogoError(validationError);
+        return;
+      }
+    }
+
     setLoading(true);
 
     writeOnboarding({ firmName, slug, primaryColor });
@@ -183,18 +250,19 @@ export default function OnboardingPage() {
         return;
       }
 
+      const formData = new FormData();
+      formData.append("firmName", firmName);
+      formData.append("slug", slug);
+      formData.append("primaryColor", primaryColor);
+      if (claimToken) formData.append("claimToken", claimToken);
+      if (logoFile) formData.append("logo", logoFile);
+
       const res = await fetch("/api/onboarding/provision", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json",
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({
-          firmName,
-          slug,
-          primaryColor,
-          claimToken,
-        }),
+        body: formData,
       });
 
       if (!res.ok) {
@@ -300,9 +368,57 @@ export default function OnboardingPage() {
           </div>
         </div>
 
-        <div className="rounded-lg bg-gray-50 border border-gray-100 px-4 py-3 text-xs text-gray-600">
-          <strong className="text-gray-900">Logo upload</strong> — optional, you can drop in a SVG or
-          PNG later from Settings.
+        <div>
+          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+            Logo
+          </label>
+          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white overflow-hidden">
+                {logoPreviewUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={logoPreviewUrl} alt="Selected firm logo" className="h-full w-full object-contain p-2" />
+                ) : (
+                  <Upload size={20} className="text-gray-400" />
+                )}
+              </div>
+              <div className="min-w-0 flex-1">
+                {logoFile ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-medium text-gray-900">{logoFile.name}</p>
+                    <span className="text-xs text-gray-500">{formatFileSize(logoFile.size)}</span>
+                    <button
+                      type="button"
+                      onClick={clearLogo}
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-white hover:text-gray-600"
+                      aria-label="Remove logo"
+                    >
+                      <X size={15} />
+                    </button>
+                  </div>
+                ) : (
+                  <p className="text-sm font-medium text-gray-900">Upload your firm logo</p>
+                )}
+                <p className="mt-1 text-xs text-gray-500">SVG, PNG, JPEG, or WebP up to 2 MB.</p>
+              </div>
+              <label
+                htmlFor="firm-logo"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+              >
+                <Upload size={15} />
+                Choose file
+              </label>
+              <input
+                id="firm-logo"
+                ref={logoInputRef}
+                type="file"
+                accept={LOGO_ACCEPT}
+                onChange={handleLogoChange}
+                className="hidden"
+              />
+            </div>
+          </div>
+          {logoError && <p className="mt-2 text-xs text-destructive">{logoError}</p>}
         </div>
       </div>
 
