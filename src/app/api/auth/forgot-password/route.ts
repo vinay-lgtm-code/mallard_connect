@@ -49,13 +49,18 @@ export async function POST(request: NextRequest) {
       email,
     });
 
+    if (error) {
+      console.error("[forgot-password] generateLink error:", error.message);
+    }
+
     if (!error && data?.properties?.hashed_token) {
       const tokenHash = data.properties.hashed_token;
       const confirmUrl = `${APP_URL}/auth/confirm?token_hash=${encodeURIComponent(tokenHash)}&type=recovery&next=/reset-password`;
 
       await sendPasswordResetEmail({ to: email, resetUrl: confirmUrl });
     }
-  } catch {
+  } catch (err) {
+    console.error("[forgot-password] error:", err);
     // Swallow errors — always return success (anti-enumeration)
   }
 
