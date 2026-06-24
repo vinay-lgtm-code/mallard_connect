@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 import { sendOAuthWelcomeEmail } from "@/lib/email/client";
 import {
   findActiveProvisionByEmail,
@@ -10,9 +10,37 @@ import {
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const cookiesToApply: Parameters<NextResponse["cookies"]["set"]>[] = [];
+  let cookieStore = request.cookies.getAll();
+
+  function redirect(path: string) {
+    const response = NextResponse.redirect(new URL(path, origin));
+    cookiesToApply.forEach((cookie) => {
+      response.cookies.set(...cookie);
+    });
+    return response;
+  }
 
   if (code) {
-    const supabase = await createClient();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore;
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value, options }) => {
+              cookieStore = cookieStore.filter((cookie) => cookie.name !== name);
+              cookieStore.push({ name, value });
+              cookiesToApply.push([name, value, options]);
+            });
+          },
+        },
+      }
+    );
+
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
       const {
@@ -20,11 +48,11 @@ export async function GET(request: NextRequest) {
       } = await supabase.auth.getUser();
 
       if (user?.app_metadata?.tenant_id) {
-        return NextResponse.redirect(new URL("/dashboard", origin));
+        return redirect("/dashboard");
       }
 
       if (!user?.email) {
-        return NextResponse.redirect(new URL("/login?error=auth_callback_failed", origin));
+        return redirect("/login?error=auth_callback_failed");
       }
 
       const serviceSupabase = createServiceClient();
@@ -35,7 +63,7 @@ export async function GET(request: NextRequest) {
 
       if (!provision || provision.status !== "provisioned" || !isProvisionedPocEmail(provision, user.email)) {
         await supabase.auth.signOut();
-        return NextResponse.redirect(new URL("/signup?error=invite_required", origin));
+        return redirect("/signup?error=invite_required");
       }
 
       // First-time OAuth signup — send welcome email (non-blocking)
@@ -52,9 +80,9 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      return NextResponse.redirect(new URL("/onboarding", origin));
+      return redirect("/onboarding");
     }
   }
 
-  return NextResponse.redirect(new URL("/login?error=auth_callback_failed", origin));
+  return redirect("/login?error=auth_callback_failed");
 }
