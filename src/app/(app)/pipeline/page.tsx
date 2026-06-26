@@ -26,6 +26,7 @@ import {
 } from "@/lib/stage-timing";
 import { Clock } from "lucide-react";
 import type { Lead } from "@/types";
+import { useToast } from "@/components/ui/toast";
 
 interface StageConfig {
   id: string;
@@ -211,6 +212,7 @@ function StageChangeModal({ stageName, onConfirm, onCancel }: StageChangeModalPr
 export default function PipelinePage() {
   const { user } = useAuth();
   const supabase = useSupabase();
+  const { toast } = useToast();
   const demo = user ? isDemoUser(user.id) : false;
   const { leads: supabaseLeads, loading } = useLeads();
   const { users } = useTenantUsers();
@@ -350,19 +352,20 @@ export default function PipelinePage() {
     try {
       if (supabase) {
         const nowIso = new Date().toISOString();
-        // Resolve the real stage UUID from the slug when we have it (current_stage_id
-        // and history.stage_id are FKs to pipeline_stages). In real Supabase mode we
-        // write the UUID; in demo mode (no map) we keep the slug. history.stage_slug
-        // is always set.
         const stageUuid = idBySlug[toStageId] ?? null;
+
+        if (!stageUuid) {
+          console.error(`No pipeline_stages UUID found for slug "${toStageId}"`);
+          toast("Failed to move lead — stage not found. Please refresh and try again.", { variant: "error" });
+          setLocalLeads(null);
+          setPendingDrag(null);
+          return;
+        }
+
         const isTerminal = terminalSlugs.has(toStageId);
 
-        // Move the lead and reset its stage-entered clock. A terminal stage closes
-        // the lead: set status=converted + converted_at so the BEFORE UPDATE trigger
-        // (capture_confidence_at_close) fires and records confidence_at_close /
-        // closed_outcome. Non-terminal moves leave status untouched.
         const leadUpdate: Record<string, unknown> = {
-          current_stage_id: stageUuid ?? toStageId,
+          current_stage_id: stageUuid,
           current_stage_entered_at: nowIso,
           updated_at: nowIso,
         };
@@ -370,20 +373,26 @@ export default function PipelinePage() {
           leadUpdate.status = "converted";
           leadUpdate.converted_at = nowIso;
         }
-        await supabase
+        const { error: updateErr } = await supabase
           .from("leads")
           .update(leadUpdate)
           .eq("id", leadId)
           .eq("tenant_id", user.tenantId);
 
-        // Close the previous open stage-history row for this lead.
+        if (updateErr) {
+          console.error("Failed to update lead stage:", updateErr);
+          toast("Failed to move lead. Please try again.", { variant: "error" });
+          setLocalLeads(null);
+          setPendingDrag(null);
+          return;
+        }
+
         await supabase
           .from("lead_stage_history")
           .update({ exited_at: nowIso })
           .eq("lead_id", leadId)
           .is("exited_at", null);
 
-        // Open a new stage-history row.
         await supabase.from("lead_stage_history").insert({
           tenant_id: user.tenantId,
           lead_id: leadId,
@@ -408,7 +417,6 @@ export default function PipelinePage() {
           body: JSON.stringify({ leadId, stageId: toStageId }),
         }).catch((err) => console.error("Cadence enrollment failed:", err));
 
-        // Stage-change email notification (fire-and-forget)
         supabase.auth.getSession().then(({ data: { session } }) => {
           if (!session?.access_token) return;
           fetch("/api/notifications/stage-change", {
