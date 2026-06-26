@@ -26,6 +26,7 @@ import {
 } from "@/lib/stage-timing";
 import { Clock } from "lucide-react";
 import type { Lead } from "@/types";
+import { useToast } from "@/components/ui/toast";
 
 interface StageConfig {
   id: string;
@@ -211,6 +212,7 @@ function StageChangeModal({ stageName, onConfirm, onCancel }: StageChangeModalPr
 export default function PipelinePage() {
   const { user } = useAuth();
   const supabase = useSupabase();
+  const { toast } = useToast();
   const demo = user ? isDemoUser(user.id) : false;
   const { leads: supabaseLeads, loading } = useLeads();
   const { users } = useTenantUsers();
@@ -354,6 +356,7 @@ export default function PipelinePage() {
 
         if (!stageUuid) {
           console.error(`No pipeline_stages UUID found for slug "${toStageId}"`);
+          toast("Failed to move lead — stage not found. Please refresh and try again.", { variant: "error" });
           setLocalLeads(null);
           setPendingDrag(null);
           return;
@@ -378,6 +381,7 @@ export default function PipelinePage() {
 
         if (updateErr) {
           console.error("Failed to update lead stage:", updateErr);
+          toast("Failed to move lead. Please try again.", { variant: "error" });
           setLocalLeads(null);
           setPendingDrag(null);
           return;
