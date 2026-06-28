@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, RefreshCw, Send, ShieldCheck, XCircle } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
 
 interface ProvisionRow {
   id: string;
@@ -22,7 +23,7 @@ interface ProvisionRow {
 const STATUS_STYLES: Record<ProvisionRow["status"], string> = {
   provisioned: "bg-blue-50 text-blue-700",
   claimed: "bg-green-50 text-green-700",
-  disabled: "bg-gray-100 text-gray-500",
+  disabled: "bg-page text-text-secondary",
 };
 
 export default function AdminOrganizationsPage() {
@@ -130,28 +131,26 @@ export default function AdminOrganizationsPage() {
     await loadRows();
   }
 
+  const inputClasses = "w-full rounded-lg border border-border-strong px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10";
+
   return (
-    <main className="min-h-screen bg-gray-50">
+    <main className="min-h-screen bg-page">
       <div className="mx-auto max-w-6xl px-4 py-6 md:px-6 space-y-6">
         <div className="flex items-center justify-between gap-4">
           <div>
-            <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900">
+            <Link href="/dashboard" className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary">
               <ArrowLeft size={15} />
               Back
             </Link>
             <div className="mt-3 flex items-center gap-2">
               <ShieldCheck size={22} className="text-primary" />
-              <h1 className="text-xl font-bold text-gray-900">Organization Provisioning</h1>
+              <h1 className="text-xl font-bold text-text-primary">Organization Provisioning</h1>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={loadRows}
-            className="inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
-          >
+          <Button variant="secondary" onClick={loadRows}>
             <RefreshCw size={15} />
             Refresh
-          </button>
+          </Button>
         </div>
 
         {error && (
@@ -160,78 +159,78 @@ export default function AdminOrganizationsPage() {
           </div>
         )}
 
-        <section className="bg-white rounded-[12px] border border-gray-100 shadow-sm p-5">
-          <h2 className="text-base font-bold text-gray-900">Provision an organization</h2>
+        <section className="bg-white rounded-[12px] border border-border p-5">
+          <h2 className="text-base font-bold text-text-primary">Provision an organization</h2>
           <form onSubmit={handleSubmit} className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
             <label className="block">
-              <span className="block text-sm font-medium text-gray-700 mb-1">Approved email domain</span>
+              <span className="block text-sm font-medium text-text-secondary mb-1">Approved email domain</span>
               <input
                 value={form.domain}
                 onChange={(e) => set("domain", e.target.value)}
                 required
                 placeholder="firm.co.uk"
-                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClasses}
               />
             </label>
             <label className="block">
-              <span className="block text-sm font-medium text-gray-700 mb-1">Company</span>
+              <span className="block text-sm font-medium text-text-secondary mb-1">Company</span>
               <input
                 value={form.companyName}
                 onChange={(e) => set("companyName", e.target.value)}
                 required
                 placeholder="Acme Mortgages"
-                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClasses}
               />
             </label>
             <label className="block">
-              <span className="block text-sm font-medium text-gray-700 mb-1">Org PoC name</span>
+              <span className="block text-sm font-medium text-text-secondary mb-1">Org PoC name</span>
               <input
                 value={form.orgPocName}
                 onChange={(e) => set("orgPocName", e.target.value)}
                 required
                 placeholder="Jane Smith"
-                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClasses}
               />
             </label>
             <label className="block">
-              <span className="block text-sm font-medium text-gray-700 mb-1">Org PoC email</span>
+              <span className="block text-sm font-medium text-text-secondary mb-1">Org PoC email</span>
               <input
                 type="email"
                 value={form.orgPocEmail}
                 onChange={(e) => set("orgPocEmail", e.target.value)}
                 required
                 placeholder="jane@firm.co.uk"
-                className="w-full rounded-lg border border-gray-300 px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className={inputClasses}
               />
             </label>
             <div className="md:col-span-2">
-              <button
+              <Button
                 type="submit"
+                variant="primary"
                 disabled={saving}
-                className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-dark disabled:opacity-60"
               >
                 <Send size={15} />
                 {saving ? "Provisioning..." : "Provision and Send Invite"}
-              </button>
+              </Button>
             </div>
           </form>
         </section>
 
-        <section className="bg-white rounded-[12px] border border-gray-100 shadow-sm overflow-hidden">
-          <div className="border-b border-gray-100 px-5 py-4">
-            <h2 className="text-base font-bold text-gray-900">Provisioned organizations</h2>
+        <section className="bg-white rounded-[12px] border border-border overflow-hidden">
+          <div className="border-b border-border px-5 py-4">
+            <h2 className="text-base font-bold text-text-primary">Provisioned organizations</h2>
           </div>
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
             </div>
           ) : rows.length === 0 ? (
-            <p className="px-5 py-10 text-center text-sm text-gray-400">No organizations provisioned yet.</p>
+            <p className="px-5 py-10 text-center text-sm text-text-muted">No organizations provisioned yet.</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-b border-gray-100 bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  <tr className="border-b border-border bg-page text-left text-xs font-semibold uppercase tracking-wide text-text-secondary">
                     <th className="px-5 py-3">Company</th>
                     <th className="px-5 py-3">Domain</th>
                     <th className="px-5 py-3">Org PoC</th>
@@ -243,18 +242,18 @@ export default function AdminOrganizationsPage() {
                 <tbody className="divide-y divide-gray-50">
                   {rows.map((row) => (
                     <tr key={row.id}>
-                      <td className="px-5 py-3 font-semibold text-gray-900">{row.company_name}</td>
-                      <td className="px-5 py-3 text-gray-600">{row.normalized_domain}</td>
+                      <td className="px-5 py-3 font-semibold text-text-primary">{row.company_name}</td>
+                      <td className="px-5 py-3 text-text-secondary">{row.normalized_domain}</td>
                       <td className="px-5 py-3">
-                        <p className="font-medium text-gray-900">{row.org_poc_name}</p>
-                        <p className="text-xs text-gray-500">{row.org_poc_email}</p>
+                        <p className="font-medium text-text-primary">{row.org_poc_name}</p>
+                        <p className="text-xs text-text-secondary">{row.org_poc_email}</p>
                       </td>
                       <td className="px-5 py-3">
                         <span className={`rounded-full px-2 py-1 text-xs font-semibold capitalize ${STATUS_STYLES[row.status]}`}>
                           {row.status}
                         </span>
                       </td>
-                      <td className="px-5 py-3 text-gray-500">
+                      <td className="px-5 py-3 text-text-secondary">
                         {row.invited_at ? new Date(row.invited_at).toLocaleDateString() : "-"}
                       </td>
                       <td className="px-5 py-3">
@@ -263,7 +262,7 @@ export default function AdminOrganizationsPage() {
                             type="button"
                             disabled={row.status !== "provisioned"}
                             onClick={() => updateProvision(row.id, "resend")}
-                            className="rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                            className="rounded-lg border border-border px-3 py-1.5 text-xs font-semibold text-text-secondary hover:bg-page disabled:opacity-50"
                           >
                             Resend
                           </button>

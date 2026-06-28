@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Users, RefreshCw, Trash2, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useLeads, useTenantUsers } from "@/hooks/use-leads";
@@ -20,7 +21,7 @@ const ROLE_STYLES: Record<UserRole, string> = {
   admin: "bg-purple-100 text-purple-700",
   manager: "bg-blue-100 text-blue-700",
   case_manager: "bg-teal-100 text-teal-700",
-  advisor: "bg-gray-100 text-gray-600",
+  advisor: "bg-page text-text-secondary",
 };
 
 const STAGE_STYLES: Record<string, string> = {
@@ -158,7 +159,7 @@ export default function TeamMemberPage() {
   if (!member) {
     return (
       <div className="p-6 text-center">
-        <p className="text-gray-500">Team member not found.</p>
+        <p className="text-text-secondary">Team member not found.</p>
         <Link href="/team" className="mt-3 text-primary text-sm hover:underline inline-block">
           Back to Team
         </Link>
@@ -258,11 +259,11 @@ export default function TeamMemberPage() {
       {showDeleteConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
           <div className="bg-white rounded-[12px] p-6 max-w-md w-full mx-4 shadow-xl">
-            <h3 className="text-lg font-bold text-gray-900 mb-2">Remove team member?</h3>
-            <p className="text-sm text-gray-600 mb-1">
+            <h3 className="text-lg font-bold text-text-primary mb-2">Remove team member?</h3>
+            <p className="text-sm text-text-secondary mb-1">
               This will permanently remove <strong>{member?.fullName}</strong> from your team.
             </p>
-            <p className="text-sm text-gray-500 mb-6">
+            <p className="text-sm text-text-secondary mb-6">
               {activeLeads.length > 0
                 ? `Their ${activeLeads.length} assigned lead${activeLeads.length !== 1 ? "s" : ""} will be unassigned.`
                 : "This action cannot be undone."}
@@ -271,19 +272,19 @@ export default function TeamMemberPage() {
               <p className="mb-4 text-sm text-destructive">{actionError}</p>
             )}
             <div className="flex items-center justify-end gap-3">
-              <button
+              <Button
+                variant="secondary"
                 onClick={() => { setShowDeleteConfirm(false); setActionError(null); }}
-                className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="destructive"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="px-4 py-2 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
               >
                 {deleting ? "Removing…" : "Remove"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -292,19 +293,19 @@ export default function TeamMemberPage() {
       {showReassignModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-              <h2 className="text-base font-bold text-gray-900">Reassign {activeLeads.length} Lead{activeLeads.length !== 1 ? "s" : ""}</h2>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+              <h2 className="text-base font-bold text-text-primary">Reassign {activeLeads.length} Lead{activeLeads.length !== 1 ? "s" : ""}</h2>
               <button
                 onClick={() => setShowReassignModal(false)}
-                className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+                className="p-1.5 rounded-lg hover:bg-page text-text-secondary transition-colors"
               >
                 <X size={16} />
               </button>
             </div>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-gray-50 p-2">
+            <div className="max-h-80 overflow-y-auto divide-y divide-border p-2">
               {reassignableUsers.length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-6">No other active team members.</p>
+                <p className="text-sm text-text-muted text-center py-6">No other active team members.</p>
               ) : (
                 reassignableUsers.map((u) => {
                   const isSelected = reassignTarget === u.id;
@@ -316,19 +317,19 @@ export default function TeamMemberPage() {
                       className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-left ${
                         isSelected
                           ? "bg-primary/10 border border-primary/30"
-                          : "hover:bg-gray-50 border border-transparent"
+                          : "hover:bg-page border border-transparent"
                       }`}
                     >
                       <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                         <span className="text-white text-xs font-bold">{getInitials(u.fullName)}</span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold text-gray-900">{u.fullName}</p>
-                        <p className="text-xs text-gray-500 capitalize">{u.role}</p>
+                        <p className="text-sm font-semibold text-text-primary">{u.fullName}</p>
+                        <p className="text-xs text-text-secondary capitalize">{u.role}</p>
                       </div>
                       <div className="text-right flex-shrink-0">
-                        <p className="text-sm font-semibold text-gray-700">{count}</p>
-                        <p className="text-xs text-gray-400">leads</p>
+                        <p className="text-sm font-semibold text-text-secondary">{count}</p>
+                        <p className="text-xs text-text-muted">leads</p>
                       </div>
                     </button>
                   );
@@ -342,20 +343,22 @@ export default function TeamMemberPage() {
               </div>
             )}
 
-            <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-3">
-              <button
+            <div className="px-5 py-4 border-t border-border flex items-center gap-3">
+              <Button
+                variant="secondary"
+                className="flex-1"
                 onClick={() => setShowReassignModal(false)}
-                className="flex-1 border border-gray-200 text-gray-700 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
               >
                 Cancel
-              </button>
-              <button
+              </Button>
+              <Button
+                variant="primary"
+                className="flex-1"
                 onClick={handleReassign}
                 disabled={!reassignTarget || reassigning}
-                className="flex-1 bg-primary text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {reassigning ? "Reassigning…" : "Reassign"}
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -364,26 +367,26 @@ export default function TeamMemberPage() {
       {/* Back */}
       <Link
         href="/team"
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+        className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-secondary"
       >
         <ArrowLeft size={15} />
         Back to Team
       </Link>
 
       {/* Profile card */}
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-[12px] p-5 border border-border">
         <div className="flex items-start gap-4">
           <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
             <span className="text-white text-xl font-bold">{getInitials(member.fullName)}</span>
           </div>
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold text-gray-900">{member.fullName}</h1>
-            <p className="text-sm text-gray-500 mt-0.5">{member.email}</p>
+            <h1 className="text-xl font-bold text-text-primary">{member.fullName}</h1>
+            <p className="text-sm text-text-secondary mt-0.5">{member.email}</p>
             <div className="flex items-center gap-2 mt-2 flex-wrap">
               <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${ROLE_STYLES[member.role]}`}>
                 {roleLabel(member.role)}
               </span>
-              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${member.isActive ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+              <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${member.isActive ? "bg-green-100 text-green-700" : "bg-page text-text-secondary"}`}>
                 {member.isActive ? "Active" : "Inactive"}
               </span>
             </div>
@@ -392,52 +395,52 @@ export default function TeamMemberPage() {
 
         {isManager && (
           <div className="mt-4 flex gap-2">
-            <button
+            <Button
+              variant="secondary"
               onClick={() => { setReassignTarget(null); setReassignError(null); setShowReassignModal(true); }}
               disabled={activeLeads.length === 0}
-              className="flex items-center gap-1.5 border border-gray-200 text-gray-700 text-sm font-medium px-3.5 py-2 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <RefreshCw size={14} />
               Reassign Leads
-            </button>
+            </Button>
             {canDelete && (
-              <button
+              <Button
+                variant="destructive"
                 onClick={() => { setActionError(null); setShowDeleteConfirm(true); }}
-                className="flex items-center gap-1.5 border border-red-200 text-red-600 text-sm font-medium px-3.5 py-2 rounded-lg hover:bg-red-50 transition-colors"
               >
                 <Trash2 size={14} />
                 Remove Member
-              </button>
+              </Button>
             )}
           </div>
         )}
       </div>
 
       {/* Performance */}
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Performance</h2>
+      <div className="bg-white rounded-[12px] p-5 border border-border">
+        <h2 className="text-sm font-semibold text-text-secondary mb-4">Performance</h2>
         <div className="grid grid-cols-3 gap-4">
           <div className="text-center">
-            <p className="text-3xl font-bold text-gray-900">{leads.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Total Leads</p>
+            <p className="text-3xl font-bold text-text-primary">{leads.length}</p>
+            <p className="text-xs text-text-secondary mt-1">Total Leads</p>
           </div>
           <div className="text-center">
-            <p className="text-3xl font-bold text-gray-900">{activeLeads.length}</p>
-            <p className="text-xs text-gray-500 mt-1">Active</p>
+            <p className="text-3xl font-bold text-text-primary">{activeLeads.length}</p>
+            <p className="text-xs text-text-secondary mt-1">Active</p>
           </div>
           <div className="text-center">
             <p className="text-3xl font-bold text-green-600">{conversionRate}%</p>
-            <p className="text-xs text-gray-500 mt-1">Conversion</p>
+            <p className="text-xs text-text-secondary mt-1">Conversion</p>
           </div>
         </div>
       </div>
 
       {/* Assigned Leads */}
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+      <div className="bg-white rounded-[12px] p-5 border border-border">
         <div className="flex items-center gap-2 mb-4">
-          <Users size={16} className="text-gray-400" />
-          <h2 className="text-sm font-semibold text-gray-700">Assigned Leads</h2>
-          <span className="ml-auto text-xs text-gray-400">{activeLeads.length} active</span>
+          <Users size={16} className="text-text-muted" />
+          <h2 className="text-sm font-semibold text-text-secondary">Assigned Leads</h2>
+          <span className="ml-auto text-xs text-text-muted">{activeLeads.length} active</span>
         </div>
 
         {leadsLoading ? (
@@ -445,7 +448,7 @@ export default function TeamMemberPage() {
             <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : activeLeads.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">No active leads assigned.</p>
+          <p className="text-sm text-text-muted text-center py-4">No active leads assigned.</p>
         ) : (
           <div className="space-y-2">
             {activeLeads.slice(0, 10).map((lead) => {
@@ -457,20 +460,20 @@ export default function TeamMemberPage() {
                 <Link
                   key={lead.id}
                   href={`/leads/${lead.id}`}
-                  className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
+                  className="flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg hover:bg-page transition-colors"
                 >
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">
+                    <p className="text-sm font-medium text-text-primary truncate">
                       {lead.firstName} {lead.lastName}
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">{lead.phone}</p>
+                    <p className="text-xs text-text-muted mt-0.5">{lead.phone}</p>
                   </div>
                   <div className="flex items-center gap-2 flex-shrink-0">
                     <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${stageStyle}`}>
                       {stageLabel}
                     </span>
                     {updatedDate && (
-                      <span className="text-xs text-gray-400 hidden sm:inline">
+                      <span className="text-xs text-text-muted hidden sm:inline">
                         {formatRelativeDate(updatedDate)}
                       </span>
                     )}
@@ -479,7 +482,7 @@ export default function TeamMemberPage() {
               );
             })}
             {activeLeads.length > 10 && (
-              <p className="text-xs text-gray-400 text-center pt-1">
+              <p className="text-xs text-text-muted text-center pt-1">
                 +{activeLeads.length - 10} more
               </p>
             )}
@@ -488,15 +491,15 @@ export default function TeamMemberPage() {
       </div>
 
       {/* Activity Timeline */}
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Recent Activity</h2>
+      <div className="bg-white rounded-[12px] p-5 border border-border">
+        <h2 className="text-sm font-semibold text-text-secondary mb-4">Recent Activity</h2>
 
         {activitiesLoading ? (
           <div className="flex justify-center py-6">
             <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
           </div>
         ) : activities.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">No recent activity.</p>
+          <p className="text-sm text-text-muted text-center py-4">No recent activity.</p>
         ) : (
           <div className="space-y-4">
             {activities.map((activity) => {
@@ -506,15 +509,15 @@ export default function TeamMemberPage() {
                 <div key={activity.id} className="flex gap-3">
                   <div className="flex flex-col items-center">
                     <div className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${dotColor}`} />
-                    <div className="w-px flex-1 bg-gray-200 mt-1" />
+                    <div className="w-px flex-1 bg-border mt-1" />
                   </div>
                   <div className="pb-4 flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800">{activity.title}</p>
+                    <p className="text-sm font-medium text-text-primary">{activity.title}</p>
                     {activity.description && (
-                      <p className="text-xs text-gray-500 mt-0.5">{activity.description}</p>
+                      <p className="text-xs text-text-secondary mt-0.5">{activity.description}</p>
                     )}
                     {date && (
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-text-muted mt-1">
                         {formatRelativeDate(date)}
                       </p>
                     )}

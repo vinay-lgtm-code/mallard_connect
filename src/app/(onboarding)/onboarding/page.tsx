@@ -7,6 +7,7 @@ import { Upload, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { readOnboarding, writeOnboarding } from "@/lib/onboarding/state";
 import { clearDemoUser } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 const COLORS = ["#1A5653", "#0F172A", "#7C3AED", "#0369A1", "#B45309", "#BE185D"];
 const LOGO_ACCEPT = ".svg,.png,.jpg,.jpeg,.webp";
@@ -82,17 +83,17 @@ function LinkExpiredError() {
 
   if (sent) {
     return (
-      <div className="bg-white border border-gray-100 rounded-[16px] p-8 text-center">
+      <div className="bg-white border border-border rounded-[16px] p-8 text-center">
         <div className="w-14 h-14 rounded-full bg-green-50 flex items-center justify-center mx-auto mb-4">
           <svg className="w-7 h-7 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
           </svg>
         </div>
-        <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
-        <p className="text-sm text-gray-600 mb-1">
+        <h1 className="text-2xl font-bold text-text-primary mb-2">Check your email</h1>
+        <p className="text-sm text-text-secondary mb-1">
           We sent a new confirmation link to <strong>{email}</strong>.
         </p>
-        <p className="text-sm text-gray-500">Click the link within the next hour to activate your account.</p>
+        <p className="text-sm text-text-secondary">Click the link within the next hour to activate your account.</p>
         <Link href="/login" className="inline-block mt-6 text-sm font-medium text-primary hover:underline">
           Back to sign in
         </Link>
@@ -101,14 +102,14 @@ function LinkExpiredError() {
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-[16px] p-8">
+    <div className="bg-white border border-border rounded-[16px] p-8">
       <div className="w-14 h-14 rounded-full bg-amber-50 flex items-center justify-center mx-auto mb-4">
         <svg className="w-7 h-7 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       </div>
-      <h1 className="text-2xl font-bold text-gray-900 text-center mb-2">Confirmation link expired</h1>
-      <p className="text-sm text-gray-600 text-center mb-6">
+      <h1 className="text-2xl font-bold text-text-primary text-center mb-2">Confirmation link expired</h1>
+      <p className="text-sm text-text-secondary text-center mb-6">
         Your email confirmation link has expired or is no longer valid.
         Enter your email below and we&apos;ll send a fresh one.
       </p>
@@ -121,23 +122,24 @@ function LinkExpiredError() {
 
       <form onSubmit={handleResend} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1.5">Email address</label>
+          <label className="block text-sm font-medium text-text-secondary mb-1.5">Email address</label>
           <input
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
             placeholder="you@example.com"
-            className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full border border-border rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
           />
         </div>
-        <button
+        <Button
           type="submit"
+          variant="primary"
           disabled={sending}
-          className="w-full bg-primary text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-primary-dark disabled:opacity-60"
+          className="w-full"
         >
           {sending ? "Sending..." : "Resend confirmation email"}
-        </button>
+        </Button>
       </form>
 
       <div className="mt-4 text-center">
@@ -290,10 +292,10 @@ export default function OnboardingPage() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white border border-gray-100 rounded-[16px] p-8">
+    <form onSubmit={handleSubmit} className="bg-white border border-border rounded-[16px] p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Set up your workspace</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-text-primary">Set up your workspace</h1>
+        <p className="mt-1 text-sm text-text-secondary">
           Tell us about your firm. You can change these later in Settings.
         </p>
       </div>
@@ -306,7 +308,7 @@ export default function OnboardingPage() {
 
       <div className="space-y-5">
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1.5">
             Firm name
           </label>
           <input
@@ -315,18 +317,18 @@ export default function OnboardingPage() {
             onChange={(e) => setFirmName(e.target.value)}
             required
             placeholder="Acme Mortgages"
-            className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+            className="w-full border border-border rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1.5">
             Set custom firm URL
           </label>
-          <p className="text-xs text-gray-500 mb-2">
+          <p className="text-xs text-text-secondary mb-2">
             e.g. if you are Acme Mortgages, set as acme-mortgages.sequence-ai.com
           </p>
-          <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-primary">
+          <div className="flex items-center border border-border rounded-lg overflow-hidden focus-within:ring-[3px] focus-within:ring-primary/10 focus-within:border-primary">
             <input
               type="text"
               value={slug}
@@ -338,18 +340,18 @@ export default function OnboardingPage() {
               placeholder="acme"
               className="flex-1 px-3.5 py-2.5 text-sm focus:outline-none"
             />
-            <span className="px-3 py-2.5 bg-gray-50 text-sm text-gray-500 border-l border-gray-200">
+            <span className="px-3 py-2.5 bg-page text-sm text-text-secondary border-l border-border">
               .sequence-ai.com
             </span>
           </div>
-          <p className="mt-1.5 text-xs text-gray-500">
+          <p className="mt-1.5 text-xs text-text-secondary">
             Your team will sign in at{" "}
             <span className="font-mono">{slug || "your-firm"}.sequence-ai.com</span>.
           </p>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
             Primary colour
           </label>
           <div className="flex items-center gap-2.5">
@@ -369,41 +371,41 @@ export default function OnboardingPage() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-2">
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-2">
             Logo
           </label>
-          <div className="rounded-lg border border-gray-200 bg-gray-50 p-4">
+          <div className="rounded-lg border border-border bg-page p-4">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg border border-gray-200 bg-white overflow-hidden">
+              <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-lg border border-border bg-white overflow-hidden">
                 {logoPreviewUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={logoPreviewUrl} alt="Selected firm logo" className="h-full w-full object-contain p-2" />
                 ) : (
-                  <Upload size={20} className="text-gray-400" />
+                  <Upload size={20} className="text-text-muted" />
                 )}
               </div>
               <div className="min-w-0 flex-1">
                 {logoFile ? (
                   <div className="flex flex-wrap items-center gap-2">
-                    <p className="truncate text-sm font-medium text-gray-900">{logoFile.name}</p>
-                    <span className="text-xs text-gray-500">{formatFileSize(logoFile.size)}</span>
+                    <p className="truncate text-sm font-medium text-text-primary">{logoFile.name}</p>
+                    <span className="text-xs text-text-secondary">{formatFileSize(logoFile.size)}</span>
                     <button
                       type="button"
                       onClick={clearLogo}
-                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-gray-400 hover:bg-white hover:text-gray-600"
+                      className="inline-flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-white hover:text-text-secondary"
                       aria-label="Remove logo"
                     >
                       <X size={15} />
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm font-medium text-gray-900">Upload your firm logo</p>
+                  <p className="text-sm font-medium text-text-primary">Upload your firm logo</p>
                 )}
-                <p className="mt-1 text-xs text-gray-500">SVG, PNG, JPEG, or WebP up to 2 MB.</p>
+                <p className="mt-1 text-xs text-text-secondary">SVG, PNG, JPEG, or WebP up to 2 MB.</p>
               </div>
               <label
                 htmlFor="firm-logo"
-                className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                className="inline-flex cursor-pointer items-center gap-2 rounded-lg border border-border bg-white px-3 py-2 text-sm font-medium text-text-secondary hover:bg-page"
               >
                 <Upload size={15} />
                 Choose file
@@ -423,10 +425,10 @@ export default function OnboardingPage() {
       </div>
 
       <div className="mt-8 flex justify-end">
-        <button
+        <Button
           type="submit"
+          variant="primary"
           disabled={loading}
-          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-dark disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {loading ? (
             <>
@@ -436,7 +438,7 @@ export default function OnboardingPage() {
           ) : (
             "Create my workspace"
           )}
-        </button>
+        </Button>
       </div>
     </form>
   );

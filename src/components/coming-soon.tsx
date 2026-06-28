@@ -18,8 +18,8 @@ export function ComingSoon({ icon: Icon, title, description }: ComingSoonProps) 
         <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-200 mb-4">
           Coming Soon
         </span>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">{title}</h2>
-        <p className="text-sm text-gray-500 text-center max-w-md">{description}</p>
+        <h2 className="text-2xl font-bold text-text-primary mb-2">{title}</h2>
+        <p className="text-sm text-text-secondary text-center max-w-md">{description}</p>
       </div>
     </div>
   );

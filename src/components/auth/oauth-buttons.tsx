@@ -65,7 +65,7 @@ export function OAuthButtons() {
         type="button"
         onClick={() => handleOAuth("google")}
         disabled={!!loadingProvider}
-        className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-3 border border-border-strong rounded-lg py-2.5 text-sm font-medium text-text-secondary hover:bg-page transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loadingProvider === "google" ? (
           <span className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />
@@ -79,7 +79,7 @@ export function OAuthButtons() {
         type="button"
         onClick={() => handleOAuth("azure")}
         disabled={!!loadingProvider}
-        className="w-full flex items-center justify-center gap-3 border border-gray-300 rounded-lg py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+        className="w-full flex items-center justify-center gap-3 border border-border-strong rounded-lg py-2.5 text-sm font-medium text-text-secondary hover:bg-page transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loadingProvider === "azure" ? (
           <span className="w-4 h-4 border-2 border-gray-400 border-t-gray-700 rounded-full animate-spin" />

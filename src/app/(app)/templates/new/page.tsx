@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
@@ -111,19 +112,19 @@ export default function NewTemplatePage() {
     <div className="px-6 py-8 max-w-5xl">
       <Link
         href="/templates"
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6"
+        className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-secondary mb-6"
       >
         <ArrowLeft size={15} />
         Back to Templates
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">New template</h1>
+      <h1 className="text-2xl font-bold text-text-primary mb-6">New template</h1>
 
-      <div className="bg-white border border-gray-100 rounded-[12px] p-6">
+      <div className="bg-white border border-border rounded-[12px] p-6">
         <form onSubmit={handleSubmit} noValidate className="space-y-5">
           {/* Name */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Name <span className="text-destructive">*</span>
             </label>
             <input
@@ -132,15 +133,15 @@ export default function NewTemplatePage() {
               onChange={(e) => { setName(e.target.value); setError(null); }}
               placeholder="e.g. FTB deposit-saving check-in"
               required
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
 
           {/* Channel */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Channel</label>
+            <label className="block text-sm font-medium text-text-secondary mb-2">Channel</label>
             <div className="flex items-center gap-4">
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
                 <input
                   type="radio"
                   name="channel"
@@ -151,7 +152,7 @@ export default function NewTemplatePage() {
                 />
                 Email
               </label>
-              <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+              <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
                 <input
                   type="radio"
                   name="channel"
@@ -168,7 +169,7 @@ export default function NewTemplatePage() {
           {/* Subject (email only) */}
           {channel === "email" && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-text-secondary mb-1">
                 Subject <span className="text-destructive">*</span>
               </label>
               <input
@@ -176,14 +177,14 @@ export default function NewTemplatePage() {
                 value={subject}
                 onChange={(e) => { setSubject(e.target.value); setError(null); }}
                 placeholder="e.g. Just checking in, {{firstName}}"
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
               />
             </div>
           )}
 
           {/* Body */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Body <span className="text-destructive">*</span>
             </label>
             <textarea
@@ -193,20 +194,20 @@ export default function NewTemplatePage() {
               rows={12}
               required
               placeholder="Write your template body here..."
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-y"
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 resize-y"
             />
           </div>
 
           {/* Variable insertion */}
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-2">Insert variable into body</p>
+            <p className="text-xs font-medium text-text-secondary mb-2">Insert variable into body</p>
             <div className="flex flex-wrap gap-2">
               {VARIABLES.map((v) => (
                 <button
                   key={v}
                   type="button"
                   onClick={() => insertVariable(v)}
-                  className="text-xs font-mono px-2.5 py-1 rounded-md border border-gray-200 bg-gray-50 text-gray-700 hover:bg-gray-100 hover:border-gray-300 transition-colors"
+                  className="text-xs font-mono px-2.5 py-1 rounded-md border border-border bg-page text-text-secondary hover:bg-page hover:border-border-strong transition-colors"
                 >
                   {v}
                 </button>
@@ -223,13 +224,13 @@ export default function NewTemplatePage() {
 
           {/* Submit */}
           <div className="flex justify-end pt-2">
-            <button
+            <Button
               type="submit"
+              variant="primary"
               disabled={saving || isDemo}
-              className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-50"
             >
               {saving ? "Creating…" : "Create template"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>

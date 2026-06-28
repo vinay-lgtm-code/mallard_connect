@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, type ChangeEvent } from "react";
 import { useParams } from "next/navigation";
 import { Upload, CheckCircle2, Lock, AlertCircle } from "lucide-react";
 import { CATEGORY_LABELS } from "@/schemas/document";
+import { Button } from "@/components/ui/button";
 import type { DocumentCategory } from "@/types";
 
 interface RequestData {
@@ -72,7 +73,7 @@ export default function ClientUploadPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-page flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -80,11 +81,11 @@ export default function ClientUploadPage() {
 
   if (expired || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="bg-white rounded-xl p-8 shadow-sm border border-gray-100 max-w-md text-center space-y-3">
+      <div className="min-h-screen bg-page flex items-center justify-center">
+        <div className="bg-white rounded-xl p-8 border border-border max-w-md text-center space-y-3">
           <AlertCircle size={32} className="mx-auto text-red-400" />
-          <h1 className="text-lg font-bold text-gray-900">Link expired</h1>
-          <p className="text-sm text-gray-500">This upload link is no longer valid. Please contact your adviser for a new link.</p>
+          <h1 className="text-lg font-bold text-text-primary">Link expired</h1>
+          <p className="text-sm text-text-secondary">This upload link is no longer valid. Please contact your adviser for a new link.</p>
         </div>
       </div>
     );
@@ -95,14 +96,14 @@ export default function ClientUploadPage() {
   const allDone = totalUploaded === totalRequested;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-page">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+      <div className="bg-white border-b border-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="text-xl font-extrabold text-primary">Sequence</span>
-          <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-semibold">Secure portal</span>
+          <span className="text-xs bg-page text-text-secondary px-2 py-0.5 rounded-full font-semibold">Secure portal</span>
         </div>
-        <div className="flex items-center gap-1.5 text-gray-400 text-xs">
+        <div className="flex items-center gap-1.5 text-text-muted text-xs">
           <Lock size={14} />
           <span>Encrypted</span>
         </div>
@@ -110,27 +111,27 @@ export default function ClientUploadPage() {
 
       {/* Content */}
       <div className="max-w-2xl mx-auto py-10 px-4">
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 space-y-6">
+        <div className="bg-white rounded-xl border border-border p-8 space-y-6">
           <div>
-            <h1 className="text-2xl font-extrabold text-gray-900">Hi {data.leadName.split(" ")[0]},</h1>
-            <p className="text-sm text-gray-500 mt-2">
+            <h1 className="text-2xl font-extrabold text-text-primary">Hi {data.leadName.split(" ")[0]},</h1>
+            <p className="text-sm text-text-secondary mt-2">
               {data.firmName} has requested the following documents for your mortgage application.
             </p>
           </div>
 
           {data.message && (
-            <div className="bg-gray-50 border border-gray-200 rounded-lg p-4 text-sm text-gray-600 italic">
+            <div className="bg-page border border-border rounded-lg p-4 text-sm text-text-secondary italic">
               &ldquo;{data.message}&rdquo;
             </div>
           )}
 
           {/* Progress */}
           <div>
-            <div className="flex items-center justify-between text-xs text-gray-500 mb-1.5">
+            <div className="flex items-center justify-between text-xs text-text-secondary mb-1.5">
               <span className="font-semibold">{totalUploaded} of {totalRequested} uploaded</span>
               {allDone && <span className="text-green-600 font-bold">Complete</span>}
             </div>
-            <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+            <div className="w-full h-2 bg-border rounded-full overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-all duration-500"
                 style={{ width: `${totalRequested > 0 ? (totalUploaded / totalRequested) * 100 : 0}%` }}
@@ -149,7 +150,7 @@ export default function ClientUploadPage() {
           )}
 
           {/* Category rows */}
-          <div className="divide-y divide-gray-100 border border-gray-100 rounded-lg overflow-hidden">
+          <div className="divide-y divide-border border border-border rounded-lg overflow-hidden">
             {data.requestedCategories.map((cat) => {
               const isDone = uploadedCats.has(cat);
               const state = uploadStates[cat] ?? "idle";
@@ -157,15 +158,15 @@ export default function ClientUploadPage() {
               return (
                 <div
                   key={cat}
-                  className={`flex items-center justify-between px-4 py-3.5 ${isDone ? "bg-gray-50" : "bg-white"}`}
+                  className={`flex items-center justify-between px-4 py-3.5 ${isDone ? "bg-page" : "bg-white"}`}
                 >
                   <div className="flex items-center gap-3">
                     {isDone ? (
                       <CheckCircle2 size={20} className="text-green-500 flex-shrink-0" />
                     ) : (
-                      <div className="w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0" />
+                      <div className="w-5 h-5 rounded-full border-2 border-border-strong flex-shrink-0" />
                     )}
-                    <span className={`text-sm font-semibold ${isDone ? "text-gray-400" : "text-gray-800"}`}>
+                    <span className={`text-sm font-semibold ${isDone ? "text-text-muted" : "text-text-primary"}`}>
                       <CategoryLabel cat={cat} />
                     </span>
                   </div>
@@ -181,7 +182,7 @@ export default function ClientUploadPage() {
                     {isDone ? (
                       <span className="text-xs font-bold text-green-600 bg-green-50 px-3 py-1 rounded-full">Done</span>
                     ) : state === "uploading" ? (
-                      <span className="text-xs font-semibold text-gray-500">Uploading...</span>
+                      <span className="text-xs font-semibold text-text-secondary">Uploading...</span>
                     ) : state === "error" ? (
                       <button
                         onClick={() => fileInputRefs.current[cat]?.click()}
@@ -190,13 +191,14 @@ export default function ClientUploadPage() {
                         Retry
                       </button>
                     ) : (
-                      <button
+                      <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => fileInputRefs.current[cat]?.click()}
-                        className="flex items-center gap-1.5 bg-primary text-white text-xs font-bold px-4 py-1.5 rounded-lg hover:bg-primary-dark transition-colors"
                       >
                         <Upload size={14} />
                         Upload
-                      </button>
+                      </Button>
                     )}
                   </div>
                 </div>
@@ -205,7 +207,7 @@ export default function ClientUploadPage() {
           </div>
 
           {/* Footer */}
-          <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 pt-2">
+          <div className="flex items-center justify-center gap-1.5 text-xs text-text-muted pt-2">
             <Lock size={12} />
             <span>Your documents are encrypted and only visible to your adviser.</span>
           </div>

@@ -1,19 +1,29 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #1A5653;
-  --color-primary-light: #2A7A76;
-  --color-primary-dark: #0F3B39;
-  --color-accent: #F59E0B;
-  --color-accent-light: #FCD34D;
-  --color-destructive: #DC2626;
-  --color-success: #22C55E;
-  --color-warning: #F59E0B;
-  --color-info: #3B82F6;
-  --color-purple: #7C3AED;
-  --color-sidebar: #0F2E2D;
-  --color-card: #F9FAFB;
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --radius-card: 12px;
-  --radius-button: 8px;
+  --color-primary:        #1A5653;
+  --color-primary-light:  #2A7A76;
+  --color-primary-dark:   #0F3B39;
+  --color-accent:         #E8981A;
+  --color-accent-light:   #F5C46B;
+  --color-accent-warm:    #F59E0B;
+  --color-destructive:    #DC2626;
+  --color-success:        #1A5653;
+  --color-warning:        #F59E0B;
+  --color-info:           #3B82F6;
+  --color-purple:         #7C3AED;
+  --color-sidebar:        #0F2E2D;
+  --color-surface:        #FFFFFF;
+  --color-page:           #F8FAFB;
+  --color-section-dark:   #1B2B3A;
+  --color-text-primary:   #111827;
+  --color-text-secondary: #6B7280;
+  --color-text-muted:     #9CA3AF;
+  --color-border:         #E5E7EB;
+  --color-border-strong:  #D1D5DB;
+  --font-sans:            "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:            "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+  --radius-card:          12px;
+  --radius-button:        8px;
+  --radius-input:         8px;
 }

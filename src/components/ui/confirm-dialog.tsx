@@ -1,6 +1,7 @@
 "use client";
 
 import { Modal } from "./modal";
+import { Button } from "./button";
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -23,11 +24,6 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
 }: ConfirmDialogProps) {
-  const confirmClass =
-    variant === "danger"
-      ? "bg-red-600 text-white hover:bg-red-700"
-      : "bg-primary text-white hover:bg-primary-dark";
-
   return (
     <Modal
       open={open}
@@ -36,22 +32,19 @@ export function ConfirmDialog({
       maxWidth="max-w-sm"
       footer={
         <>
-          <button
-            onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
-          >
+          <Button variant="secondary" onClick={onCancel}>
             {cancelLabel}
-          </button>
-          <button
+          </Button>
+          <Button
+            variant={variant === "danger" ? "destructive" : "primary"}
             onClick={onConfirm}
-            className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${confirmClass}`}
           >
             {confirmLabel}
-          </button>
+          </Button>
         </>
       }
     >
-      <p className="text-sm text-gray-600">{message}</p>
+      <p className="text-sm text-text-secondary">{message}</p>
     </Modal>
   );
 }

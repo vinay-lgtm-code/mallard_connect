@@ -45,11 +45,11 @@ export default function EditCadencePage({
       <div className="px-6 py-8 max-w-5xl">
         <Link
           href="/cadences"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+          className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4"
         >
           <ArrowLeft size={14} /> Back to cadences
         </Link>
-        <p className="mt-6 text-gray-500">Cadence not found.</p>
+        <p className="mt-6 text-text-secondary">Cadence not found.</p>
       </div>
     );
   }
@@ -97,12 +97,12 @@ export default function EditCadencePage({
     <div className="px-6 py-8 max-w-5xl">
       <Link
         href={`/cadences/${id}`}
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4"
       >
         <ArrowLeft size={14} /> Back to cadence
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">
+      <h1 className="text-2xl font-bold text-text-primary mb-6">
         Edit: {cadence.name}
       </h1>
 

@@ -4,6 +4,7 @@ import { useState, useRef, type DragEvent, type ChangeEvent } from "react";
 import { Upload, X, FileText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { DOCUMENT_CATEGORIES, CATEGORY_LABELS, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "@/schemas/document";
+import { Button } from "@/components/ui/button";
 import type { DocumentCategory } from "@/types";
 
 interface UploadDocumentProps {
@@ -105,8 +106,8 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
   }
 
   return (
-    <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-4">
-      <h3 className="text-sm font-semibold text-gray-700">Upload Document</h3>
+    <div className="bg-white rounded-[12px] p-5 border border-border space-y-4">
+      <h3 className="text-sm font-semibold text-text-secondary">Upload Document</h3>
 
       {/* Drop zone */}
       <div
@@ -119,7 +120,7 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
             ? "border-primary bg-primary/5"
             : file
               ? "border-green-300 bg-green-50"
-              : "border-gray-200 hover:border-gray-300 bg-gray-50"
+              : "border-border hover:border-border-strong bg-page"
         }`}
       >
         <input
@@ -136,18 +137,18 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
             <span className="text-xs text-green-500">({formatFileSize(file.size)})</span>
             <button
               onClick={(e) => { e.stopPropagation(); setFile(null); setError(null); }}
-              className="ml-2 text-gray-400 hover:text-gray-600"
+              className="ml-2 text-text-muted hover:text-text-secondary"
             >
               <X size={16} />
             </button>
           </div>
         ) : (
           <div className="space-y-1">
-            <Upload size={24} className="mx-auto text-gray-400" />
-            <p className="text-sm text-gray-500">
+            <Upload size={24} className="mx-auto text-text-muted" />
+            <p className="text-sm text-text-secondary">
               Drop a file here or <span className="text-primary font-medium">browse</span>
             </p>
-            <p className="text-xs text-gray-400">PDF, JPEG, PNG, WebP, DOC, DOCX up to 25 MB</p>
+            <p className="text-xs text-text-muted">PDF, JPEG, PNG, WebP, DOC, DOCX up to 25 MB</p>
           </div>
         )}
       </div>
@@ -156,11 +157,11 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
       {file && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-medium text-gray-600">Category</label>
+            <label className="text-xs font-medium text-text-secondary">Category</label>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as DocumentCategory)}
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             >
               {DOCUMENT_CATEGORIES.map((cat) => (
                 <option key={cat} value={cat}>
@@ -170,14 +171,14 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
             </select>
           </div>
           <div>
-            <label className="text-xs font-medium text-gray-600">Description (optional)</label>
+            <label className="text-xs font-medium text-text-secondary">Description (optional)</label>
             <input
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="e.g. March 2025 statement"
               maxLength={500}
-              className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
         </div>
@@ -188,13 +189,14 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
       )}
 
       {file && (
-        <button
+        <Button
+          variant="primary"
+          className="w-full"
           onClick={handleUpload}
           disabled={uploading}
-          className="w-full bg-primary text-white font-semibold py-2.5 rounded-lg text-sm hover:bg-primary-dark transition-colors disabled:opacity-60"
         >
           {uploading ? "Uploading..." : "Upload"}
-        </button>
+        </Button>
       )}
     </div>
   );

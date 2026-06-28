@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser } from "@/lib/mock-data";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
+import { Button } from "@/components/ui/button";
 
 type FieldErrors = Partial<Record<keyof CreateLeadInput, string>>;
 
@@ -74,11 +75,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 function Field({ label, error, ...props }: InputProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-text-secondary mb-1">{label}</label>
       <input
         {...props}
-        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent ${
-          error ? "border-destructive" : "border-gray-300"
+        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 ${
+          error ? "border-destructive" : "border-border-strong"
         }`}
       />
       <FieldError message={error} />
@@ -96,11 +97,11 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 function SelectField({ label, error, options, placeholder, ...props }: SelectProps) {
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-text-secondary mb-1">{label}</label>
       <select
         {...props}
-        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent bg-white ${
-          error ? "border-destructive" : "border-gray-300"
+        className={`w-full border rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 bg-white ${
+          error ? "border-destructive" : "border-border-strong"
         }`}
       >
         {placeholder && <option value="">{placeholder}</option>}
@@ -299,8 +300,8 @@ export default function NewLeadPage() {
       <form onSubmit={handleSubmit} noValidate>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Left: Contact Details */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-4">
-            <h2 className="text-base font-bold text-gray-900">Contact Details</h2>
+          <div className="bg-white rounded-[12px] p-5 border border-border space-y-4">
+            <h2 className="text-base font-bold text-text-primary">Contact Details</h2>
 
             <div className="grid grid-cols-2 gap-3">
               <Field
@@ -382,21 +383,21 @@ export default function NewLeadPage() {
             />
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Quick Notes</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Quick Notes</label>
               <textarea
                 value={form.notes}
                 onChange={(e) => set("notes", e.target.value)}
                 rows={3}
                 placeholder="Any initial context…"
-                className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 resize-none"
               />
             </div>
           </div>
 
           {/* Right: Follow-up Reminder */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-4">
-            <h2 className="text-base font-bold text-gray-900">Follow-up Reminder</h2>
-            <p className="text-xs text-gray-500">Optional — schedule a reminder to follow up with this lead.</p>
+          <div className="bg-white rounded-[12px] p-5 border border-border space-y-4">
+            <h2 className="text-base font-bold text-text-primary">Follow-up Reminder</h2>
+            <p className="text-xs text-text-secondary">Optional — schedule a reminder to follow up with this lead.</p>
 
             <Field
               label="Follow-up Date"
@@ -415,7 +416,7 @@ export default function NewLeadPage() {
             />
 
             <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-700">Reminder Recipients (up to 3)</label>
+              <label className="block text-sm font-medium text-text-secondary">Reminder Recipients (up to 3)</label>
               {[
                 { key: "reminderEmail1", placeholder: "advisor@mallard.co.uk" },
                 { key: "reminderEmail2", placeholder: "manager@mallard.co.uk" },
@@ -427,19 +428,19 @@ export default function NewLeadPage() {
                   value={form[key as keyof typeof form]}
                   onChange={(e) => set(key, e.target.value)}
                   placeholder={placeholder}
-                  className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                 />
               ))}
             </div>
 
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reminder Note</label>
+              <label className="block text-sm font-medium text-text-secondary mb-1">Reminder Note</label>
               <textarea
                 value={form.reminderNote}
                 onChange={(e) => set("reminderNote", e.target.value)}
                 rows={3}
                 placeholder="Context to include in the reminder email…"
-                className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 resize-none"
               />
             </div>
           </div>
@@ -450,13 +451,15 @@ export default function NewLeadPage() {
         )}
 
         <div className="mt-6">
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            size="lg"
             disabled={saving}
-            className="w-full bg-primary text-white font-bold py-3 rounded-lg text-base hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full"
           >
             {saving ? "Saving…" : "Save Lead"}
-          </button>
+          </Button>
         </div>
       </form>
     </div>

@@ -13,6 +13,7 @@ import {
   type OnboardingInvite,
   type OnboardingInviteRole,
 } from "@/lib/onboarding/state";
+import { Button } from "@/components/ui/button";
 
 const MAX_INVITES = 20;
 
@@ -151,11 +152,11 @@ export default function OnboardingInvitePage() {
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-[16px] p-8">
+    <div className="bg-white border border-border rounded-[16px] p-8">
       <div className="mb-6">
         <p className="text-xs font-semibold text-primary mb-1">Step 2 of 5</p>
-        <h1 className="text-2xl font-bold text-gray-900">Invite your team</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-text-primary">Invite your team</h1>
+        <p className="mt-1 text-sm text-text-secondary">
           Add up to {MAX_INVITES} team members now, or continue and invite them later from Team.
         </p>
       </div>
@@ -172,8 +173,8 @@ export default function OnboardingInvitePage() {
             <ShieldCheck size={17} />
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="text-sm font-bold text-gray-900">Case Manager</h2>
-            <p className="mt-1 text-xs leading-5 text-gray-600">
+            <h2 className="text-sm font-bold text-text-primary">Case Manager</h2>
+            <p className="mt-1 text-xs leading-5 text-text-secondary">
               Optional. Case Managers can add and allocate leads and view everyone's pipeline, but cannot access Reports or Forecast.
             </p>
             <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-2">
@@ -182,14 +183,14 @@ export default function OnboardingInvitePage() {
                 value={caseManager.fullName}
                 onChange={(e) => setCaseManager((prev) => ({ ...prev, fullName: e.target.value }))}
                 placeholder="Full name"
-                className="border border-teal-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="border border-teal-200 bg-white rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
               />
               <input
                 type="email"
                 value={caseManager.email}
                 onChange={(e) => setCaseManager((prev) => ({ ...prev, email: e.target.value }))}
                 placeholder="case.manager@firm.co.uk"
-                className="border border-teal-200 bg-white rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                className="border border-teal-200 bg-white rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
               />
             </div>
           </div>
@@ -197,19 +198,19 @@ export default function OnboardingInvitePage() {
       </div>
 
       {invites.length > 0 && (
-        <ul className="mb-5 divide-y divide-gray-100 border border-gray-100 rounded-lg">
+        <ul className="mb-5 divide-y divide-border border border-border rounded-lg">
           {invites.map((inv, i) => (
             <li key={`${inv.email}-${i}`} className="flex items-center justify-between px-4 py-3">
               <div>
-                <p className="text-sm font-medium text-gray-900">{inv.fullName}</p>
-                <p className="text-xs text-gray-500">
+                <p className="text-sm font-medium text-text-primary">{inv.fullName}</p>
+                <p className="text-xs text-text-secondary">
                   {inv.email} · {roleLabel(inv.role)}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => removeInvite(i)}
-                className="p-1 rounded hover:bg-gray-100 text-gray-400"
+                className="p-1 rounded hover:bg-page text-text-muted"
                 aria-label="Remove invite"
               >
                 <X size={14} />
@@ -220,9 +221,9 @@ export default function OnboardingInvitePage() {
       )}
 
       {invites.length < MAX_INVITES && (
-        <div className="rounded-lg border border-dashed border-gray-200 p-4 mb-5">
-          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900">
-            <UsersRound size={16} className="text-gray-400" />
+        <div className="rounded-lg border border-dashed border-border p-4 mb-5">
+          <div className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary">
+            <UsersRound size={16} className="text-text-muted" />
             Team invitations
           </div>
           <div className="grid grid-cols-12 gap-2.5">
@@ -231,19 +232,19 @@ export default function OnboardingInvitePage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="email@firm.co.uk"
-              className="col-span-12 md:col-span-5 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="col-span-12 md:col-span-5 border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
             <input
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
               placeholder="Full name (optional)"
-              className="col-span-12 md:col-span-4 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="col-span-12 md:col-span-4 border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
             <select
               value={role}
               onChange={(e) => setRole(e.target.value as OnboardingInviteRole)}
-              className="col-span-10 md:col-span-2 border border-gray-200 rounded-lg px-2 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="col-span-10 md:col-span-2 border border-border rounded-lg px-2 py-2 text-sm bg-white focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             >
               <option value="advisor">Advisor</option>
               <option value="manager">Manager</option>
@@ -257,15 +258,15 @@ export default function OnboardingInvitePage() {
               <Plus size={16} />
             </button>
           </div>
-          <p className="mt-2 text-xs text-gray-400">
+          <p className="mt-2 text-xs text-text-muted">
             {MAX_INVITES - invites.length} invite{invites.length === MAX_INVITES - 1 ? "" : "s"} remaining.
           </p>
-          <p className="mt-1 text-xs text-gray-500">{ROLE_HELP[role]}</p>
+          <p className="mt-1 text-xs text-text-secondary">{ROLE_HELP[role]}</p>
         </div>
       )}
 
       {invites.length === 0 && !caseManager.email && (
-        <p className="mb-5 text-sm text-gray-400">
+        <p className="mb-5 text-sm text-text-muted">
           Skipping is fine. You can add team members later.
         </p>
       )}
@@ -273,20 +274,20 @@ export default function OnboardingInvitePage() {
       <div className="flex items-center justify-between pt-2">
         <Link
           href="/onboarding"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
+          className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary"
         >
           <ChevronLeft size={14} />
           Back
         </Link>
-        <button
+        <Button
           type="button"
           onClick={handleNext}
+          variant="primary"
           disabled={saving}
-          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-dark disabled:opacity-60"
         >
           {saving ? "Sending invites..." : "Continue"}
           <ChevronRight size={14} />
-        </button>
+        </Button>
       </div>
     </div>
   );

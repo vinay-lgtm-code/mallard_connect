@@ -3,6 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Database, Check, AlertCircle, Lock, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 
 type ConnState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -35,18 +37,18 @@ export default function BrevoIntegrationPage() {
     <div className="px-6 py-8 max-w-3xl">
       <Link
         href="/integrations"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4"
       >
         <ArrowLeft size={14} /> Back to integrations
       </Link>
 
       <div className="flex items-start gap-4 mb-6">
-        <div className="w-12 h-12 rounded-xl bg-gray-100 flex items-center justify-center flex-shrink-0">
-          <Database size={22} className="text-gray-700" />
+        <div className="w-12 h-12 rounded-xl bg-page flex items-center justify-center flex-shrink-0">
+          <Database size={22} className="text-text-secondary" />
         </div>
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Brevo</h1>
-          <p className="mt-1 text-sm text-gray-500 max-w-xl">
+          <h1 className="text-2xl font-bold text-text-primary">Brevo</h1>
+          <p className="mt-1 text-sm text-text-secondary max-w-xl">
             Pull contacts and email open/click events into Sequence. One-way only — Sequence never
             writes back to Brevo, and Resend handles all outbound email.
           </p>
@@ -54,40 +56,39 @@ export default function BrevoIntegrationPage() {
       </div>
 
       {state === "connected" && (
-        <div className="bg-white border border-gray-100 rounded-[12px] p-6 mb-5">
+        <div className="bg-white border border-border rounded-[12px] p-6 mb-5">
           <div className="flex items-center gap-2 mb-3">
             <div className="w-6 h-6 rounded-full bg-green-500 text-white flex items-center justify-center">
               <Check size={12} />
             </div>
-            <p className="text-sm font-semibold text-gray-900">Connected</p>
+            <p className="text-sm font-semibold text-text-primary">Connected</p>
           </div>
+          <SectionLabel>Connection details</SectionLabel>
           <dl className="grid grid-cols-2 gap-y-2 text-sm">
-            <dt className="text-gray-500">List</dt>
-            <dd className="text-gray-900">{listId || "All contacts"}</dd>
-            <dt className="text-gray-500">Last sync</dt>
-            <dd className="text-gray-900">A few seconds ago</dd>
-            <dt className="text-gray-500">Sync schedule</dt>
-            <dd className="text-gray-900">Every 6 hours (cron)</dd>
+            <dt className="text-text-secondary">List</dt>
+            <dd className="text-text-primary">{listId || "All contacts"}</dd>
+            <dt className="text-text-secondary">Last sync</dt>
+            <dd className="text-text-primary">A few seconds ago</dd>
+            <dt className="text-text-secondary">Sync schedule</dt>
+            <dd className="text-text-primary">Every 6 hours (cron)</dd>
           </dl>
           <div className="mt-5 flex items-center gap-2">
-            <button className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50">
+            <Button variant="secondary">
               <RefreshCw size={13} />
               Sync now
-            </button>
-            <button
-              onClick={disconnect}
-              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium text-rose-600 hover:bg-rose-50"
-            >
+            </Button>
+            <Button variant="destructive" onClick={disconnect}>
               Disconnect
-            </button>
+            </Button>
           </div>
         </div>
       )}
 
       {state !== "connected" && (
-        <div className="bg-white border border-gray-100 rounded-[12px] p-6 space-y-5">
+        <div className="bg-white border border-border rounded-[12px] p-6 space-y-5">
+          <SectionLabel>Credentials</SectionLabel>
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1.5">
               Brevo API key
             </label>
             <div className="relative">
@@ -96,20 +97,20 @@ export default function BrevoIntegrationPage() {
                 value={apiKey}
                 onChange={(e) => setApiKey(e.target.value)}
                 placeholder="xkeysib-…"
-                className="w-full border border-gray-200 rounded-lg pl-9 pr-3 py-2.5 text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary"
+                className="w-full border border-border rounded-lg pl-9 pr-3 py-2.5 text-sm font-mono focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
               />
               <Lock
                 size={14}
-                className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none"
+                className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none"
               />
             </div>
-            <p className="mt-1.5 text-xs text-gray-500">
+            <p className="mt-1.5 text-xs text-text-secondary">
               Stored encrypted at rest. Read-only access is sufficient.
             </p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+            <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1.5">
               List ID (optional)
             </label>
             <input
@@ -117,7 +118,7 @@ export default function BrevoIntegrationPage() {
               value={listId}
               onChange={(e) => setListId(e.target.value)}
               placeholder="Leave blank to sync all contacts"
-              className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full border border-border rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
 
@@ -128,10 +129,10 @@ export default function BrevoIntegrationPage() {
             </div>
           )}
 
-          <button
+          <Button
+            variant="primary"
             onClick={testConnection}
             disabled={state === "connecting" || !apiKey}
-            className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-dark disabled:opacity-60"
           >
             {state === "connecting" ? (
               <>
@@ -139,19 +140,20 @@ export default function BrevoIntegrationPage() {
                 Testing connection...
               </>
             ) : (
-              "Test &amp; connect"
+              "Test & connect"
             )}
-          </button>
+          </Button>
         </div>
       )}
 
-      <div className="mt-6 rounded-[12px] bg-gray-50 border border-gray-100 p-5 text-xs text-gray-600 leading-relaxed">
-        <p className="font-semibold text-gray-900 mb-1">What Sequence reads from Brevo</p>
+      <div className="mt-6 rounded-[12px] bg-page border border-border p-5 text-xs text-text-secondary leading-relaxed">
+        <SectionLabel>How the integration works</SectionLabel>
+        <p className="font-semibold text-text-primary mb-1">What Sequence reads from Brevo</p>
         <ul className="list-disc list-inside space-y-1">
           <li>Contact list members (name, email, phone, custom attributes)</li>
           <li>Email-open and link-click events — appear in the lead activity timeline</li>
         </ul>
-        <p className="font-semibold text-gray-900 mt-3 mb-1">What Sequence does not do</p>
+        <p className="font-semibold text-text-primary mt-3 mb-1">What Sequence does not do</p>
         <ul className="list-disc list-inside space-y-1">
           <li>Send email through Brevo (Resend stays as the send engine)</li>
           <li>Push contacts back to Brevo — read-only by design</li>

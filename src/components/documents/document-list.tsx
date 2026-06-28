@@ -16,7 +16,7 @@ interface DocumentListProps {
 function fileIcon(mimeType: string) {
   if (mimeType.startsWith("image/")) return <Image size={16} className="text-blue-500" />;
   if (mimeType === "application/pdf") return <FileText size={16} className="text-red-500" />;
-  return <File size={16} className="text-gray-500" />;
+  return <File size={16} className="text-text-secondary" />;
 }
 
 function formatSize(bytes: number): string {
@@ -86,7 +86,7 @@ export function DocumentList({ documents, users, onDeleted }: DocumentListProps)
 
   if (documents.length === 0) {
     return (
-      <div className="bg-white rounded-[12px] p-6 text-center text-sm text-gray-400 border border-gray-100">
+      <div className="bg-white rounded-[12px] p-6 text-center text-sm text-text-muted border border-border">
         No documents uploaded yet.
       </div>
     );
@@ -95,9 +95,9 @@ export function DocumentList({ documents, users, onDeleted }: DocumentListProps)
   return (
     <div className="space-y-4">
       {sortedCategories.map((cat) => (
-        <div key={cat} className="bg-white rounded-[12px] shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-100">
-            <h4 className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+        <div key={cat} className="bg-white rounded-[12px] border border-border overflow-hidden">
+          <div className="px-4 py-2.5 bg-page border-b border-border">
+            <h4 className="text-xs font-semibold text-text-secondary uppercase tracking-wide">
               {CATEGORY_LABELS[cat]} ({grouped[cat].length})
             </h4>
           </div>
@@ -107,11 +107,11 @@ export function DocumentList({ documents, users, onDeleted }: DocumentListProps)
               const date = doc.createdAt ? new Date(doc.createdAt) : undefined;
 
               return (
-                <div key={doc.id} className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors">
+                <div key={doc.id} className="flex items-center gap-3 px-4 py-3 hover:bg-page transition-colors">
                   <div className="flex-shrink-0">{fileIcon(doc.mimeType)}</div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-800 truncate">{doc.fileName}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
+                    <p className="text-sm font-medium text-text-primary truncate">{doc.fileName}</p>
+                    <div className="flex items-center gap-2 text-xs text-text-muted mt-0.5">
                       <span>{formatSize(doc.fileSize)}</span>
                       <span>&middot;</span>
                       <span>{uploaderName}</span>
@@ -123,13 +123,13 @@ export function DocumentList({ documents, users, onDeleted }: DocumentListProps)
                       )}
                     </div>
                     {doc.description && (
-                      <p className="text-xs text-gray-500 mt-0.5 truncate">{doc.description}</p>
+                      <p className="text-xs text-text-secondary mt-0.5 truncate">{doc.description}</p>
                     )}
                   </div>
                   <div className="flex items-center gap-1 flex-shrink-0">
                     <button
                       onClick={() => handleDownload(doc.id)}
-                      className="p-1.5 text-gray-400 hover:text-primary rounded-lg hover:bg-gray-100 transition-colors"
+                      className="p-1.5 text-text-muted hover:text-primary rounded-lg hover:bg-page transition-colors"
                       title="Download"
                     >
                       <Download size={16} />
@@ -138,7 +138,7 @@ export function DocumentList({ documents, users, onDeleted }: DocumentListProps)
                       <button
                         onClick={() => handleDelete(doc.id)}
                         disabled={deleting === doc.id}
-                        className="p-1.5 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40"
+                        className="p-1.5 text-text-muted hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40"
                         title="Delete"
                       >
                         <Trash2 size={16} />

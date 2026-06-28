@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { setDemoUser, clearDemoUser } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
 export default function LoginPage() {
@@ -54,7 +55,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-page flex items-center justify-center p-4">
       <div className="bg-white rounded-[12px] shadow-lg w-full max-w-md p-8">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary mb-4">
@@ -63,8 +64,8 @@ export default function LoginPage() {
               <path d="M8 12l3 3 5-5" strokeWidth="2" stroke="currentColor" fill="none" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Sequence</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
+          <h1 className="text-2xl font-bold text-text-primary">Sequence</h1>
+          <p className="text-sm text-text-secondary mt-1">Sign in to your account</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
@@ -80,7 +81,7 @@ export default function LoginPage() {
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">
               Email address
             </label>
             <input
@@ -89,13 +90,13 @@ export default function LoginPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               autoComplete="email"
-              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
               placeholder="you@example.com"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">
               Password
             </label>
             <input
@@ -104,7 +105,7 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
               autoComplete="current-password"
-              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+              className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
               placeholder="Enter your password"
             />
           </div>
@@ -118,48 +119,49 @@ export default function LoginPage() {
             </a>
           </div>
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
             disabled={loading}
-            className="w-full bg-primary text-white font-semibold rounded-lg py-2.5 text-sm hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+            className="w-full"
           >
             {loading ? "Signing in…" : "Sign In"}
-          </button>
+          </Button>
         </form>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200" />
+            <div className="w-full border-t border-border" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-3 text-gray-500">or</span>
+            <span className="bg-white px-3 text-text-secondary">or</span>
           </div>
         </div>
 
         <OAuthButtons />
 
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <p className="text-xs text-gray-500 text-center mb-4">Try a demo account</p>
+        <div className="mt-8 pt-6 border-t border-border">
+          <p className="text-xs text-text-secondary text-center mb-4">Try a demo account</p>
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={() => handleDemoLogin("demo-manager")}
-              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors group"
+              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors group"
             >
               <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
                 <span className="text-white text-xs font-bold">DM</span>
               </div>
-              <span className="text-sm font-medium text-gray-900 group-hover:text-primary">Della Mallard</span>
-              <span className="text-xs text-gray-500">Owner / Manager</span>
+              <span className="text-sm font-medium text-text-primary group-hover:text-primary">Della Mallard</span>
+              <span className="text-xs text-text-secondary">Owner / Manager</span>
             </button>
             <button
               onClick={() => handleDemoLogin("demo-sales")}
-              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-gray-200 hover:border-primary hover:bg-primary/5 transition-colors group"
+              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors group"
             >
               <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center">
                 <span className="text-white text-xs font-bold">AR</span>
               </div>
-              <span className="text-sm font-medium text-gray-900 group-hover:text-primary">Alex Rivera</span>
-              <span className="text-xs text-gray-500">Salesperson</span>
+              <span className="text-sm font-medium text-text-primary group-hover:text-primary">Alex Rivera</span>
+              <span className="text-xs text-text-secondary">Salesperson</span>
             </button>
           </div>
         </div>

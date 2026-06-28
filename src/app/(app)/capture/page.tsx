@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
 
 const TYPE_TAGS = [
   { value: "first-time-buyer", label: "First-time buyer" },
@@ -122,7 +123,7 @@ export default function CapturePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-page flex flex-col">
       {/* Header */}
       <header className="bg-primary text-white flex items-center justify-between px-4 py-4 flex-shrink-0">
         <Link href="/dashboard" className="flex items-center gap-2 text-white/80 hover:text-white">
@@ -130,13 +131,14 @@ export default function CapturePage() {
           <span className="text-sm font-medium">Back</span>
         </Link>
         <h1 className="text-base font-bold">Quick Capture</h1>
-        <button
+        <Button
           onClick={handleSave}
           disabled={saving}
-          className="bg-accent text-white text-sm font-bold px-4 py-2 rounded-lg active:opacity-80 disabled:opacity-60"
+          variant="primary"
+          size="sm"
         >
           {saving ? "Saving…" : "Save"}
-        </button>
+        </Button>
       </header>
 
       {/* Toast */}
@@ -150,7 +152,7 @@ export default function CapturePage() {
       <div className="flex-1 overflow-y-auto p-4 space-y-5">
         {/* Name */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-text-secondary mb-2">
             Full Name <span className="text-destructive">*</span>
           </label>
           <input
@@ -159,13 +161,13 @@ export default function CapturePage() {
             onChange={(e) => { setName(e.target.value); setError(null); }}
             placeholder="e.g. James Thornton"
             autoFocus
-            className="w-full border border-gray-300 rounded-xl px-4 py-4 text-base focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            className="w-full border border-border-strong rounded-xl px-4 py-4 text-base focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 bg-white"
           />
         </div>
 
         {/* Phone */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
+          <label className="block text-sm font-semibold text-text-secondary mb-2">
             Phone Number <span className="text-destructive">*</span>
           </label>
           <input
@@ -173,14 +175,14 @@ export default function CapturePage() {
             value={phone}
             onChange={(e) => { setPhone(e.target.value); setError(null); }}
             placeholder="+44 7700 000000"
-            className="w-full border border-gray-300 rounded-xl px-4 py-4 text-base focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+            className="w-full border border-border-strong rounded-xl px-4 py-4 text-base font-mono focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 bg-white"
           />
         </div>
 
         {/* Type Tags */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">
-            Type <span className="text-xs text-gray-400 font-normal">(tap to select)</span>
+          <label className="block text-sm font-semibold text-text-secondary mb-2">
+            Type <span className="text-xs text-text-muted font-normal">(tap to select)</span>
           </label>
           <div className="flex flex-wrap gap-2">
             {TYPE_TAGS.map((tag) => {
@@ -193,7 +195,7 @@ export default function CapturePage() {
                   className={`px-4 py-2.5 rounded-full text-sm font-semibold transition-colors border ${
                     active
                       ? "bg-primary text-white border-primary"
-                      : "bg-white text-gray-600 border-gray-300 hover:border-primary/50"
+                      : "bg-white text-text-secondary border-border-strong hover:border-primary/50"
                   }`}
                 >
                   {tag.label}
@@ -205,13 +207,13 @@ export default function CapturePage() {
 
         {/* Notes */}
         <div>
-          <label className="block text-sm font-semibold text-gray-700 mb-2">Quick Note</label>
+          <label className="block text-sm font-semibold text-text-secondary mb-2">Quick Note</label>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             placeholder="Any initial context — situation, urgency, how they heard about us…"
             rows={4}
-            className="w-full border border-gray-300 rounded-xl px-4 py-4 text-base focus:outline-none focus:ring-2 focus:ring-primary bg-white resize-none"
+            className="w-full border border-border-strong rounded-xl px-4 py-4 text-base focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 bg-white resize-none"
           />
         </div>
 
@@ -223,13 +225,15 @@ export default function CapturePage() {
         )}
 
         {/* Save button (also at bottom for easy thumb reach) */}
-        <button
+        <Button
           onClick={handleSave}
           disabled={saving}
-          className="w-full bg-primary text-white font-bold py-4 rounded-xl text-base hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+          variant="primary"
+          size="lg"
+          className="w-full py-4 rounded-xl"
         >
           {saving ? "Saving…" : "Save Lead"}
-        </button>
+        </Button>
       </div>
     </div>
   );

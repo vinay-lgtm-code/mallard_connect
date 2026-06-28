@@ -104,15 +104,15 @@ function KpiCard({
   color?: string;
 }) {
   return (
-    <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-[12px] p-5 border border-border">
       <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-400">
+        <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">{label}</p>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-page text-text-muted">
           <Icon size={16} />
         </div>
       </div>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+      <p className="text-3xl font-bold text-text-primary">{value}</p>
+      {sub && <p className="text-xs text-text-muted mt-1">{sub}</p>}
     </div>
   );
 }
@@ -166,7 +166,7 @@ function MonthlyForecastTable({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-gray-400 text-center py-8">
+      <p className="text-sm text-text-muted text-center py-8">
         No deals with an estimated close date yet. Add deal value, confidence and an
         estimated close date to a lead to see it forecast here.
       </p>
@@ -176,23 +176,23 @@ function MonthlyForecastTable({
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-gray-500 border-b border-gray-100">
-            <th className="text-left py-2.5 px-1 font-medium">Month</th>
-            <th className="text-right py-2.5 px-1 font-medium">Deals</th>
-            <th className="text-right py-2.5 px-1 font-medium">Total value</th>
-            <th className="text-right py-2.5 px-1 font-medium">Weighted</th>
-            <th className="text-right py-2.5 px-1 font-medium">Expected close</th>
-            <th className="text-left py-2.5 px-1 font-medium w-32">Weighted share</th>
+          <tr className="text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted border-b border-border">
+            <th className="text-left py-2.5 px-1">Month</th>
+            <th className="text-right py-2.5 px-1">Deals</th>
+            <th className="text-right py-2.5 px-1">Total value</th>
+            <th className="text-right py-2.5 px-1">Weighted</th>
+            <th className="text-right py-2.5 px-1">Expected close</th>
+            <th className="text-left py-2.5 px-1 w-32">Weighted share</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-border">
           {rows.map((row) => {
             const pct = maxWeighted > 0 ? (row.weighted / maxWeighted) * 100 : 0;
             return (
-              <tr key={row.key} className="group hover:bg-gray-50">
+              <tr key={row.key} className="group hover:bg-page">
                 <td className="py-3 px-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{row.label}</span>
+                    <span className="font-medium text-text-primary">{row.label}</span>
                     {row.isPast && (
                       <span
                         className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold"
@@ -203,18 +203,18 @@ function MonthlyForecastTable({
                     )}
                   </div>
                 </td>
-                <td className="py-3 px-1 text-right text-gray-700">{row.dealCount}</td>
-                <td className="py-3 px-1 text-right text-gray-700">
+                <td className="py-3 px-1 text-right text-text-secondary">{row.dealCount}</td>
+                <td className="py-3 px-1 text-right text-text-secondary">
                   {formatCurrency(Math.round(row.total))}
                 </td>
-                <td className="py-3 px-1 text-right font-semibold text-gray-900">
+                <td className="py-3 px-1 text-right font-semibold text-text-primary">
                   {formatCurrency(Math.round(row.weighted))}
                 </td>
                 <td className="py-3 px-1 text-right text-success font-semibold">
                   {formatCurrency(Math.round(row.expected))}
                 </td>
                 <td className="py-3 px-1">
-                  <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div className="bg-page rounded-full h-2 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-500"
                       style={{ width: `${Math.max(pct, row.weighted > 0 ? 4 : 0)}%` }}
@@ -234,26 +234,26 @@ function MonthlyForecastTable({
 
 function AdviserForecastTable({ rows }: { rows: AdviserRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-4">No forecast data.</p>;
+    return <p className="text-sm text-text-muted text-center py-4">No forecast data.</p>;
   }
   return (
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-gray-500 border-b border-gray-100">
-            <th className="text-left py-2.5 px-1 font-medium">Advisor</th>
-            <th className="text-right py-2.5 px-1 font-medium">Deals</th>
-            <th className="text-right py-2.5 px-1 font-medium">Total value</th>
-            <th className="text-right py-2.5 px-1 font-medium">Weighted</th>
-            <th className="text-right py-2.5 px-1 font-medium">Expected close</th>
+          <tr className="text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted border-b border-border">
+            <th className="text-left py-2.5 px-1">Advisor</th>
+            <th className="text-right py-2.5 px-1">Deals</th>
+            <th className="text-right py-2.5 px-1">Total value</th>
+            <th className="text-right py-2.5 px-1">Weighted</th>
+            <th className="text-right py-2.5 px-1">Expected close</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-border">
           {rows.map((row, i) => (
-            <tr key={row.userId} className="group hover:bg-gray-50">
+            <tr key={row.userId} className="group hover:bg-page">
               <td className="py-3 px-1">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xs text-gray-400 w-4 flex-shrink-0">{i + 1}</span>
+                  <span className="text-xs text-text-muted w-4 flex-shrink-0">{i + 1}</span>
                   <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">
                       {row.name
@@ -264,14 +264,14 @@ function AdviserForecastTable({ rows }: { rows: AdviserRow[] }) {
                         .slice(0, 2)}
                     </span>
                   </div>
-                  <span className="font-medium text-gray-900 text-sm">{row.name}</span>
+                  <span className="font-medium text-text-primary text-sm">{row.name}</span>
                 </div>
               </td>
-              <td className="py-3 px-1 text-right text-gray-700">{row.dealCount}</td>
-              <td className="py-3 px-1 text-right text-gray-700">
+              <td className="py-3 px-1 text-right text-text-secondary">{row.dealCount}</td>
+              <td className="py-3 px-1 text-right text-text-secondary">
                 {formatCurrency(Math.round(row.total))}
               </td>
-              <td className="py-3 px-1 text-right font-semibold text-gray-900">
+              <td className="py-3 px-1 text-right font-semibold text-text-primary">
                 {formatCurrency(Math.round(row.weighted))}
               </td>
               <td className="py-3 px-1 text-right text-success font-semibold">
@@ -307,7 +307,7 @@ function ForecastInputsTable({
   onCancel: (leadId: string) => void;
 }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-4">No open leads to forecast.</p>;
+    return <p className="text-sm text-text-muted text-center py-4">No open leads to forecast.</p>;
   }
 
   return (
@@ -320,17 +320,17 @@ function ForecastInputsTable({
       <div className="overflow-x-auto -mx-1">
         <table className="w-full text-sm min-w-[760px]">
           <thead>
-            <tr className="text-xs text-gray-500 border-b border-gray-100">
-              <th className="text-left py-2.5 px-1 font-medium">Lead</th>
-              <th className="text-left py-2.5 px-1 font-medium">Advisor</th>
-              <th className="text-left py-2.5 px-1 font-medium">Forecast amount</th>
-              <th className="text-left py-2.5 px-1 font-medium">Close date</th>
-              <th className="text-left py-2.5 px-1 font-medium">Confidence</th>
-              <th className="text-right py-2.5 px-1 font-medium">Weighted</th>
-              <th className="text-right py-2.5 px-1 font-medium w-24">Save</th>
+            <tr className="text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted border-b border-border">
+              <th className="text-left py-2.5 px-1">Lead</th>
+              <th className="text-left py-2.5 px-1">Advisor</th>
+              <th className="text-left py-2.5 px-1">Forecast amount</th>
+              <th className="text-left py-2.5 px-1">Close date</th>
+              <th className="text-left py-2.5 px-1">Confidence</th>
+              <th className="text-right py-2.5 px-1">Weighted</th>
+              <th className="text-right py-2.5 px-1 w-24">Save</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {rows.map((row) => {
               const draft = drafts[row.leadId] ?? {};
               const dealValue = draft.dealValue ?? row.dealValueInput;
@@ -342,11 +342,11 @@ function ForecastInputsTable({
                 confidence !== row.confidenceInput;
               const isSaving = savingLeadId === row.leadId;
               return (
-                <tr key={row.leadId} className="group hover:bg-gray-50">
+                <tr key={row.leadId} className="group hover:bg-page">
                   <td className="py-3 px-1">
                     <Link
                       href={`/leads/${row.leadId}`}
-                      className="font-medium text-gray-900 hover:text-primary"
+                      className="font-medium text-text-primary hover:text-primary"
                     >
                       {row.name || "Unnamed lead"}
                     </Link>
@@ -354,7 +354,7 @@ function ForecastInputsTable({
                       <p className="text-xs text-amber-600 mt-0.5">Needs close date</p>
                     )}
                   </td>
-                  <td className="py-3 px-1 text-gray-700">{row.adviserName}</td>
+                  <td className="py-3 px-1 text-text-secondary">{row.adviserName}</td>
                   <td className="py-3 px-1">
                     <input
                       type="number"
@@ -362,7 +362,7 @@ function ForecastInputsTable({
                       value={dealValue}
                       disabled={!canEdit || isSaving}
                       onChange={(e) => onDraftChange(row.leadId, "dealValue", e.target.value)}
-                      className="w-32 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-32 border border-border-strong rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-[3px] focus:ring-primary/10 focus:border-primary disabled:bg-page disabled:text-text-muted"
                     />
                   </td>
                   <td className="py-3 px-1">
@@ -371,7 +371,7 @@ function ForecastInputsTable({
                       value={closeDate}
                       disabled={!canEdit || isSaving}
                       onChange={(e) => onDraftChange(row.leadId, "closeDate", e.target.value)}
-                      className="w-36 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-36 border border-border-strong rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-[3px] focus:ring-primary/10 focus:border-primary disabled:bg-page disabled:text-text-muted"
                     />
                   </td>
                   <td className="py-3 px-1">
@@ -382,14 +382,14 @@ function ForecastInputsTable({
                       value={confidence}
                       disabled={!canEdit || isSaving}
                       onChange={(e) => onDraftChange(row.leadId, "confidence", e.target.value)}
-                      className="w-24 border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary disabled:bg-gray-50 disabled:text-gray-400"
+                      className="w-24 border border-border-strong rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-[3px] focus:ring-primary/10 focus:border-primary disabled:bg-page disabled:text-text-muted"
                     />
                   </td>
-                  <td className="py-3 px-1 text-right font-semibold text-gray-900">
+                  <td className="py-3 px-1 text-right font-semibold text-text-primary">
                     {row.included ? (
                       formatCurrency(Math.round(row.weighted))
                     ) : (
-                      <span className="text-xs font-medium text-gray-400">Not included</span>
+                      <span className="text-xs font-medium text-text-muted">Not included</span>
                     )}
                   </td>
                   <td className="py-3 px-1">
@@ -398,7 +398,7 @@ function ForecastInputsTable({
                         type="button"
                         onClick={() => onSave(row)}
                         disabled={!canEdit || !isDirty || isSaving}
-                        className="p-1.5 rounded-lg text-primary hover:bg-primary/10 disabled:text-gray-300 disabled:hover:bg-transparent"
+                        className="p-1.5 rounded-lg text-primary hover:bg-primary/10 disabled:text-text-muted disabled:hover:bg-transparent"
                         aria-label={`Save forecast inputs for ${row.name || "lead"}`}
                         title="Save forecast inputs"
                       >
@@ -408,7 +408,7 @@ function ForecastInputsTable({
                         type="button"
                         onClick={() => onCancel(row.leadId)}
                         disabled={!isDirty || isSaving}
-                        className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 disabled:text-gray-300 disabled:hover:bg-transparent"
+                        className="p-1.5 rounded-lg text-text-muted hover:bg-page disabled:text-text-muted disabled:hover:bg-transparent"
                         aria-label={`Discard forecast input changes for ${row.name || "lead"}`}
                         title="Discard changes"
                       >
@@ -423,7 +423,7 @@ function ForecastInputsTable({
         </table>
       </div>
       {!canEdit && (
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-text-muted">
           Demo data is read-only. Open a real workspace to save forecast inputs.
         </p>
       )}
@@ -650,13 +650,13 @@ export default function ForecastPage() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="space-y-3">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-text-secondary">
           Expected closings by month, weighted by lead confidence and historical
           conversion rate.
         </p>
-        <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100">
-          <h2 className="text-sm font-semibold text-gray-800">Forecast math</h2>
-          <p className="mt-1 text-sm text-gray-500">
+        <div className="bg-white rounded-[12px] p-4 border border-border">
+          <h2 className="text-sm font-semibold text-text-primary">Forecast math</h2>
+          <p className="mt-1 text-sm text-text-secondary">
             Weighted pipeline is each lead&apos;s forecast amount multiplied by its
             confidence. A lead at 100% contributes its full forecast amount; Expected
             Closed then applies the historical conversion rate to the weighted total.
@@ -703,19 +703,19 @@ export default function ForecastPage() {
           </div>
 
           {/* Forecast by month */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-[12px] p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700">Forecast by Month</h2>
-              <span className="text-xs text-gray-400">Grouped by estimated close date</span>
+              <h2 className="text-sm font-semibold text-text-secondary">Forecast by Month</h2>
+              <span className="text-xs text-text-muted">Grouped by estimated close date</span>
             </div>
             <MonthlyForecastTable rows={forecast.monthRows} maxWeighted={maxWeighted} />
           </div>
 
           {/* Editable forecast source inputs */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-[12px] p-5 border border-border">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700">Forecast Inputs</h2>
-              <span className="text-xs text-gray-400">
+              <h2 className="text-sm font-semibold text-text-secondary">Forecast Inputs</h2>
+              <span className="text-xs text-text-muted">
                 Edits update the lead qualification deal fields
               </span>
             </div>
@@ -732,10 +732,10 @@ export default function ForecastPage() {
           </div>
 
           {/* Forecast by adviser */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-[12px] p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700">Forecast by Advisor</h2>
-              <span className="text-xs text-gray-400">Sorted by weighted value</span>
+              <h2 className="text-sm font-semibold text-text-secondary">Forecast by Advisor</h2>
+              <span className="text-xs text-text-muted">Sorted by weighted value</span>
             </div>
             <AdviserForecastTable rows={forecast.adviserRows} />
           </div>

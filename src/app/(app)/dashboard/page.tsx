@@ -7,6 +7,7 @@ import { useWeeklyActivitySummary } from "@/hooks/use-weekly-activity-summary";
 import { formatDistanceToNow } from "date-fns";
 import { getInitials } from "@/lib/utils";
 import { hasCapability } from "@/lib/auth/roles";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { Activity, User } from "@/types";
 
 interface KpiCardProps {
@@ -14,11 +15,12 @@ interface KpiCardProps {
   value: number;
   colorClass: string;
   bgClass: string;
+  borderAccent?: string;
 }
 
-function KpiCard({ label, value, colorClass, bgClass }: KpiCardProps) {
+function KpiCard({ label, value, colorClass, bgClass, borderAccent = "border-l-primary" }: KpiCardProps) {
   return (
-    <div className={`rounded-[12px] p-5 ${bgClass}`}>
+    <div className={`rounded-[12px] p-5 border-l-3 ${borderAccent} ${bgClass}`}>
       <p className={`text-sm font-medium ${colorClass} opacity-80`}>{label}</p>
       <p className={`text-4xl font-bold mt-1 ${colorClass}`}>{value}</p>
     </div>
@@ -26,13 +28,13 @@ function KpiCard({ label, value, colorClass, bgClass }: KpiCardProps) {
 }
 
 const PIPELINE_STAGE_CONFIG = [
-  { id: "new_enquiry", name: "New Enquiry", color: "bg-indigo-500" },
-  { id: "initial_contact", name: "Initial Contact", color: "bg-blue-500" },
-  { id: "not_ready_yet", name: "Not proceeded.", color: "bg-amber-500" },
-  { id: "nurturing", name: "Nurturing", color: "bg-green-500" },
-  { id: "decision_in_principle_done", name: "Decision in Principle done", color: "bg-teal-500" },
-  { id: "ready_to_proceed", name: "Ready to proceed", color: "bg-blue-600" },
-  { id: "referred_to_mab", name: "Deal Done", color: "bg-purple-500" },
+  { id: "new_enquiry", name: "New Enquiry", color: "bg-[#1A5653]" },
+  { id: "initial_contact", name: "Initial Contact", color: "bg-[#3B82F6]" },
+  { id: "not_ready_yet", name: "Not proceeded.", color: "bg-[#F59E0B]" },
+  { id: "nurturing", name: "Nurturing", color: "bg-[#7C3AED]" },
+  { id: "decision_in_principle_done", name: "Decision in Principle done", color: "bg-[#22C55E]" },
+  { id: "ready_to_proceed", name: "Ready to proceed", color: "bg-[#22C55E]" },
+  { id: "referred_to_mab", name: "Deal Done", color: "bg-[#64748B]" },
 ];
 
 const STATUS_STYLES = {
@@ -95,24 +97,24 @@ function WeeklyActivitySummary({ users }: { users: (User & { id: string })[] }) 
   }).sort((a, b) => (b.thisWeek + b.lastWeek) - (a.thisWeek + a.lastWeek));
 
   return (
-    <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-      <h2 className="text-sm font-semibold text-gray-700 mb-4">Weekly Activity</h2>
+    <div className="bg-white rounded-[12px] p-5 border border-border">
+      <SectionLabel>Weekly Activity</SectionLabel>
       {loading ? (
         <div className="flex justify-center py-4">
           <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : rows.every((r) => r.thisWeek === 0 && r.lastWeek === 0) ? (
-        <p className="text-sm text-gray-400 text-center py-4">No activity in the last two weeks.</p>
+        <p className="text-sm text-text-muted text-center py-4">No activity in the last two weeks.</p>
       ) : (
         <table className="w-full text-sm">
           <thead>
-            <tr className="text-left text-xs text-gray-500 uppercase tracking-wide">
-              <th className="pb-3 font-medium">Team Member</th>
-              <th className="pb-3 font-medium text-right">This Week</th>
-              <th className="pb-3 font-medium text-right">Last Week</th>
+            <tr className="text-left text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted">
+              <th className="pb-3">Team Member</th>
+              <th className="pb-3 text-right">This Week</th>
+              <th className="pb-3 text-right">Last Week</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-50">
+          <tbody className="divide-y divide-border">
             {rows.map((row) => {
               const u = userMap.get(row.userId);
               const name = u?.fullName ?? row.userId;
@@ -124,11 +126,11 @@ function WeeklyActivitySummary({ users }: { users: (User & { id: string })[] }) 
                       <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                         <span className="text-white text-xs font-bold">{initials}</span>
                       </div>
-                      <span className="font-medium text-gray-700">{name}</span>
+                      <span className="font-medium text-text-secondary">{name}</span>
                     </div>
                   </td>
-                  <td className="py-2.5 text-right font-semibold text-gray-900">{row.thisWeek}</td>
-                  <td className="py-2.5 text-right font-semibold text-gray-900">{row.lastWeek}</td>
+                  <td className="py-2.5 text-right font-semibold text-text-primary">{row.thisWeek}</td>
+                  <td className="py-2.5 text-right font-semibold text-text-primary">{row.lastWeek}</td>
                 </tr>
               );
             })}
@@ -166,14 +168,14 @@ function ManagerDashboard({ userId }: { userId: string }) {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
         <KpiCard label="New Leads" value={newLeads} colorClass="text-indigo-700" bgClass="bg-indigo-50" />
         <KpiCard label="Follow-ups Due" value={todayTasks.length} colorClass="text-amber-700" bgClass="bg-amber-50" />
-        <KpiCard label="Overdue" value={overdueTasks.length} colorClass="text-red-700" bgClass="bg-red-50" />
+        <KpiCard label="Overdue" value={overdueTasks.length} colorClass="text-red-700" bgClass="bg-red-50" borderAccent="border-l-accent-warm" />
         <KpiCard label="Deals Closed" value={dealsClosed} colorClass="text-green-700" bgClass="bg-green-50" />
       </div>
 
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Pipeline Health</h2>
+      <div className="bg-white rounded-[12px] p-5 border border-border">
+        <SectionLabel>Pipeline Health</SectionLabel>
         {total === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">No leads in pipeline yet.</p>
+          <p className="text-sm text-text-muted text-center py-4">No leads in pipeline yet.</p>
         ) : (
           <>
             <div className="flex w-full rounded-lg overflow-hidden h-6" aria-hidden="true">
@@ -190,7 +192,7 @@ function ManagerDashboard({ userId }: { userId: string }) {
               {pipelineStages.map((stage) => (
                 <div key={stage.id} className="flex items-center gap-2">
                   <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-                  <span className="text-sm text-gray-600">{stage.name} <span className="font-semibold text-gray-900">{stage.count}</span></span>
+                  <span className="text-sm text-text-secondary">{stage.name} <span className="font-semibold text-text-primary">{stage.count}</span></span>
                 </div>
               ))}
             </div>
@@ -200,10 +202,10 @@ function ManagerDashboard({ userId }: { userId: string }) {
 
       <WeeklyActivitySummary users={users} />
 
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-4">Team Activity</h2>
+      <div className="bg-white rounded-[12px] p-5 border border-border">
+        <SectionLabel>Team Activity</SectionLabel>
         {activities.length === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-4">No recent activity.</p>
+          <p className="text-sm text-text-muted text-center py-4">No recent activity.</p>
         ) : (
           <div className="space-y-4">
             {activities.map((item: Activity) => {
@@ -218,12 +220,12 @@ function ManagerDashboard({ userId }: { userId: string }) {
                     <span className="text-white text-xs font-bold">{initials}</span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm text-gray-700">
+                    <p className="text-sm text-text-secondary">
                       <span className="font-medium">{name}</span>{" "}
                       {action}{" "}
                       <span className="font-medium">{item.title}</span>
                     </p>
-                    <p className="text-xs text-gray-400 mt-0.5">
+                    <p className="text-xs text-text-muted mt-0.5">
                       {formatDistanceToNow(ts, { addSuffix: true })}
                     </p>
                   </div>
@@ -281,9 +283,9 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">Today&apos;s Follow-ups</h2>
+        <SectionLabel>Today&apos;s Follow-ups</SectionLabel>
         {allDueTasks.length === 0 ? (
-          <div className="bg-white rounded-[12px] p-6 text-center text-sm text-gray-400 border border-gray-100">
+          <div className="bg-white rounded-[12px] p-6 text-center text-sm text-text-muted border border-border">
             No follow-ups due today.
           </div>
         ) : (
@@ -293,16 +295,16 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
               const leadName = lead ? `${lead.firstName} ${lead.lastName}` : task.leadId;
               const phone = lead?.phone ?? "";
               return (
-                <div key={task.id} className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100">
+                <div key={task.id} className="bg-white rounded-[12px] p-4 border border-border">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-semibold text-gray-900 text-sm">{leadName}</p>
+                      <p className="font-semibold text-text-primary text-sm">{leadName}</p>
                       {phone && (
-                        <a href={`tel:${phone}`} className="text-primary text-sm font-medium mt-0.5 block hover:underline">
+                        <a href={`tel:${phone}`} className="font-mono text-primary text-sm font-medium mt-0.5 block hover:underline">
                           {phone}
                         </a>
                       )}
-                      <p className="text-xs text-gray-500 mt-1">{task.title}</p>
+                      <p className="text-xs text-text-secondary mt-1">{task.title}</p>
                     </div>
                     <span className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${STATUS_STYLES[task._status]}`}>
                       {STATUS_LABELS[task._status]}
@@ -315,10 +317,10 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
         )}
       </div>
 
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">My Pipeline</h2>
+      <div className="bg-white rounded-[12px] p-5 border border-border">
+        <SectionLabel>My Pipeline</SectionLabel>
         {total === 0 ? (
-          <p className="text-sm text-gray-400 text-center py-2">No leads assigned yet.</p>
+          <p className="text-sm text-text-muted text-center py-2">No leads assigned yet.</p>
         ) : (
           <>
             <div className="flex w-full rounded-lg overflow-hidden h-6" aria-hidden="true">
@@ -335,7 +337,7 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
               {pipelineStages.map((stage) => (
                 <div key={stage.id} className="flex items-center gap-2">
                   <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-                  <span className="text-sm text-gray-600">{stage.name} <span className="font-semibold text-gray-900">{stage.count}</span></span>
+                  <span className="text-sm text-text-secondary">{stage.name} <span className="font-semibold text-text-primary">{stage.count}</span></span>
                 </div>
               ))}
             </div>
@@ -344,9 +346,9 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
       </div>
 
       <div>
-        <h2 className="text-sm font-semibold text-gray-700 mb-3">New Assignments</h2>
+        <SectionLabel>New Assignments</SectionLabel>
         {newAssignments.length === 0 ? (
-          <div className="bg-white rounded-[12px] p-6 text-center text-sm text-gray-400 border border-gray-100">
+          <div className="bg-white rounded-[12px] p-6 text-center text-sm text-text-muted border border-border">
             No new assignments in the last 48 hours.
           </div>
         ) : (
@@ -355,12 +357,12 @@ function AdvisorDashboard({ userId, name }: { userId: string; name: string }) {
               const created = lead.createdAt ? new Date(lead.createdAt) : new Date();
               const assignedAt = formatDistanceToNow(created, { addSuffix: true });
               return (
-                <div key={lead.id} className="bg-white rounded-[12px] px-4 py-3 shadow-sm border border-gray-100 flex items-center justify-between gap-3">
+                <div key={lead.id} className="bg-white rounded-[12px] px-4 py-3 border border-border flex items-center justify-between gap-3">
                   <div>
-                    <p className="font-semibold text-sm text-gray-900">{lead.firstName} {lead.lastName}</p>
-                    <p className="text-xs text-gray-500">{lead.mortgageType ?? "Unknown type"} · {lead.source}</p>
+                    <p className="font-semibold text-sm text-text-primary">{lead.firstName} {lead.lastName}</p>
+                    <p className="text-xs text-text-secondary">{lead.mortgageType ?? "Unknown type"} · {lead.source}</p>
                   </div>
-                  <p className="text-xs text-gray-400 flex-shrink-0">{assignedAt}</p>
+                  <p className="text-xs text-text-muted flex-shrink-0">{assignedAt}</p>
                 </div>
               );
             })}

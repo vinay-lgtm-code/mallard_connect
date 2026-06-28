@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import type { LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface EmptyStateProps {
   icon?: LucideIcon;
   title: string;
   description?: string;
+  illustration?: boolean;
   action?: {
     label: string;
     href: string;
@@ -17,36 +20,37 @@ interface EmptyStateProps {
   };
 }
 
-export function EmptyState({ icon: Icon, title, description, action, onAction }: EmptyStateProps) {
+export function EmptyState({ icon: Icon, title, description, illustration, action, onAction }: EmptyStateProps) {
   return (
-    <div className="bg-white rounded-[12px] p-8 shadow-sm border border-gray-100 text-center">
-      {Icon && (
-        <div className="flex justify-center mb-4">
-          <Icon className="text-gray-300" size={48} strokeWidth={1.5} />
+    <div className="bg-white rounded-[12px] p-8 border border-border text-center">
+      {illustration && (
+        <div className="flex justify-center">
+          <Image src="/sequence-owl-icon.png" alt="" width={48} height={48} className="opacity-60 mb-2" />
         </div>
       )}
-      <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+      {Icon && !illustration && (
+        <div className="flex justify-center mb-4">
+          <Icon className="text-text-muted" size={48} strokeWidth={1.5} />
+        </div>
+      )}
+      <h3 className="text-base font-semibold text-text-primary">{title}</h3>
       {description && (
-        <p className="text-sm text-gray-500 mt-1.5 max-w-sm mx-auto">{description}</p>
+        <p className="text-sm text-text-secondary mt-1.5 max-w-sm mx-auto">{description}</p>
       )}
       {action && (
         <div className="mt-5">
-          <Link
-            href={action.href}
-            className="inline-flex items-center justify-center bg-primary text-white font-semibold py-2.5 px-5 rounded-lg text-sm hover:bg-primary-dark transition-colors"
-          >
-            {action.label}
+          <Link href={action.href}>
+            <Button variant="primary">
+              {action.label}
+            </Button>
           </Link>
         </div>
       )}
       {onAction && (
         <div className="mt-5">
-          <button
-            onClick={onAction.onClick}
-            className="inline-flex items-center justify-center bg-primary text-white font-semibold py-2.5 px-5 rounded-lg text-sm hover:bg-primary-dark transition-colors"
-          >
+          <Button variant="primary" onClick={onAction.onClick}>
             {onAction.label}
-          </button>
+          </Button>
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import { useTenantUsers, useLeads } from "@/hooks/use-leads";
 import { getInitials } from "@/lib/utils";
 import { notifyAssignment } from "@/lib/email/notify-client";
 import { roleLabel } from "@/lib/auth/roles";
+import { Button } from "@/components/ui/button";
 
 interface AssignLeadModalProps {
   leadId: string;
@@ -85,11 +86,11 @@ export function AssignLeadModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
-          <h2 className="text-base font-bold text-gray-900">Assign Lead</h2>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
+          <h2 className="text-base font-bold text-text-primary">Assign Lead</h2>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-page text-text-secondary transition-colors"
           >
             <X size={16} />
           </button>
@@ -101,7 +102,7 @@ export function AssignLeadModal({
               <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : activeUsers.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">No active team members found.</p>
+            <p className="text-sm text-text-muted text-center py-6">No active team members found.</p>
           ) : (
             activeUsers.map((member) => {
               const isSelected = selectedUserId === member.id;
@@ -115,7 +116,7 @@ export function AssignLeadModal({
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-left ${
                     isSelected
                       ? "bg-primary/10 border border-primary/30"
-                      : "hover:bg-gray-50 border border-transparent"
+                      : "hover:bg-page border border-transparent"
                   }`}
                 >
                   <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
@@ -125,18 +126,18 @@ export function AssignLeadModal({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900">{member.fullName}</p>
+                      <p className="text-sm font-semibold text-text-primary">{member.fullName}</p>
                       {isCurrent && (
                         <span className="text-xs bg-amber-100 text-amber-700 font-semibold px-1.5 py-0.5 rounded-full">
                           Current
                         </span>
                       )}
                     </div>
-                    <p className="text-xs text-gray-500">{roleLabel(member.role)}</p>
+                    <p className="text-xs text-text-secondary">{roleLabel(member.role)}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-sm font-semibold text-gray-700">{leadCount}</p>
-                    <p className="text-xs text-gray-400">leads</p>
+                    <p className="text-sm font-semibold text-text-secondary">{leadCount}</p>
+                    <p className="text-xs text-text-muted">leads</p>
                   </div>
                 </button>
               );
@@ -150,20 +151,18 @@ export function AssignLeadModal({
           </div>
         )}
 
-        <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 border border-gray-200 text-gray-700 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
-          >
+        <div className="px-5 py-4 border-t border-border flex items-center gap-3">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            className="flex-1"
             onClick={handleAssign}
             disabled={!selectedUserId || saving}
-            className="flex-1 bg-primary text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Assigning…" : "Assign"}
-          </button>
+            {saving ? "Assigning..." : "Assign"}
+          </Button>
         </div>
       </div>
     </div>

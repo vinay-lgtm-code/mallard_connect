@@ -74,7 +74,7 @@ export function NotificationDropdown() {
       <button
         ref={buttonRef}
         onClick={() => setOpen((v) => !v)}
-        className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 relative"
+        className="p-2 rounded-lg hover:bg-page text-text-secondary relative"
         aria-label="Notifications"
       >
         <Bell size={18} />
@@ -88,10 +88,10 @@ export function NotificationDropdown() {
       {open && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-full mt-2 w-80 bg-white rounded-[12px] shadow-lg border border-gray-100 z-50 overflow-hidden"
+          className="absolute right-0 top-full mt-2 w-80 bg-white rounded-[12px] shadow-lg border border-border z-50 overflow-hidden"
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-            <p className="text-sm font-semibold text-gray-900">Notifications</p>
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+            <p className="text-sm font-semibold text-text-primary">Notifications</p>
             {unreadCount > 0 && (
               <span className="text-xs bg-red-100 text-red-600 font-semibold px-2 py-0.5 rounded-full">
                 {unreadCount} new
@@ -101,7 +101,7 @@ export function NotificationDropdown() {
 
           <div className="max-h-96 overflow-y-auto divide-y divide-gray-50">
             {notifications.length === 0 ? (
-              <div className="px-4 py-8 text-center text-sm text-gray-400">
+              <div className="px-4 py-8 text-center text-sm text-text-muted">
                 No notifications yet
               </div>
             ) : (
@@ -109,19 +109,19 @@ export function NotificationDropdown() {
                 <button
                   key={notification.id}
                   onClick={() => handleNotificationClick(notification)}
-                  className={`w-full text-left px-4 py-3 hover:bg-gray-50 transition-colors flex items-start gap-3 ${
+                  className={`w-full text-left px-4 py-3 hover:bg-page transition-colors flex items-start gap-3 ${
                     !notification.isRead ? "bg-blue-50/50" : ""
                   }`}
                 >
                   <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-medium text-gray-900 ${!notification.isRead ? "font-semibold" : ""}`}>
+                    <p className={`text-sm font-medium text-text-primary ${!notification.isRead ? "font-semibold" : ""}`}>
                       {notification.title}
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                    <p className="text-xs text-text-secondary mt-0.5 leading-relaxed">
                       {notification.body}
                     </p>
                     {notification.createdAt && (
-                      <p className="text-xs text-gray-400 mt-1">
+                      <p className="text-xs text-text-muted mt-1">
                         {formatRelativeDate(notification.createdAt)}
                       </p>
                     )}
@@ -135,11 +135,11 @@ export function NotificationDropdown() {
           </div>
 
           {notifications.length > 0 && (
-            <div className="px-4 py-3 border-t border-gray-100">
+            <div className="px-4 py-3 border-t border-border">
               <button
                 onClick={markAllRead}
                 disabled={unreadCount === 0}
-                className="flex items-center gap-1.5 text-sm text-primary font-medium hover:underline disabled:text-gray-400 disabled:no-underline"
+                className="flex items-center gap-1.5 text-sm text-primary font-medium hover:underline disabled:text-text-muted disabled:no-underline"
               >
                 <Check size={14} />
                 Mark all as read

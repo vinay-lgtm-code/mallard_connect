@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Send, X } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { DOCUMENT_CATEGORIES, CATEGORY_LABELS } from "@/schemas/document";
+import { Button } from "@/components/ui/button";
 import type { DocumentCategory } from "@/types";
 
 interface RequestDocumentsModalProps {
@@ -94,9 +95,9 @@ export function RequestDocumentsModal({
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200">
-          <h2 className="text-lg font-extrabold text-gray-900">Request Documents</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-extrabold text-text-primary">Request Documents</h2>
+          <button onClick={onClose} className="text-text-muted hover:text-text-secondary">
             <X size={20} />
           </button>
         </div>
@@ -104,19 +105,19 @@ export function RequestDocumentsModal({
         <div className="px-6 py-5 space-y-5">
           {/* Send to */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Send to</label>
+            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Send to</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder={`${leadFirstName}'s email`}
-              className="mt-1.5 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="mt-1.5 w-full border border-border-strong rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
 
           {/* Category checkboxes */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Select documents to request</label>
+            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Select documents to request</label>
             <div className="mt-2 space-y-1">
               {DOCUMENT_CATEGORIES.map((cat) => (
                 <label
@@ -127,9 +128,9 @@ export function RequestDocumentsModal({
                     type="checkbox"
                     checked={selected.has(cat)}
                     onChange={() => toggle(cat)}
-                    className="rounded border-gray-300 text-primary focus:ring-primary"
+                    className="rounded border-border-strong text-primary focus:ring-primary"
                   />
-                  <span className={`text-sm ${selected.has(cat) ? "text-gray-800 font-medium" : "text-gray-400"}`}>
+                  <span className={`text-sm ${selected.has(cat) ? "text-text-primary font-medium" : "text-text-muted"}`}>
                     {CATEGORY_LABELS[cat]}
                   </span>
                 </label>
@@ -139,13 +140,13 @@ export function RequestDocumentsModal({
 
           {/* Message */}
           <div>
-            <label className="text-xs font-semibold text-gray-600 uppercase tracking-wide">Personal message (optional)</label>
+            <label className="text-xs font-semibold text-text-secondary uppercase tracking-wide">Personal message (optional)</label>
             <textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               placeholder={`Hi ${leadFirstName}, could you please upload...`}
               rows={3}
-              className="mt-1.5 w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+              className="mt-1.5 w-full border border-border-strong rounded-lg px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 resize-none"
             />
           </div>
 
@@ -153,20 +154,21 @@ export function RequestDocumentsModal({
             <p className="text-sm text-red-600">{error}</p>
           )}
 
-          <div className="text-xs text-gray-400">
+          <div className="text-xs text-text-muted">
             {selected.size} document(s) selected &middot; Link expires in 14 days
           </div>
 
-          <button
+          <Button
+            variant="primary"
+            className="w-full"
             onClick={handleSend}
             disabled={sending || !email.trim() || selected.size === 0}
-            className="w-full flex items-center justify-center gap-2 bg-primary text-white font-semibold py-3 rounded-lg text-sm hover:bg-primary-dark transition-colors disabled:opacity-60"
           >
             <Send size={16} />
             {sending ? "Sending..." : "Send request"}
-          </button>
+          </Button>
 
-          <p className="text-center text-xs text-gray-400">
+          <p className="text-center text-xs text-text-muted">
             Email sent via Resend from {user?.email ?? "reminders@sequence-ai.com"}
           </p>
         </div>

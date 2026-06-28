@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useCadences, useCadenceEnrollments } from "@/hooks/use-cadences";
 import { isDemoUser } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
 
 interface EnrollCadenceModalProps {
   leadId: string;
@@ -86,14 +87,14 @@ export function EnrollCadenceModal({
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[12px] shadow-xl w-full max-w-md overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Enrol in Cadence</h2>
-            <p className="text-xs text-gray-500 mt-0.5">For {leadName}</p>
+            <h2 className="text-base font-bold text-text-primary">Enrol in Cadence</h2>
+            <p className="text-xs text-text-secondary mt-0.5">For {leadName}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors"
+            className="p-1.5 rounded-lg hover:bg-page text-text-secondary transition-colors"
           >
             <X size={16} />
           </button>
@@ -105,7 +106,7 @@ export function EnrollCadenceModal({
               <div className="w-6 h-6 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
           ) : activeCadences.length === 0 ? (
-            <p className="text-sm text-gray-400 text-center py-6">No active cadences available.</p>
+            <p className="text-sm text-text-muted text-center py-6">No active cadences available.</p>
           ) : (
             activeCadences.map((cadence) => {
               const isEnrolled = enrolledCadenceIds.has(cadence.id);
@@ -121,7 +122,7 @@ export function EnrollCadenceModal({
                       ? "opacity-50 cursor-not-allowed"
                       : isSelected
                       ? "bg-primary/10 border border-primary/30"
-                      : "hover:bg-gray-50 border border-transparent"
+                      : "hover:bg-page border border-transparent"
                   }`}
                 >
                   <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -129,7 +130,7 @@ export function EnrollCadenceModal({
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-gray-900">{cadence.name}</p>
+                      <p className="text-sm font-semibold text-text-primary">{cadence.name}</p>
                       {isEnrolled && (
                         <span className="text-xs bg-green-100 text-green-700 font-semibold px-1.5 py-0.5 rounded-full">
                           Enrolled
@@ -137,9 +138,9 @@ export function EnrollCadenceModal({
                       )}
                     </div>
                     {cadence.description && (
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{cadence.description}</p>
+                      <p className="text-xs text-text-secondary mt-0.5 line-clamp-2">{cadence.description}</p>
                     )}
-                    <p className="text-xs text-gray-400 mt-1">
+                    <p className="text-xs text-text-muted mt-1">
                       {cadence.steps.length} step{cadence.steps.length !== 1 ? "s" : ""}
                       {" · "}
                       {cadence.trigger.type.replace(/_/g, " ")}
@@ -157,20 +158,18 @@ export function EnrollCadenceModal({
           </div>
         )}
 
-        <div className="px-5 py-4 border-t border-gray-100 flex items-center gap-3">
-          <button
-            onClick={onClose}
-            className="flex-1 border border-gray-200 text-gray-700 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
-          >
+        <div className="px-5 py-4 border-t border-border flex items-center gap-3">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
             Cancel
-          </button>
-          <button
+          </Button>
+          <Button
+            variant="primary"
+            className="flex-1"
             onClick={handleEnroll}
             disabled={!selectedCadenceId || saving}
-            className="flex-1 bg-primary text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {saving ? "Enrolling…" : "Enrol"}
-          </button>
+            {saving ? "Enrolling..." : "Enrol"}
+          </Button>
         </div>
       </div>
     </div>

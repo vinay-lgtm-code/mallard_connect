@@ -34,11 +34,11 @@ export function Modal({ open, title, onClose, children, footer, maxWidth = "max-
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className={`relative bg-white rounded-[12px] shadow-xl w-full ${maxWidth} mx-4 overflow-hidden`}>
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-            <h2 className="text-base font-semibold text-gray-900">{title}</h2>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+            <h2 className="text-base font-semibold text-text-primary">{title}</h2>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="text-text-muted hover:text-text-secondary transition-colors"
               aria-label="Close"
             >
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -49,7 +49,7 @@ export function Modal({ open, title, onClose, children, footer, maxWidth = "max-
         )}
         <div className="px-6 py-4">{children}</div>
         {footer && (
-          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-100 bg-gray-50">
+          <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-border bg-page">
             {footer}
           </div>
         )}

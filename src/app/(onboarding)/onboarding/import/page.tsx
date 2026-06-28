@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight, ChevronLeft, Upload, Check } from "lucide-react";
 import { readOnboarding, writeOnboarding } from "@/lib/onboarding/state";
+import { Button } from "@/components/ui/button";
 
 export default function OnboardingImportPage() {
   const router = useRouter();
@@ -40,11 +41,11 @@ export default function OnboardingImportPage() {
   }
 
   return (
-    <div className="bg-white border border-gray-100 rounded-[16px] p-8">
+    <div className="bg-white border border-border rounded-[16px] p-8">
       <div className="mb-6">
         <p className="text-xs font-semibold text-primary mb-1">Step 4 of 5</p>
-        <h1 className="text-2xl font-bold text-gray-900">Import your existing leads</h1>
-        <p className="mt-1 text-sm text-gray-500">
+        <h1 className="text-2xl font-bold text-text-primary">Import your existing leads</h1>
+        <p className="mt-1 text-sm text-text-secondary">
           {dataSource === "brevo"
             ? "We'll pull contacts from your Brevo lists and create them as leads in Sequence."
             : dataSource === "mab"
@@ -54,47 +55,48 @@ export default function OnboardingImportPage() {
       </div>
 
       {dataSource === "brevo" && (
-        <div className="rounded-[12px] border border-gray-100 p-6 mb-6">
-          <label className="block text-xs font-semibold text-gray-700 uppercase tracking-wide mb-1.5">
+        <div className="rounded-[12px] border border-border p-6 mb-6">
+          <label className="block text-xs font-semibold text-text-secondary uppercase tracking-wide mb-1.5">
             Brevo API key
           </label>
           <input
             type="password"
             placeholder="xkeysib-..."
             onChange={(e) => writeOnboarding({ brevoApiKey: e.target.value })}
-            className="w-full border border-gray-200 rounded-lg px-3.5 py-2.5 text-sm font-mono"
+            className="w-full border border-border rounded-lg px-3.5 py-2.5 text-sm font-mono"
           />
-          <p className="mt-1.5 text-xs text-gray-500">
+          <p className="mt-1.5 text-xs text-text-secondary">
             Find this in Brevo → Settings → API keys. Read-only access is enough.
           </p>
 
-          <button
+          <Button
             onClick={simulateImport}
+            variant="primary"
             disabled={showProgress && importedCount > 0 && importedCount < 187}
-            className="mt-4 w-full inline-flex items-center justify-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-primary-dark disabled:opacity-60"
+            className="mt-4 w-full"
           >
             {importedCount === 0 ? "Test connection &amp; import" : importedCount < 187 ? "Importing..." : "Imported"}
-          </button>
+          </Button>
         </div>
       )}
 
       {dataSource === "mab" && (
-        <div className="rounded-[12px] border-2 border-dashed border-gray-200 p-10 mb-6 text-center">
-          <Upload size={28} className="mx-auto text-gray-400 mb-3" />
-          <p className="text-sm font-medium text-gray-900 mb-1">Drag CSV here or click to upload</p>
-          <p className="text-xs text-gray-500 mb-4">.csv, .xls, .xlsx accepted</p>
-          <button
+        <div className="rounded-[12px] border-2 border-dashed border-border p-10 mb-6 text-center">
+          <Upload size={28} className="mx-auto text-text-muted mb-3" />
+          <p className="text-sm font-medium text-text-primary mb-1">Drag CSV here or click to upload</p>
+          <p className="text-xs text-text-secondary mb-4">.csv, .xls, .xlsx accepted</p>
+          <Button
             onClick={simulateImport}
-            className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark"
+            variant="primary"
           >
             Upload sample file
-          </button>
+          </Button>
         </div>
       )}
 
       {dataSource === "other" && (
-        <div className="rounded-[12px] border border-gray-100 p-6 mb-6 bg-gray-50">
-          <p className="text-sm text-gray-700">
+        <div className="rounded-[12px] border border-border p-6 mb-6 bg-page">
+          <p className="text-sm text-text-secondary">
             We&apos;ll reach out within 24 hours to scope an integration. In the meantime, you can
             start adding leads manually from the dashboard.
           </p>
@@ -120,7 +122,7 @@ export default function OnboardingImportPage() {
       <div className="flex items-center justify-between pt-2">
         <Link
           href="/onboarding/connect"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900"
+          className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary"
         >
           <ChevronLeft size={14} />
           Back
@@ -128,17 +130,17 @@ export default function OnboardingImportPage() {
         <div className="flex items-center gap-2">
           <button
             onClick={skipImport}
-            className="text-sm text-gray-500 hover:text-gray-900 px-3 py-2"
+            className="text-sm text-text-secondary hover:text-text-primary px-3 py-2"
           >
             Skip for now
           </button>
-          <button
+          <Button
             onClick={handleNext}
-            className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-dark"
+            variant="primary"
           >
             Continue
             <ChevronRight size={14} />
-          </button>
+          </Button>
         </div>
       </div>
     </div>

@@ -43,7 +43,7 @@ function brandedHtml({
   const safeFooter = esc(footer ?? "This email was sent by Sequence. If you believe this was sent in error, please contact your adviser.");
 
   const ctaBlock = ctaLabel && ctaUrl
-    ? `<a href="${escUrl(ctaUrl)}" style="display:inline-block;background-color:#1A5653;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;">${esc(ctaLabel)}</a>`
+    ? `<a href="${escUrl(ctaUrl)}" style="display:inline-block;background-color:#E8981A;color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:6px;font-size:15px;font-weight:600;">${esc(ctaLabel)}</a>`
     : "";
 
   return `
