@@ -55,7 +55,7 @@ export function useLeads(filters?: LeadFilters) {
   const [loading, setLoading] = useState(!useMock);
   const [error, setError] = useState<Error | null>(null);
 
-  const refetch: RefetchFn = useCallback(() => {
+  const refetch = useCallback(async () => {
     if (useMock) {
       setLoading(false);
       return;
@@ -78,15 +78,18 @@ export function useLeads(filters?: LeadFilters) {
     if (filters?.assignedTo) query = query.eq("assigned_to", filters.assignedTo);
     if (filters?.status) query = query.eq("status", filters.status);
 
-    query.then(({ data: rows, error: err }) => {
-      if (err) { setError(new Error(err.message)); }
-      else { setData(rowsToLeads((rows ?? []) as LeadDbRow[])); }
-      setLoading(false);
-    });
+    const { data: rows, error: err } = await query;
+    if (err) {
+      setError(new Error(err.message));
+    } else {
+      setError(null);
+      setData(rowsToLeads((rows ?? []) as LeadDbRow[]));
+    }
+    setLoading(false);
   }, [supabase, tenantId, filters?.stageId, filters?.assignedTo, filters?.status, useMock]);
 
   useEffect(() => {
-    refetch();
+    void refetch();
   }, [refetch]);
 
   if (useMock) {
