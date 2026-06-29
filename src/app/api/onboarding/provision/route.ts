@@ -162,10 +162,10 @@ export async function POST(request: NextRequest) {
     ? await findProvisionByClaimToken(supabase, claimToken)
     : await findActiveProvisionByEmail(supabase, authUser.email);
 
-  // Fallback: the signup route stores the provision ID in user metadata.
-  // Use it when the claim token was lost during the email-confirmation
-  // redirect chain and the session email doesn't match a provision domain.
-  const provisionIdFromMeta = authUser.user_metadata?.organization_provision_id as string | undefined;
+  // Fallback: the signup route stores the provision ID in app_metadata
+  // (server-only, not client-writable). Use it when the claim token was
+  // lost during the email-confirmation redirect chain.
+  const provisionIdFromMeta = authUser.app_metadata?.organization_provision_id as string | undefined;
   if (!provision && provisionIdFromMeta) {
     const { data } = await supabase
       .from("organization_provisions")

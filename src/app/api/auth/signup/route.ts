@@ -93,7 +93,6 @@ export async function POST(request: NextRequest) {
     options: {
       data: {
         full_name: fullName,
-        organization_provision_id: provision.id,
       },
       redirectTo: claimToken
         ? `${APP_URL}/onboarding?claim=${encodeURIComponent(claimToken)}`
@@ -105,6 +104,13 @@ export async function POST(request: NextRequest) {
     // Always return the same response to prevent email enumeration
     console.error("[signup] generateLink error:", linkErr.message);
     return NextResponse.json({ confirmSent: true });
+  }
+
+  // Store provision ID in app_metadata (server-only, not client-writable)
+  if (linkData?.user?.id) {
+    await supabase.auth.admin.updateUserById(linkData.user.id, {
+      app_metadata: { organization_provision_id: provision.id },
+    });
   }
 
   const confirmUrl = linkData?.properties?.action_link;
