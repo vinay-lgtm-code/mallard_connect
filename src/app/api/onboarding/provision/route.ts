@@ -158,11 +158,35 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid token" }, { status: 401 });
   }
 
-  const provision = claimToken
+  let provision = claimToken
     ? await findProvisionByClaimToken(supabase, claimToken)
     : await findActiveProvisionByEmail(supabase, authUser.email);
 
-  if (!provision || provision.status !== "provisioned" || !isProvisionedPocEmail(provision, authUser.email)) {
+  // Fallback: the signup route stores the provision ID in user metadata.
+  // Use it when the claim token was lost during the email-confirmation
+  // redirect chain and the session email doesn't match a provision domain.
+  const provisionIdFromMeta = authUser.user_metadata?.organization_provision_id as string | undefined;
+  if (!provision && provisionIdFromMeta) {
+    const { data } = await supabase
+      .from("organization_provisions")
+      .select("*")
+      .eq("id", provisionIdFromMeta)
+      .eq("status", "provisioned")
+      .maybeSingle();
+    provision = data;
+  }
+
+  if (!provision || provision.status !== "provisioned") {
+    return NextResponse.json(
+      { error: "This workspace can only be created by the provisioned organization contact." },
+      { status: 403 },
+    );
+  }
+
+  // When the provision was found via user metadata (set at signup after PoC
+  // verification), the email check was already passed during signup — skip
+  // it here so session-email mismatches from the redirect chain don't block.
+  if (!provisionIdFromMeta && !isProvisionedPocEmail(provision, authUser.email)) {
     return NextResponse.json(
       { error: "This workspace can only be created by the provisioned organization contact." },
       { status: 403 },
