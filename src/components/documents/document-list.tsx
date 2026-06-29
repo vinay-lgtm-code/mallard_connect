@@ -4,6 +4,7 @@ import { useState } from "react";
 import { FileText, Download, Trash2, Image, File } from "lucide-react";
 import { format } from "date-fns";
 import { useAuth } from "@/hooks/useAuth";
+import { useSupabase } from "@/hooks/use-supabase";
 import { CATEGORY_LABELS } from "@/schemas/document";
 import type { Document, DocumentCategory, User } from "@/types";
 
@@ -27,20 +28,22 @@ function formatSize(bytes: number): string {
 
 export function DocumentList({ documents, users, onDeleted }: DocumentListProps) {
   const { user } = useAuth();
+  const supabase = useSupabase();
   const isManager = user?.role === "admin" || user?.role === "manager";
   const [deleting, setDeleting] = useState<string | null>(null);
 
+  async function getToken() {
+    const session = await supabase?.auth.getSession();
+    return session?.data?.session?.access_token;
+  }
+
   async function handleDownload(docId: string) {
     try {
-      const token = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("sb-"))
-        ?.split("=")
-        .slice(1)
-        .join("=");
+      const token = await getToken();
+      if (!token) return;
 
       const res = await fetch(`/api/documents/${docId}`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       if (!res.ok) return;
@@ -55,16 +58,12 @@ export function DocumentList({ documents, users, onDeleted }: DocumentListProps)
     if (!confirm("Delete this document? This cannot be undone.")) return;
     setDeleting(docId);
     try {
-      const token = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith("sb-"))
-        ?.split("=")
-        .slice(1)
-        .join("=");
+      const token = await getToken();
+      if (!token) return;
 
       await fetch(`/api/documents/${docId}`, {
         method: "DELETE",
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        headers: { Authorization: `Bearer ${token}` },
       });
       onDeleted();
     } catch {

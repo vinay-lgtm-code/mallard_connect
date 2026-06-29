@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
+import { useTenantUsers } from "@/hooks/use-leads";
 import { isDemoUser } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
 
@@ -21,15 +22,21 @@ const TYPE_TAGS = [
 export default function CapturePage() {
   const { user } = useAuth();
   const supabase = useSupabase();
+  const { users: tenantUsers } = useTenantUsers();
   const router = useRouter();
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [assignedTo, setAssignedTo] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showToast, setShowToast] = useState(false);
+
+  const activeAdvisers = tenantUsers.filter(
+    (u) => u.isActive && (u.role === "advisor" || u.role === "admin" || u.role === "manager")
+  );
 
   function toggleTag(tag: string) {
     setSelectedTags((prev) =>
@@ -76,6 +83,7 @@ export default function CapturePage() {
         .limit(1)
         .single();
 
+      const effectiveAssignee = assignedTo || user.id;
       const { data: newLead, error: insertErr } = await supabase.from("leads").insert({
         tenant_id: user.tenantId,
         first_name: firstName,
@@ -86,7 +94,7 @@ export default function CapturePage() {
         status: "active",
         current_stage_id: firstStage?.id ?? null,
         current_stage_entered_at: new Date().toISOString(),
-        assigned_to: user.id,
+        assigned_to: effectiveAssignee,
         mortgage_type: null,
         readiness: null,
         follow_up_notes: notes.trim() || null,
@@ -203,6 +211,23 @@ export default function CapturePage() {
               );
             })}
           </div>
+        </div>
+
+        {/* Assign to */}
+        <div>
+          <label className="block text-sm font-semibold text-gray-700 mb-2">Assign to</label>
+          <select
+            value={assignedTo}
+            onChange={(e) => setAssignedTo(e.target.value)}
+            className="w-full border border-gray-300 rounded-xl px-4 py-4 text-base focus:outline-none focus:ring-2 focus:ring-primary bg-white"
+          >
+            <option value="">Me ({user?.fullName ?? "current user"})</option>
+            {activeAdvisers
+              .filter((u) => u.id !== user?.id)
+              .map((u) => (
+                <option key={u.id} value={u.id}>{u.fullName}</option>
+              ))}
+          </select>
         </div>
 
         {/* Notes */}

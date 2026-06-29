@@ -7,9 +7,22 @@ import {
   isProvisionedPocEmail,
 } from "@/lib/provisioning/organization-provisions";
 
+function safeRedirectPath(value: string | null, fallback: string) {
+  if (
+    value &&
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.startsWith("/\\")
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
 export async function GET(request: NextRequest) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
+  const next = safeRedirectPath(searchParams.get("next"), "/dashboard");
   const cookiesToApply: Parameters<NextResponse["cookies"]["set"]>[] = [];
   let cookieStore = request.cookies.getAll();
 
@@ -48,7 +61,7 @@ export async function GET(request: NextRequest) {
       } = await supabase.auth.getUser();
 
       if (user?.app_metadata?.tenant_id) {
-        return redirect("/dashboard");
+        return redirect(next);
       }
 
       if (!user?.email) {

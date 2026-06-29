@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient, isSupabaseConfigured } from "@/lib/supabase/client";
 import { clearDemoUser } from "@/hooks/useAuth";
 
 function GoogleIcon() {
@@ -38,29 +38,86 @@ function MicrosoftIcon() {
   );
 }
 
-export function OAuthButtons() {
+type OAuthButtonsProps = {
+  defaultNext?: string;
+};
+
+function safeRedirectPath(value: string | null | undefined, fallback: string) {
+  if (
+    value &&
+    value.startsWith("/") &&
+    !value.startsWith("//") &&
+    !value.startsWith("/\\")
+  ) {
+    return value;
+  }
+  return fallback;
+}
+
+function providerLabel(provider: "google" | "azure") {
+  return provider === "azure" ? "Microsoft" : "Google";
+}
+
+export function OAuthButtons({ defaultNext = "/dashboard" }: OAuthButtonsProps) {
   const [loadingProvider, setLoadingProvider] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleOAuth(provider: "google" | "azure") {
     setLoadingProvider(provider);
+    setError(null);
     clearDemoUser();
-    const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider,
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
-        ...(provider === "azure" && {
-          scopes: "openid profile email",
-        }),
-      },
-    });
-    if (error) {
+
+    try {
+      if (!isSupabaseConfigured) {
+        throw new Error("Supabase is not configured for authentication.");
+      }
+
+      const currentParams = new URLSearchParams(window.location.search);
+      const next = safeRedirectPath(currentParams.get("redirect"), defaultNext);
+      const redirectTo = new URL("/auth/callback", window.location.origin);
+      redirectTo.searchParams.set("next", next);
+
+      const supabase = createClient();
+      const { data, error: authError } = await supabase.auth.signInWithOAuth({
+        provider,
+        options: {
+          redirectTo: redirectTo.toString(),
+          skipBrowserRedirect: true,
+          ...(provider === "azure" && {
+            scopes: "openid profile email",
+          }),
+        },
+      });
+
+      if (authError) throw authError;
+      if (!data.url) {
+        throw new Error(`Could not start ${providerLabel(provider)} sign in.`);
+      }
+
+      window.location.assign(data.url);
+    } catch (err) {
+      console.error("[OAuthButtons] OAuth sign-in failed:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : `Could not start ${providerLabel(provider)} sign in.`
+      );
       setLoadingProvider(null);
     }
   }
 
   return (
     <div className="space-y-3">
+      {error && (
+        <div
+          className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          role="alert"
+          aria-live="polite"
+        >
+          {error}
+        </div>
+      )}
+
       <button
         type="button"
         onClick={() => handleOAuth("google")}

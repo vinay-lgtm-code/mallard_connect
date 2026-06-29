@@ -2,11 +2,12 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus, Pencil, X, Send } from "lucide-react";
+import { Phone, Mail, Plus, ChevronDown, Check, Zap, UserPlus, Pencil, X, Send, Trash2 } from "lucide-react";
 import { format } from "date-fns";
 import { useLead, useLeadActivities, useLeadTasks, useTenantUsers } from "@/hooks/use-leads";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { QuickLogBar } from "@/components/leads/quick-log-bar";
 import { EnrollCadenceModal } from "@/components/leads/enroll-cadence-modal";
 import { AssignLeadModal } from "@/components/leads/assign-lead-modal";
@@ -20,7 +21,7 @@ import { RequestDocumentsModal } from "@/components/documents/request-documents-
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
-import type { ActivityType } from "@/types";
+import type { ActivityType, Task } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
   new_enquiry: "bg-[#E6EDEC] text-[#1A5653]",
@@ -79,17 +80,27 @@ interface FollowUpModalProps {
   leadId: string;
   userId: string;
   tenantId: string;
-  demo: boolean;
+  task?: Task & { id: string };
   onClose: (saved: boolean) => void;
 }
 
-function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModalProps) {
+function formatDateInputValue(value: string | null | undefined) {
+  return value ? new Date(value).toISOString().split("T")[0] : "";
+}
+
+function normalizeReminderEmails(emails: string[]) {
+  return emails.map((email) => email.trim()).filter(Boolean).slice(0, 3);
+}
+
+function FollowUpModal({ leadId, userId, tenantId, task, onClose }: FollowUpModalProps) {
   const supabase = useSupabase();
-  const [title, setTitle] = useState("");
-  const [dueDate, setDueDate] = useState("");
-  const [email1, setEmail1] = useState("");
-  const [email2, setEmail2] = useState("");
-  const [email3, setEmail3] = useState("");
+  const reminderEmails = task?.reminderEmails ?? [];
+  const isEditing = Boolean(task);
+  const [title, setTitle] = useState(task?.title ?? "");
+  const [dueDate, setDueDate] = useState(formatDateInputValue(task?.dueDate));
+  const [email1, setEmail1] = useState(reminderEmails[0] ?? "");
+  const [email2, setEmail2] = useState(reminderEmails[1] ?? "");
+  const [email3, setEmail3] = useState(reminderEmails[2] ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -99,32 +110,48 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
     setSaving(true);
     setError(null);
     try {
-      await supabase.from("tasks").insert({
-        tenant_id: tenantId,
-        lead_id: leadId,
-        assigned_to: userId,
-        created_by: userId,
+      const payload = {
         title: title.trim(),
-        description: null,
         due_date: new Date(dueDate).toISOString(),
-        priority: "normal",
-        status: "pending",
-        reminder_emails: [email1, email2, email3].filter(Boolean),
+        reminder_emails: normalizeReminderEmails([email1, email2, email3]),
         reminder_sent: false,
-      });
-      supabase?.auth.getSession().then(({ data: { session } }) => {
-        if (session?.access_token) {
-          fetch("/api/notifications/follow-up-scheduled", {
-            method: "POST",
-            headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
-            body: JSON.stringify({ leadId, taskTitle: title.trim(), dueDate }),
-          }).catch(() => {});
-        }
-      });
+      };
+
+      if (task) {
+        const { error: updateError } = await supabase
+          .from("tasks")
+          .update(payload)
+          .eq("id", task.id)
+          .eq("lead_id", leadId)
+          .eq("tenant_id", tenantId);
+        if (updateError) throw updateError;
+      } else {
+        const { error: insertError } = await supabase.from("tasks").insert({
+          tenant_id: tenantId,
+          lead_id: leadId,
+          assigned_to: userId,
+          created_by: userId,
+          description: null,
+          priority: "normal",
+          status: "pending",
+          ...payload,
+        });
+        if (insertError) throw insertError;
+
+        supabase.auth.getSession().then(({ data: { session } }) => {
+          if (session?.access_token) {
+            fetch("/api/notifications/follow-up-scheduled", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: "Bearer " + session.access_token },
+              body: JSON.stringify({ leadId, taskTitle: title.trim(), dueDate }),
+            }).catch(() => {});
+          }
+        });
+      }
       onClose(true);
     } catch (err) {
-      console.error("Failed to create follow-up:", err);
-      setError("Failed to schedule follow-up. Please try again.");
+      console.error("Failed to save follow-up:", err);
+      setError("Failed to save follow-up. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -133,7 +160,9 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-[12px] p-6 shadow-xl w-full max-w-sm mx-4">
-        <h2 className="text-base font-bold text-text-primary mb-4">Schedule Follow-up</h2>
+        <h2 className="text-base font-bold text-text-primary mb-4">
+          {isEditing ? "Edit Follow-up" : "Schedule Follow-up"}
+        </h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
             <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
@@ -182,7 +211,7 @@ function FollowUpModal({ leadId, userId, tenantId, demo, onClose }: FollowUpModa
               Cancel
             </Button>
             <Button type="submit" variant="primary" size="sm" disabled={saving}>
-              {saving ? "Saving…" : "Schedule"}
+              {saving ? "Saving…" : isEditing ? "Save" : "Schedule"}
             </Button>
           </div>
         </form>
@@ -210,6 +239,9 @@ export default function LeadDetailPage() {
   const [addingNote, setAddingNote] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
   const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [editingTask, setEditingTask] = useState<(Task & { id: string }) | null>(null);
+  const [deletingTask, setDeletingTask] = useState<(Task & { id: string }) | null>(null);
+  const [deletingFollowUp, setDeletingFollowUp] = useState(false);
   const [stageDropdownOpen, setStageDropdownOpen] = useState(false);
   const [showCadenceModal, setShowCadenceModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -364,15 +396,90 @@ export default function LeadDetailPage() {
     }
   }
 
+  async function syncLeadFollowUpFromTasks() {
+    if (demo || !supabase || !user) return;
+
+    const { data: nextTasks, error: taskError } = await supabase
+      .from("tasks")
+      .select("title, description, due_date")
+      .eq("lead_id", id)
+      .eq("tenant_id", user.tenantId)
+      .eq("status", "pending")
+      .not("due_date", "is", null)
+      .order("due_date", { ascending: true })
+      .limit(1);
+
+    if (taskError) throw taskError;
+
+    const nextTask = nextTasks?.[0];
+    const { error: leadError } = await supabase
+      .from("leads")
+      .update({
+        next_follow_up_date: nextTask?.due_date ?? null,
+        follow_up_reason: nextTask?.title ?? null,
+        follow_up_notes: nextTask?.description ?? null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", id)
+      .eq("tenant_id", user.tenantId);
+
+    if (leadError) throw leadError;
+  }
+
+  async function refreshFollowUpState() {
+    try {
+      await syncLeadFollowUpFromTasks();
+    } catch (err) {
+      console.error("Failed to sync lead follow-up:", err);
+    } finally {
+      refetchTasks();
+      refetchLead();
+    }
+  }
+
+  async function handleFollowUpModalClose(saved: boolean) {
+    setShowFollowUpModal(false);
+    setEditingTask(null);
+    if (saved) {
+      await refreshFollowUpState();
+    }
+  }
+
   async function handleToggleTask(taskId: string, currentStatus: string) {
     const newStatus = currentStatus === "completed" ? "pending" : "completed";
     if (demo) return;
-    if (!supabase) return;
+    if (!supabase || !user) return;
     try {
-      await supabase.from("tasks").update({ status: newStatus }).eq("id", taskId);
-      refetchTasks();
+      await supabase
+        .from("tasks")
+        .update({ status: newStatus })
+        .eq("id", taskId)
+        .eq("lead_id", id)
+        .eq("tenant_id", user.tenantId);
+      await refreshFollowUpState();
     } catch (err) {
       console.error("Failed to update task:", err);
+    }
+  }
+
+  async function handleDeleteFollowUp() {
+    if (demo || !supabase || !user || !deletingTask) return;
+    if (deletingFollowUp) return;
+    setDeletingFollowUp(true);
+    try {
+      const { error } = await supabase
+        .from("tasks")
+        .delete()
+        .eq("id", deletingTask.id)
+        .eq("lead_id", id)
+        .eq("tenant_id", user.tenantId);
+      if (error) throw error;
+      setDeletingTask(null);
+      await refreshFollowUpState();
+    } catch (err) {
+      console.error("Failed to delete follow-up:", err);
+    } finally {
+      setDeletingFollowUp(false);
     }
   }
 
@@ -411,17 +518,44 @@ export default function LeadDetailPage() {
     if (demo || !supabase || !user) return;
     setSavingFollowUp(true);
     try {
-      await supabase
-        .from("leads")
-        .update({
-          next_follow_up_date: followUpDateValue
-            ? new Date(followUpDateValue).toISOString()
-            : null,
-        })
-        .eq("id", id)
-        .eq("tenant_id", user.tenantId);
+      const { data: nextTasks, error: taskFetchError } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("lead_id", id)
+        .eq("tenant_id", user.tenantId)
+        .eq("status", "pending")
+        .not("due_date", "is", null)
+        .order("due_date", { ascending: true })
+        .limit(1);
+
+      if (taskFetchError) throw taskFetchError;
+
+      const nextTask = nextTasks?.[0];
+      if (nextTask) {
+        const { error: updateTaskError } = await supabase
+          .from("tasks")
+          .update({
+            due_date: new Date(followUpDateValue).toISOString(),
+            reminder_sent: false,
+          })
+          .eq("id", nextTask.id)
+          .eq("tenant_id", user.tenantId);
+        if (updateTaskError) throw updateTaskError;
+      } else {
+        const { error: updateLeadError } = await supabase
+          .from("leads")
+          .update({
+            next_follow_up_date: followUpDateValue
+              ? new Date(followUpDateValue).toISOString()
+              : null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .eq("tenant_id", user.tenantId);
+        if (updateLeadError) throw updateLeadError;
+      }
       setEditingFollowUp(false);
-      refetchLead();
+      await refreshFollowUpState();
     } catch (err) {
       console.error("Failed to update follow-up date:", err);
     } finally {
@@ -432,12 +566,41 @@ export default function LeadDetailPage() {
   async function handleClearFollowUpDate() {
     if (demo || !supabase || !user) return;
     try {
-      await supabase
-        .from("leads")
-        .update({ next_follow_up_date: null })
-        .eq("id", id)
-        .eq("tenant_id", user.tenantId);
-      refetchLead();
+      const { data: nextTasks, error: taskFetchError } = await supabase
+        .from("tasks")
+        .select("id")
+        .eq("lead_id", id)
+        .eq("tenant_id", user.tenantId)
+        .eq("status", "pending")
+        .not("due_date", "is", null)
+        .order("due_date", { ascending: true })
+        .limit(1);
+
+      if (taskFetchError) throw taskFetchError;
+
+      const nextTask = nextTasks?.[0];
+      if (nextTask) {
+        const { error: deleteTaskError } = await supabase
+          .from("tasks")
+          .delete()
+          .eq("id", nextTask.id)
+          .eq("tenant_id", user.tenantId);
+        if (deleteTaskError) throw deleteTaskError;
+        await refreshFollowUpState();
+      } else {
+        const { error: updateLeadError } = await supabase
+          .from("leads")
+          .update({
+            next_follow_up_date: null,
+            follow_up_reason: null,
+            follow_up_notes: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .eq("tenant_id", user.tenantId);
+        if (updateLeadError) throw updateLeadError;
+        refetchLead();
+      }
     } catch (err) {
       console.error("Failed to clear follow-up date:", err);
     }
@@ -482,10 +645,21 @@ export default function LeadDetailPage() {
           leadId={id}
           userId={user.id}
           tenantId={user.tenantId}
-          demo={demo}
-          onClose={() => { setShowFollowUpModal(false); refetchTasks(); }}
+          task={editingTask ?? undefined}
+          onClose={handleFollowUpModalClose}
         />
       )}
+      <ConfirmDialog
+        open={Boolean(deletingTask)}
+        title="Delete follow-up?"
+        message="This removes the scheduled follow-up and stops any unsent reminder email for it."
+        confirmLabel={deletingFollowUp ? "Deleting…" : "Delete"}
+        variant="danger"
+        onConfirm={handleDeleteFollowUp}
+        onCancel={() => {
+          if (!deletingFollowUp) setDeletingTask(null);
+        }}
+      />
 
       {showCadenceModal && (
         <EnrollCadenceModal
@@ -1014,7 +1188,7 @@ export default function LeadDetailPage() {
         {activeTab === "followups" && (
           <div className="space-y-4">
             <div className="flex justify-end">
-              <Button variant="primary" onClick={() => setShowFollowUpModal(true)}>
+              <Button variant="primary" onClick={() => { setEditingTask(null); setShowFollowUpModal(true); }}>
                 <Plus size={15} />
                 Schedule Follow-up
               </Button>
@@ -1035,6 +1209,7 @@ export default function LeadDetailPage() {
                         <div className="flex items-start gap-3">
                           <button
                             onClick={() => handleToggleTask(task.id, task.status)}
+                            disabled={demo}
                             className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                               task.status === "completed"
                                 ? "border-green-500 bg-green-500"
@@ -1044,30 +1219,55 @@ export default function LeadDetailPage() {
                             {task.status === "completed" && <Check size={12} className="text-white" />}
                           </button>
                           <div>
-                          <p className={`text-sm font-semibold ${task.status === "completed" ? "text-text-muted line-through" : "text-text-primary"}`}>{task.title}</p>
-                          {due && (
-                            <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-600 font-semibold" : "text-text-secondary"}`}>
-                              Due {format(due, "d MMM yyyy")}
-                            </p>
-                          )}
-                          {task.reminderEmails && (task.reminderEmails as string[]).filter(Boolean).length > 0 && (
-                            <p className="text-xs text-text-muted mt-1">
-                              Reminders: {(task.reminderEmails as string[]).filter(Boolean).join(", ")}
-                            </p>
-                          )}
+                            <p className={`text-sm font-semibold ${task.status === "completed" ? "text-text-muted line-through" : "text-text-primary"}`}>{task.title}</p>
+                            {due && (
+                              <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-600 font-semibold" : "text-text-secondary"}`}>
+                                Due {format(due, "d MMM yyyy")}
+                              </p>
+                            )}
+                            {task.reminderEmails && (task.reminderEmails as string[]).filter(Boolean).length > 0 && (
+                              <p className="text-xs text-text-muted mt-1">
+                                Reminders: {(task.reminderEmails as string[]).filter(Boolean).join(", ")}
+                              </p>
+                            )}
                           </div>
                         </div>
-                        <span
-                          className={`text-xs font-semibold px-2.5 py-1 rounded-full flex-shrink-0 ${
-                            task.status === "completed"
-                              ? "bg-green-100 text-green-700"
-                              : isOverdue
-                              ? "bg-red-100 text-red-700"
-                              : "bg-page text-text-secondary"
-                          }`}
-                        >
-                          {isOverdue ? "Overdue" : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <span
+                            className={`text-xs font-semibold px-2.5 py-1 rounded-full ${
+                              task.status === "completed"
+                                ? "bg-green-100 text-green-700"
+                                : isOverdue
+                                ? "bg-red-100 text-red-700"
+                                : "bg-page text-text-secondary"
+                            }`}
+                          >
+                            {isOverdue ? "Overdue" : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
+                          </span>
+                          {!demo && (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setEditingTask(task);
+                                  setShowFollowUpModal(true);
+                                }}
+                                className="p-1.5 text-text-muted hover:text-primary hover:bg-page rounded"
+                                title="Edit follow-up"
+                                aria-label="Edit follow-up"
+                              >
+                                <Pencil size={14} />
+                              </button>
+                              <button
+                                onClick={() => setDeletingTask(task)}
+                                className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded"
+                                title="Delete follow-up"
+                                aria-label="Delete follow-up"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );

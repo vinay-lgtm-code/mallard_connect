@@ -191,7 +191,7 @@ export default function SignUpPage() {
           </div>
         </div>
 
-        <OAuthButtons />
+        <OAuthButtons defaultNext="/onboarding" />
 
         <p className="text-center text-sm text-text-secondary mt-6">
           Already have an account?{" "}
