@@ -29,14 +29,14 @@ Sequence is that layer. It plugs into existing data sources, runs cadences autom
 | Layer | Tech |
 |---|---|
 | Framework | Next.js 15 (App Router, TypeScript), React 19 |
-| Database | Firebase Firestore — multi-tenant under `tenants/{tid}/...` |
-| Auth | Firebase Auth + custom claims (`role`, `tenantId`) |
+| Database | Supabase (Postgres) — multi-tenant, RLS-scoped per tenant |
+| Auth | Supabase Auth + `app_metadata` claims (`role`, `tenant_id`) |
 | Email | Resend (always — Brevo is read-only) |
 | Cron | Vercel Cron — `run-cadences` daily 7am UK, `sync-brevo` every 6h |
 | Hosting | Vercel; wildcard subdomain routing via `src/middleware.ts` |
 | Styling | Tailwind v4 |
 | Validation | Zod (shared client/server) |
-| Real-time | Firestore `onSnapshot` |
+| Real-time | Supabase Realtime subscriptions |
 | Import | SheetJS (`xlsx`) |
 | Drag and drop | `@hello-pangea/dnd` |
 
@@ -45,7 +45,7 @@ See [`CLAUDE.md`](./CLAUDE.md) for the codebase contract — tenant rules, caden
 ## Local development
 
 ```bash
-cp .env.local.example .env.local      # fill in Firebase + Resend + (optional) Brevo keys
+cp .env.local.example .env.local      # fill in Supabase + Resend + (optional) Brevo keys
 npm install
 npm run dev
 ```
@@ -85,9 +85,9 @@ graph TB
         BrevoWebhook["/api/integrations/brevo/webhook<br/><small>Open/click events</small>"]
     end
 
-    subgraph Firebase["Firebase (GCP)"]
-        FireAuth["Firebase Auth<br/><small>Custom claims:<br/>role, tenantId</small>"]
-        Firestore["Cloud Firestore<br/><small>tenants/{tid}/<br/>leads · cadences · enrollments<br/>templates · integrations · imports</small>"]
+    subgraph Supabase["Supabase (Postgres)"]
+        SupaAuth["Supabase Auth<br/><small>app_metadata claims:<br/>role, tenant_id</small>"]
+        SupaDB["Postgres + RLS<br/><small>leads · cadences · enrollments<br/>templates · integrations · imports<br/>all tenant-scoped via RLS</small>"]
     end
 
     subgraph External["External Services"]
@@ -101,32 +101,32 @@ graph TB
     App --> Vanity
     Web --> Resolver
     Resolver -- "tenantId" --> NextAPI
-    Resolver -- "tenantId" --> Firestore
+    Resolver -- "tenantId" --> SupaDB
 
     VercelCron --> CronCadences
     VercelCron --> CronBrevo
-    CronCadences --> Firestore
+    CronCadences --> SupaDB
     CronCadences --> Resend
     CronBrevo --> Brevo
-    CronBrevo --> Firestore
+    CronBrevo --> SupaDB
 
-    Provision --> FireAuth
-    Provision --> Firestore
-    BrevoConnect --> Firestore
-    BrevoWebhook --> Firestore
-    ImportAPI --> Firestore
+    Provision --> SupaAuth
+    Provision --> SupaDB
+    BrevoConnect --> SupaDB
+    BrevoWebhook --> SupaDB
+    ImportAPI --> SupaDB
 
     MAB -. "Manual export" .-> ImportAPI
 
     classDef web fill:#EFF6FF,stroke:#3B82F6,color:#1E3A5F
     classDef api fill:#F0FDF4,stroke:#22C55E,color:#14532D
-    classDef firebase fill:#FEF3C7,stroke:#F59E0B,color:#78350F
+    classDef supabase fill:#FEF3C7,stroke:#F59E0B,color:#78350F
     classDef external fill:#F5F3FF,stroke:#7C3AED,color:#4C1D95
     classDef middleware fill:#FFE4E6,stroke:#E11D48,color:#881337
 
     class Marketing,App,Vanity web
     class CronCadences,CronBrevo,Provision,ImportAPI,BrevoConnect,BrevoWebhook api
-    class FireAuth,Firestore firebase
+    class SupaAuth,SupaDB supabase
     class Resend,Brevo,VercelCron,MAB external
     class Resolver middleware
 ```
@@ -137,7 +137,7 @@ graph TB
 sequenceDiagram
     participant Lead as Lead enters stage
     participant Pipeline as Pipeline UI
-    participant FS as Firestore
+    participant FS as Supabase
     participant Cron as Vercel Cron (7am)
     participant Run as run-cadences
     participant Resend as Resend
