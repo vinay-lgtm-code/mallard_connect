@@ -73,12 +73,12 @@ export default function NewCadencePage() {
     <div className="px-6 py-8 max-w-5xl">
       <Link
         href="/cadences"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4"
       >
         <ArrowLeft size={14} /> Back to cadences
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900">New cadence</h1>
+      <h1 className="text-2xl font-bold text-text-primary">New cadence</h1>
 
       {error && <p className="text-sm text-red-600 mt-3">{error}</p>}
 

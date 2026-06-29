@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTemplates } from "@/hooks/use-templates";
+import { Button } from "@/components/ui/button";
 import type { CadenceTrigger, CadenceStep, CadenceChannel } from "@/types";
 
 interface CadenceBuilderProps {
@@ -145,14 +146,17 @@ export function CadenceBuilder({
     });
   }
 
+  const inputClasses = "w-full px-3 py-2 rounded-lg border border-border text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10";
+  const selectClasses = "w-full px-3 py-2 rounded-lg border border-border text-sm bg-white focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10";
+
   return (
     <form onSubmit={handleSubmit} className="space-y-8">
       {/* ===== Section 1: Basic Info ===== */}
       <section className="space-y-4">
-        <h3 className="text-base font-semibold text-gray-900">Basic Info</h3>
+        <h3 className="text-base font-semibold text-text-primary">Basic Info</h3>
 
         <div>
-          <label htmlFor="cadence-name" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="cadence-name" className="block text-sm font-medium text-text-secondary mb-1">
             Name
           </label>
           <input
@@ -162,12 +166,12 @@ export function CadenceBuilder({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. FTB nurture (deposit-saving)"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            className={inputClasses}
           />
         </div>
 
         <div>
-          <label htmlFor="cadence-description" className="block text-sm font-medium text-gray-700 mb-1">
+          <label htmlFor="cadence-description" className="block text-sm font-medium text-text-secondary mb-1">
             Description
           </label>
           <textarea
@@ -176,14 +180,14 @@ export function CadenceBuilder({
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             placeholder="Optional description of this cadence..."
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+            className={`${inputClasses} resize-none`}
           />
         </div>
       </section>
 
       {/* ===== Section 2: Trigger Config ===== */}
       <section className="space-y-4">
-        <h3 className="text-base font-semibold text-gray-900">Trigger</h3>
+        <h3 className="text-base font-semibold text-text-primary">Trigger</h3>
 
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           {([
@@ -206,7 +210,7 @@ export function CadenceBuilder({
                 className={`flex items-center gap-3 p-4 rounded-[12px] border text-left text-sm font-medium transition-colors ${
                   selected
                     ? "border-primary bg-primary/5 text-primary"
-                    : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
+                    : "border-border bg-white text-text-secondary hover:bg-page"
                 }`}
               >
                 <Icon className="h-5 w-5 shrink-0" />
@@ -218,11 +222,11 @@ export function CadenceBuilder({
 
         {trigger.type === "stage_entered" && (
           <div>
-            <label htmlFor="trigger-stage" className="block text-sm font-medium text-gray-700 mb-1">
+            <label htmlFor="trigger-stage" className="block text-sm font-medium text-text-secondary mb-1">
               Stage
             </label>
             {stagesLoading ? (
-              <p className="text-sm text-gray-400">Loading stages...</p>
+              <p className="text-sm text-text-muted">Loading stages...</p>
             ) : (
               <select
                 id="trigger-stage"
@@ -230,7 +234,7 @@ export function CadenceBuilder({
                 onChange={(e) =>
                   setTrigger({ type: "stage_entered", stageId: e.target.value || undefined })
                 }
-                className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                className={selectClasses}
               >
                 <option value="">Select a stage...</option>
                 {stages.map((s) => (
@@ -246,7 +250,7 @@ export function CadenceBuilder({
 
       {/* ===== Section 3: Steps Editor ===== */}
       <section className="space-y-4">
-        <h3 className="text-base font-semibold text-gray-900">Steps</h3>
+        <h3 className="text-base font-semibold text-text-primary">Steps</h3>
 
         <div className="space-y-4">
           {steps.map((step, index) => {
@@ -259,17 +263,17 @@ export function CadenceBuilder({
             return (
               <div
                 key={index}
-                className="bg-gray-50 border border-gray-200 rounded-[12px] p-4 space-y-4"
+                className="bg-page border border-border rounded-[12px] p-4 space-y-4"
               >
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold text-gray-500">
+                  <span className="text-sm font-semibold text-text-secondary">
                     Step {index + 1}
                   </span>
                   <button
                     type="button"
                     disabled={steps.length <= 1}
                     onClick={() => removeStep(index)}
-                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    className="inline-flex items-center justify-center h-8 w-8 rounded-lg text-text-muted hover:text-red-500 hover:bg-red-50 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
                     title="Remove step"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -281,7 +285,7 @@ export function CadenceBuilder({
                   <div>
                     <label
                       htmlFor={`step-delay-${index}`}
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      className="block text-sm font-medium text-text-secondary mb-1"
                     >
                       Delay (days)
                     </label>
@@ -295,7 +299,7 @@ export function CadenceBuilder({
                           delayDays: Math.max(0, parseInt(e.target.value, 10) || 0),
                         })
                       }
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      className={inputClasses}
                     />
                   </div>
 
@@ -303,7 +307,7 @@ export function CadenceBuilder({
                   <div>
                     <label
                       htmlFor={`step-channel-${index}`}
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      className="block text-sm font-medium text-text-secondary mb-1"
                     >
                       Channel
                     </label>
@@ -316,7 +320,7 @@ export function CadenceBuilder({
                           templateId: undefined, // reset template on channel change
                         })
                       }
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      className={selectClasses}
                     >
                       {CHANNEL_OPTIONS.map((opt) => (
                         <option key={opt.value} value={opt.value}>
@@ -332,7 +336,7 @@ export function CadenceBuilder({
                   <div>
                     <label
                       htmlFor={`step-template-${index}`}
-                      className="block text-sm font-medium text-gray-700 mb-1"
+                      className="block text-sm font-medium text-text-secondary mb-1"
                     >
                       Template
                     </label>
@@ -344,7 +348,7 @@ export function CadenceBuilder({
                           templateId: e.target.value || undefined,
                         })
                       }
-                      className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                      className={selectClasses}
                     >
                       <option value="">None (inline)</option>
                       {filteredTemplates.map((t) => (
@@ -360,7 +364,7 @@ export function CadenceBuilder({
                 <div>
                   <label
                     htmlFor={`step-subject-${index}`}
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-text-secondary mb-1"
                   >
                     Subject override
                   </label>
@@ -374,7 +378,7 @@ export function CadenceBuilder({
                       })
                     }
                     placeholder="Optional subject..."
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    className={inputClasses}
                   />
                 </div>
 
@@ -382,7 +386,7 @@ export function CadenceBuilder({
                 <div>
                   <label
                     htmlFor={`step-body-${index}`}
-                    className="block text-sm font-medium text-gray-700 mb-1"
+                    className="block text-sm font-medium text-text-secondary mb-1"
                   >
                     Body override
                   </label>
@@ -396,7 +400,7 @@ export function CadenceBuilder({
                       })
                     }
                     placeholder="Optional body content..."
-                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
+                    className={`${inputClasses} resize-none`}
                   />
                 </div>
               </div>
@@ -404,35 +408,31 @@ export function CadenceBuilder({
           })}
         </div>
 
-        <button
-          type="button"
-          onClick={addStep}
-          className="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50"
-        >
+        <Button type="button" variant="secondary" onClick={addStep}>
           <Plus className="h-4 w-4" />
           Add step
-        </button>
+        </Button>
       </section>
 
       {/* ===== Bottom Actions ===== */}
-      <div className="flex items-center justify-between border-t border-gray-200 pt-6">
-        <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer select-none">
+      <div className="flex items-center justify-between border-t border-border pt-6">
+        <label className="inline-flex items-center gap-2 text-sm text-text-secondary cursor-pointer select-none">
           <input
             type="checkbox"
             checked={isActive}
             onChange={(e) => setIsActive(e.target.checked)}
-            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary/30"
+            className="h-4 w-4 rounded border-border-strong text-primary focus:ring-primary/30"
           />
           Active
         </label>
 
-        <button
+        <Button
           type="submit"
+          variant="primary"
           disabled={isSubmitting || isDemo}
-          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-50"
         >
           {isSubmitting ? "Saving..." : initialData ? "Save changes" : "Create cadence"}
-        </button>
+        </Button>
       </div>
     </form>
   );

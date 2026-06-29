@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle, ShieldCheck } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { hasCapability } from "@/lib/auth/roles";
@@ -88,21 +89,22 @@ export default function InviteTeamMemberPage() {
         <div className="flex justify-center">
           <CheckCircle size={56} className="text-green-500" />
         </div>
-        <h2 className="text-xl font-bold text-gray-900">Invitation Sent!</h2>
-        <p className="text-sm text-gray-500">
+        <h2 className="text-xl font-bold text-text-primary">Invitation Sent!</h2>
+        <p className="text-sm text-text-secondary">
           An invite email with setup instructions has been sent to{" "}
-          <span className="font-semibold text-gray-700">{form.email}</span>.
+          <span className="font-semibold text-text-secondary">{form.email}</span>.
         </p>
         <div className="flex flex-col gap-2 pt-2">
-          <button
+          <Button
+            variant="secondary"
+            className="w-full"
             onClick={() => { setSuccess(false); setForm({ email: "", fullName: "", role: "advisor" }); }}
-            className="w-full border border-gray-200 text-gray-700 text-sm font-semibold py-2.5 rounded-lg hover:bg-gray-50 transition-colors"
           >
             Invite Another
-          </button>
+          </Button>
           <Link
             href="/team"
-            className="w-full bg-primary text-white text-sm font-semibold py-2.5 rounded-lg hover:bg-primary-dark transition-colors text-center block"
+            className="w-full inline-flex items-center justify-center gap-1.5 font-semibold text-sm rounded-[var(--radius-button)] transition-colors bg-accent text-white hover:bg-accent-light px-4 py-2.5 text-center"
           >
             Back to Team
           </Link>
@@ -115,21 +117,21 @@ export default function InviteTeamMemberPage() {
     <div className="max-w-lg mx-auto p-4 md:p-6 space-y-5">
       <Link
         href="/team"
-        className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700"
+        className="flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-secondary"
       >
         <ArrowLeft size={15} />
         Back to Team
       </Link>
 
-      <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-        <h1 className="text-lg font-bold text-gray-900 mb-1">Invite Team Member</h1>
-        <p className="text-sm text-gray-500 mb-5">
+      <div className="bg-white rounded-[12px] p-5 border border-border">
+        <h1 className="text-lg font-bold text-text-primary mb-1">Invite Team Member</h1>
+        <p className="text-sm text-text-secondary mb-5">
           They will receive an email to set their password and join the workspace.
         </p>
 
         <form onSubmit={handleSubmit} noValidate className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Full Name <span className="text-destructive">*</span>
             </label>
             <input
@@ -138,12 +140,12 @@ export default function InviteTeamMemberPage() {
               onChange={(e) => set("fullName", e.target.value)}
               placeholder="Jane Smith"
               required
-              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Email Address <span className="text-destructive">*</span>
             </label>
             <input
@@ -152,25 +154,25 @@ export default function InviteTeamMemberPage() {
               onChange={(e) => set("email", e.target.value)}
               placeholder="jane@mallardmortgages.co.uk"
               required
-              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Role</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Role</label>
             <select
               value={form.role}
               onChange={(e) => set("role", e.target.value)}
-              className="w-full border border-gray-300 rounded-lg px-3.5 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full border border-border-strong rounded-lg px-3.5 py-2.5 text-sm bg-white focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             >
               {ROLE_OPTIONS.map((r) => (
                 <option key={r.value} value={r.value}>{r.label}</option>
               ))}
             </select>
-            <div className="mt-2 flex items-start gap-2 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 text-xs text-gray-600">
-              <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-gray-400" />
+            <div className="mt-2 flex items-start gap-2 rounded-lg border border-border bg-page px-3 py-2 text-xs text-text-secondary">
+              <ShieldCheck size={14} className="mt-0.5 flex-shrink-0 text-text-muted" />
               <span>
-                <strong className="text-gray-900">{selectedRole.label}:</strong>{" "}
+                <strong className="text-text-primary">{selectedRole.label}:</strong>{" "}
                 {selectedRole.description}
               </span>
             </div>
@@ -182,13 +184,14 @@ export default function InviteTeamMemberPage() {
             </p>
           )}
 
-          <button
+          <Button
             type="submit"
+            variant="primary"
+            className="w-full"
             disabled={saving}
-            className="w-full bg-primary text-white font-bold py-3 rounded-lg text-sm hover:bg-primary-dark transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {saving ? "Sending Invite…" : "Send Invite"}
-          </button>
+          </Button>
         </form>
       </div>
     </div>

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Database, Mail, Calendar, Building2, Check, Plug } from "lucide-react";
+import { SectionLabel } from "@/components/ui/section-label";
 
 type Connector = {
   id: string;
@@ -65,7 +66,7 @@ function StatusBadge({ status }: { status: Connector["status"] }) {
     );
   }
   return (
-    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-gray-50 text-gray-600 border border-gray-200">
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-page text-text-secondary border border-border">
       Coming soon
     </span>
   );
@@ -74,47 +75,50 @@ function StatusBadge({ status }: { status: Connector["status"] }) {
 export default function IntegrationsPage() {
   return (
     <div className="px-6 py-8 max-w-5xl">
-      <h1 className="text-2xl font-bold text-gray-900">Integrations</h1>
-      <p className="mt-1 text-sm text-gray-500">
+      <h1 className="text-2xl font-bold text-text-primary">Integrations</h1>
+      <p className="mt-1 text-sm text-text-secondary">
         Sequence works alongside whatever you already use. Connect a contact source to keep your
         existing system as the source of truth.
       </p>
 
-      <div className="mt-6 grid sm:grid-cols-2 gap-3">
-        {CONNECTORS.map((c) => {
-          const Icon = c.icon;
-          const inner = (
-            <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center flex-shrink-0">
-                <Icon size={18} className="text-gray-700" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-2 mb-1">
-                  <p className="text-sm font-semibold text-gray-900">{c.name}</p>
-                  <StatusBadge status={c.status} />
+      <div className="mt-6">
+        <SectionLabel>Available connectors</SectionLabel>
+        <div className="grid sm:grid-cols-2 gap-3">
+          {CONNECTORS.map((c) => {
+            const Icon = c.icon;
+            const inner = (
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 rounded-lg bg-page flex items-center justify-center flex-shrink-0">
+                  <Icon size={18} className="text-text-secondary" />
                 </div>
-                <p className="text-xs text-gray-600 leading-relaxed">{c.description}</p>
-                {c.badge && (
-                  <span className="mt-2 inline-block text-[10px] uppercase tracking-wide font-semibold text-primary">
-                    {c.badge}
-                  </span>
-                )}
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-sm font-semibold text-text-primary">{c.name}</p>
+                    <StatusBadge status={c.status} />
+                  </div>
+                  <p className="text-xs text-text-secondary leading-relaxed">{c.description}</p>
+                  {c.badge && (
+                    <span className="mt-2 inline-block text-[10px] uppercase tracking-wide font-semibold text-primary">
+                      {c.badge}
+                    </span>
+                  )}
+                </div>
               </div>
-            </div>
-          );
-          const cls = `block bg-white border border-gray-100 rounded-[12px] p-5 ${
-            c.href ? "hover:border-primary/30 hover:shadow-sm transition-all" : "opacity-70"
-          }`;
-          return c.href ? (
-            <Link key={c.id} href={c.href} className={cls}>
-              {inner}
-            </Link>
-          ) : (
-            <div key={c.id} className={cls}>
-              {inner}
-            </div>
-          );
-        })}
+            );
+            const cls = `block bg-white border border-border rounded-[12px] p-5 ${
+              c.href ? "hover:border-primary/30 transition-all" : "opacity-70"
+            }`;
+            return c.href ? (
+              <Link key={c.id} href={c.href} className={cls}>
+                {inner}
+              </Link>
+            ) : (
+              <div key={c.id} className={cls}>
+                {inner}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

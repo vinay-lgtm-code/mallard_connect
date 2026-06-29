@@ -31,16 +31,16 @@ export default function TemplatesListPage() {
     <div className="px-6 py-8 max-w-5xl">
       <div className="flex items-end justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Templates</h1>
-          <p className="mt-1 text-sm text-gray-500">
+          <h1 className="text-2xl font-bold text-text-primary">Templates</h1>
+          <p className="mt-1 text-sm text-text-secondary">
             Reusable email and SMS bodies. Used by cadences and one-click activity logging. Variables
-            like <code className="px-1 py-0.5 rounded bg-gray-100 text-gray-700">{"{{firstName}}"}</code>
+            like <code className="px-1 py-0.5 rounded bg-page text-text-secondary">{"{{firstName}}"}</code>
             {" "}fill from the lead and adviser context at send time.
           </p>
         </div>
         <Link
           href="/templates/new"
-          className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark"
+          className="inline-flex items-center justify-center gap-1.5 font-semibold text-sm rounded-[var(--radius-button)] transition-colors bg-accent text-white hover:bg-accent-light px-4 py-2.5"
         >
           <Plus size={16} />
           New template
@@ -66,12 +66,12 @@ function Section({
   return (
     <div>
       <div className="flex items-center gap-2 mb-3">
-        <Icon size={14} className="text-gray-500" />
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">{title}</h2>
-        <span className="text-xs text-gray-400">{items.length}</span>
+        <Icon size={14} className="text-text-secondary" />
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-text-secondary">{title}</h2>
+        <span className="text-xs text-text-muted">{items.length}</span>
       </div>
       {items.length === 0 ? (
-        <p className="text-sm text-gray-400 px-4 py-6 bg-white border border-gray-100 rounded-[12px]">
+        <p className="text-sm text-text-muted px-4 py-6 bg-white border border-border rounded-[12px]">
           No {title.toLowerCase()} templates yet.
         </p>
       ) : (
@@ -80,18 +80,18 @@ function Section({
             <Link
               key={t.id}
               href={`/templates/${t.id}`}
-              className="block bg-white border border-gray-100 rounded-[12px] p-5 hover:border-primary/30 hover:shadow-sm transition-all"
+              className="block bg-white border border-border rounded-[12px] p-5 hover:border-primary/30 transition-all"
             >
-              <p className="text-sm font-semibold text-gray-900 mb-1">{t.name}</p>
+              <p className="text-sm font-semibold text-text-primary mb-1">{t.name}</p>
               {t.subject && (
-                <p className="text-xs text-gray-500 truncate mb-2">Subject: {t.subject}</p>
+                <p className="text-xs text-text-secondary truncate mb-2">Subject: {t.subject}</p>
               )}
-              <p className="text-xs text-gray-600 line-clamp-3 leading-relaxed">{t.body}</p>
+              <p className="text-xs text-text-secondary line-clamp-3 leading-relaxed">{t.body}</p>
               <div className="mt-3 flex flex-wrap gap-1">
                 {t.variables.map((v) => (
                   <span
                     key={v}
-                    className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-mono"
+                    className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-page text-text-secondary font-mono"
                   >
                     {`{{${v}}}`}
                   </span>

@@ -26,14 +26,14 @@ export function QuickLogBar({
 
   return (
     <>
-      <div className="flex items-center gap-2 p-3 rounded-[12px] bg-gray-50 border border-gray-100">
-        <span className="text-xs font-semibold text-gray-500 mr-1">Log:</span>
+      <div className="flex items-center gap-2 p-3 rounded-[12px] bg-page border border-border">
+        <span className="text-xs font-semibold text-text-secondary mr-1">Log:</span>
         <QuickButton icon={Phone} label="Call" onClick={() => open_("call")} />
         <QuickButton icon={Mail} label="Email sent" onClick={() => open_("email")} />
         <QuickButton icon={FileText} label="Note" onClick={() => open_("note")} />
         <button
           onClick={() => open_("meeting")}
-          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-gray-600 hover:bg-white hover:text-gray-900 border border-transparent hover:border-gray-200 transition-colors"
+          className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-text-secondary hover:bg-white hover:text-text-primary border border-transparent hover:border-border transition-colors"
         >
           <MoreHorizontal size={14} />
           Other...
@@ -63,7 +63,7 @@ function QuickButton({
   return (
     <button
       onClick={onClick}
-      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-gray-200 text-xs font-medium text-gray-700 hover:border-primary/40 hover:text-primary transition-colors"
+      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white border border-border text-xs font-medium text-text-secondary hover:border-primary/40 hover:text-primary transition-colors"
     >
       <Icon size={13} />
       {label}

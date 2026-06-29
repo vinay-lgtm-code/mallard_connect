@@ -78,9 +78,19 @@ export function useLeads(filters?: LeadFilters) {
   const [loading, setLoading] = useState(!useMock);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchLeads = useCallback(() => {
-    if (useMock || !supabase || !tenantId) return Promise.resolve();
+  const refetch: RefetchFn = useCallback(() => {
+    if (useMock) {
+      setLoading(false);
+      return;
+    }
+    if (!supabase || !tenantId) {
+      setData([]);
+      setLoading(false);
+      return;
+    }
 
+    setLoading(true);
+    setError(null);
     let query = supabase
       .from("leads")
       .select(LEAD_SELECT)
@@ -100,11 +110,6 @@ export function useLeads(filters?: LeadFilters) {
       setLoading(false);
     });
   }, [supabase, tenantId, stageFilter, assignedFilter, statusFilter, useMock]);
-
-  useEffect(() => {
-    if (useMock || !supabase || !tenantId) return;
-    fetchLeads();
-  }, [fetchLeads, useMock, supabase, tenantId]);
 
   useEffect(() => {
     if (useMock || !supabase || !tenantId) return;
@@ -175,15 +180,19 @@ export function useLeads(filters?: LeadFilters) {
     };
   }, [supabase, tenantId, stageFilter, assignedFilter, statusFilter, useMock]);
 
+  useEffect(() => {
+    refetch();
+  }, [refetch]);
+
   if (useMock) {
     let leads = getMockLeads() as (Lead & { id: string })[];
-    if (stageFilter) leads = leads.filter((l) => l.currentStageId === stageFilter);
-    if (assignedFilter) leads = leads.filter((l) => l.assignedTo === assignedFilter);
-    if (statusFilter) leads = leads.filter((l) => l.status === statusFilter);
-    return { leads, loading: false, error: null };
+    if (filters?.stageId) leads = leads.filter((l) => l.currentStageId === filters.stageId);
+    if (filters?.assignedTo) leads = leads.filter((l) => l.assignedTo === filters.assignedTo);
+    if (filters?.status) leads = leads.filter((l) => l.status === filters.status);
+    return { leads, loading: false, error: null, refetch };
   }
 
-  return { leads: data, loading, error };
+  return { leads: data, loading, error, refetch };
 }
 
 export function useLead(leadId: string) {

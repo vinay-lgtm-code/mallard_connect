@@ -5,6 +5,8 @@ import { Upload, Check, RefreshCw } from "lucide-react";
 import { useAuth, isDemoMode } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { IMPORT_TARGET_FIELDS, autoMapColumns } from "@/lib/import/fields";
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 
 type Step = "upload" | "mapping" | "preview" | "importing" | "done";
 
@@ -116,12 +118,12 @@ function StepIndicator({ current, step, label }: { current: Step; step: Step; la
             ? "bg-success text-white"
             : active
             ? "bg-primary text-white"
-            : "bg-gray-200 text-gray-500"
+            : "bg-border text-text-secondary"
         }`}
       >
         {done ? <Check size={14} /> : stepIdx + 1}
       </div>
-      <span className={`text-sm font-medium hidden sm:block ${active ? "text-gray-900" : "text-gray-400"}`}>
+      <span className={`text-sm font-medium hidden sm:block ${active ? "text-text-primary" : "text-text-muted"}`}>
         {label}
       </span>
     </div>
@@ -356,19 +358,19 @@ export default function ImportPage() {
       {/* Step indicator */}
       <div className="flex items-center gap-3">
         <StepIndicator current={step} step="upload" label="Upload" />
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex-1 h-px bg-border" />
         <StepIndicator current={step} step="mapping" label="Map columns" />
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex-1 h-px bg-border" />
         <StepIndicator current={step} step="preview" label="Review" />
-        <div className="flex-1 h-px bg-gray-200" />
+        <div className="flex-1 h-px bg-border" />
         <StepIndicator current={step} step="done" label="Done" />
       </div>
 
       {/* Step 1: Upload */}
       {step === "upload" && (
-        <div className="bg-white rounded-[12px] p-6 shadow-sm border border-gray-100">
-          <h2 className="text-base font-bold text-gray-900 mb-1">Upload File</h2>
-          <p className="text-sm text-gray-500 mb-5">Import leads from a MAB CSV or Excel export.</p>
+        <div className="bg-white rounded-[12px] p-6 border border-border">
+          <SectionLabel>Upload File</SectionLabel>
+          <p className="text-sm text-text-secondary mb-5">Import leads from a MAB CSV or Excel export.</p>
 
           <div
             onDrop={handleDrop}
@@ -377,20 +379,20 @@ export default function ImportPage() {
             className={`border-2 border-dashed rounded-[12px] p-10 text-center transition-colors cursor-pointer ${
               dragging
                 ? "border-primary bg-primary/5"
-                : "border-gray-300 hover:border-primary hover:bg-gray-50"
+                : "border-border-strong hover:border-primary hover:bg-page"
             } ${uploadLoading ? "opacity-60 pointer-events-none" : ""}`}
             onClick={() => !uploadLoading && fileInputRef.current?.click()}
           >
             {uploadLoading ? (
               <>
                 <RefreshCw className="mx-auto text-primary animate-spin mb-3" size={36} />
-                <p className="text-sm font-semibold text-gray-700">Processing file…</p>
+                <p className="text-sm font-semibold text-text-secondary">Processing file…</p>
               </>
             ) : (
               <>
-                <Upload className="mx-auto text-gray-400 mb-3" size={36} />
-                <p className="text-sm font-semibold text-gray-700">Drop CSV or XLS file here</p>
-                <p className="text-xs text-gray-400 mt-1">or click to browse</p>
+                <Upload className="mx-auto text-text-muted mb-3" size={36} />
+                <p className="text-sm font-semibold text-text-secondary">Drop CSV or XLS file here</p>
+                <p className="text-xs text-text-muted mt-1">or click to browse</p>
               </>
             )}
             <input
@@ -406,36 +408,36 @@ export default function ImportPage() {
             <p className="text-sm text-destructive mt-3 text-center">{importError}</p>
           )}
 
-          <p className="text-xs text-gray-400 text-center mt-3">Supported formats: CSV, XLS, XLSX · Max 10 MB</p>
+          <p className="text-xs text-text-muted text-center mt-3">Supported formats: CSV, XLS, XLSX · Max 10 MB</p>
         </div>
       )}
 
       {/* Step 2: Column Mapping */}
       {step === "mapping" && (
-        <div className="bg-white rounded-[12px] p-6 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-[12px] p-6 border border-border">
           <div className="flex items-center justify-between mb-1">
-            <h2 className="text-base font-bold text-gray-900">Map Columns</h2>
-            <span className="text-xs text-gray-400">{fileName}</span>
+            <SectionLabel>Map Columns</SectionLabel>
+            <span className="text-xs text-text-muted">{fileName}</span>
           </div>
-          <p className="text-sm text-gray-500 mb-5">Match each source column to a Sequence field.</p>
+          <p className="text-sm text-text-secondary mb-5">Match each source column to a Sequence field.</p>
 
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-200">
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase pb-2 pr-4">Source column</th>
-                  <th className="text-left text-xs font-semibold text-gray-500 uppercase pb-2">Maps to</th>
+                <tr className="border-b border-border">
+                  <th className="text-left text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider pb-2 pr-4">Source column</th>
+                  <th className="text-left text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider pb-2">Maps to</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody className="divide-y divide-border">
                 {mappings.map((m) => (
                   <tr key={m.sourceColumn} className={!m.targetField ? "opacity-50" : ""}>
-                    <td className="py-2.5 pr-4 font-medium text-gray-700">{m.sourceColumn}</td>
+                    <td className="py-2.5 pr-4 font-medium text-text-secondary">{m.sourceColumn}</td>
                     <td className="py-2">
                       <select
                         value={m.targetField}
                         onChange={(e) => updateMapping(m.sourceColumn, e.target.value)}
-                        className="border border-gray-300 rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary bg-white w-full max-w-xs"
+                        className="border border-border-strong rounded-lg px-2.5 py-1.5 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 bg-white w-full max-w-xs"
                       >
                         {IMPORT_TARGET_FIELDS.map((f) => (
                           <option key={f.value} value={f.value}>{f.label}</option>
@@ -449,18 +451,12 @@ export default function ImportPage() {
           </div>
 
           <div className="flex gap-3 mt-6">
-            <button
-              onClick={() => setStep("upload")}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
-            >
+            <Button variant="secondary" onClick={() => setStep("upload")}>
               Back
-            </button>
-            <button
-              onClick={() => setStep("preview")}
-              className="flex-1 bg-primary text-white font-semibold py-2.5 rounded-lg text-sm hover:bg-primary-dark transition-colors"
-            >
-              Preview Import →
-            </button>
+            </Button>
+            <Button variant="primary" onClick={() => setStep("preview")} className="flex-1">
+              Preview Import
+            </Button>
           </div>
         </div>
       )}
@@ -468,8 +464,8 @@ export default function ImportPage() {
       {/* Step 3: Dedup Preview */}
       {step === "preview" && (
         <div className="space-y-4">
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-            <h2 className="text-base font-bold text-gray-900 mb-4">Review Import</h2>
+          <div className="bg-white rounded-[12px] p-5 border border-border">
+            <SectionLabel>Review Import</SectionLabel>
 
             {/* New leads */}
             <div className="rounded-lg bg-green-50 border border-green-200 p-4 mb-3">
@@ -513,8 +509,8 @@ export default function ImportPage() {
                   {duplicateUpdates.map((record) => (
                     <div key={record.id} className="flex items-center justify-between bg-white rounded-lg px-3 py-2 border border-blue-100">
                       <div>
-                        <p className="text-sm font-medium text-gray-800">{record.name}</p>
-                        <p className="text-xs text-gray-500">{record.phone}</p>
+                        <p className="text-sm font-medium text-text-primary">{record.name}</p>
+                        <p className="text-xs font-mono text-primary">{record.phone}</p>
                       </div>
                       <button
                         onClick={() => toggleDuplicateUpdate(record.id)}
@@ -542,61 +538,52 @@ export default function ImportPage() {
           </div>
 
           <div className="flex gap-3">
-            <button
-              onClick={() => setStep("mapping")}
-              className="px-4 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
-            >
+            <Button variant="secondary" onClick={() => setStep("mapping")}>
               Back
-            </button>
-            <button
-              onClick={startImport}
-              className="flex-1 bg-primary text-white font-bold py-2.5 rounded-lg text-sm hover:bg-primary-dark transition-colors"
-            >
-              Import {totalImporting} Lead{totalImporting !== 1 ? "s" : ""} →
-            </button>
+            </Button>
+            <Button variant="primary" onClick={startImport} className="flex-1">
+              Import {totalImporting} Lead{totalImporting !== 1 ? "s" : ""}
+            </Button>
           </div>
         </div>
       )}
 
       {/* Step 4: Importing (progress) */}
       {step === "importing" && (
-        <div className="bg-white rounded-[12px] p-8 shadow-sm border border-gray-100 text-center">
+        <div className="bg-white rounded-[12px] p-8 border border-border text-center">
           <RefreshCw className="mx-auto text-primary animate-spin mb-4" size={36} />
-          <h2 className="text-base font-bold text-gray-900 mb-4">Importing leads…</h2>
-          <div className="bg-gray-100 rounded-full h-3 overflow-hidden">
+          <h2 className="text-base font-bold text-text-primary mb-4">Importing leads…</h2>
+          <div className="bg-page rounded-full h-3 overflow-hidden">
             <div
               className="bg-primary h-3 rounded-full transition-all duration-200"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <p className="text-sm text-gray-500 mt-2">{progress}%</p>
+          <p className="text-sm text-text-secondary mt-2">{progress}%</p>
         </div>
       )}
 
       {/* Step 5: Done */}
       {step === "done" && (
-        <div className="bg-white rounded-[12px] p-8 shadow-sm border border-gray-100 text-center">
+        <div className="bg-white rounded-[12px] p-8 border border-border text-center">
           <div className="w-16 h-16 rounded-full bg-success/10 flex items-center justify-center mx-auto mb-4">
             <Check className="text-success" size={32} />
           </div>
-          <h2 className="text-xl font-bold text-gray-900 mb-2">Import complete!</h2>
-          <p className="text-gray-600 text-sm">
-            Imported <span className="font-semibold text-gray-900">{newCount} new leads</span>.{" "}
-            Skipped <span className="font-semibold text-gray-900">{skipCount}</span>.{" "}
-            Updated <span className="font-semibold text-gray-900">{updateCount}</span>.
+          <h2 className="text-xl font-bold text-text-primary mb-2">Import complete!</h2>
+          <p className="text-text-secondary text-sm">
+            Imported <span className="font-semibold text-text-primary">{newCount} new leads</span>.{" "}
+            Skipped <span className="font-semibold text-text-primary">{skipCount}</span>.{" "}
+            Updated <span className="font-semibold text-text-primary">{updateCount}</span>.
           </p>
           <div className="flex gap-3 mt-6 justify-center">
-            <button
-              onClick={resetImport}
-              className="px-5 py-2.5 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50"
-            >
+            <Button variant="secondary" onClick={resetImport}>
               Import another file
-            </button>
+            </Button>
             <a
               href="/leads"
-              className="px-5 py-2.5 bg-primary text-white font-semibold rounded-lg text-sm hover:bg-primary-dark transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 font-semibold text-sm rounded-[var(--radius-button)] transition-colors bg-accent text-white hover:bg-accent-light px-4 py-2.5"
             >
-              View all leads →
+              View all leads
             </a>
           </div>
         </div>

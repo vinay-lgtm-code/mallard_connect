@@ -85,14 +85,14 @@ export function EditableField({
   }
 
   const inputClasses =
-    "w-full px-2 py-1 rounded border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary";
+    "w-full px-2 py-1 rounded border border-border-strong text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10";
 
   const rendered = displayValue ?? (value != null && value !== "" ? String(value) : null);
 
   if (editing) {
     return (
       <div>
-        <span className="text-xs text-gray-400 uppercase tracking-wide font-medium">{label}</span>
+        <span className="text-xs text-text-muted uppercase tracking-wide font-medium">{label}</span>
         <div className="flex items-center gap-1 mt-0.5">
           {type === "select" ? (
             <select
@@ -130,9 +130,9 @@ export function EditableField({
           <button
             type="button"
             onClick={cancel}
-            className="p-0.5 hover:bg-gray-100 rounded"
+            className="p-0.5 hover:bg-page rounded"
           >
-            <X size={14} className="text-gray-400" />
+            <X size={14} className="text-text-muted" />
           </button>
         </div>
       </div>
@@ -141,27 +141,27 @@ export function EditableField({
 
   return (
     <div className="group cursor-pointer" onClick={startEditing}>
-      <span className="text-xs text-gray-400 uppercase tracking-wide font-medium">{label}</span>
+      <span className="text-xs text-text-muted uppercase tracking-wide font-medium">{label}</span>
       <div className="flex items-center gap-1 mt-0.5">
         {rendered ? (
           linkHref ? (
             <a
               href={linkHref}
-              className="text-gray-700 text-sm underline hover:text-primary"
+              className="text-text-secondary text-sm underline hover:text-primary"
               onClick={(e) => e.stopPropagation()}
             >
               {rendered}
             </a>
           ) : (
-            <span className="text-gray-700 text-sm">{rendered}</span>
+            <span className="text-text-secondary text-sm">{rendered}</span>
           )
         ) : (
-          <span className="text-gray-700 text-sm">&mdash;</span>
+          <span className="text-text-secondary text-sm">&mdash;</span>
         )}
         {!demo && (
           <Pencil
             size={12}
-            className="text-gray-300 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="text-text-muted opacity-0 group-hover:opacity-100 transition-opacity"
           />
         )}
       </div>

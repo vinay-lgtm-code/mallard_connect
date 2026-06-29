@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useCallback } from "react";
+import { useEffect, useMemo, useState, useCallback } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import { useLeads, useTenantUsers } from "@/hooks/use-leads";
+import { useSupabase } from "@/hooks/use-supabase";
 import { formatCurrency } from "@/lib/utils";
+import { hasCapability } from "@/lib/auth/roles";
+import { isDemoUser } from "@/lib/mock-data";
 import type { Lead, User } from "@/types";
-import { Wallet, Scale, Target, CalendarClock, Download } from "lucide-react";
+import { Check, RotateCcw, Wallet, Scale, Target, CalendarClock, Download } from "lucide-react";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,6 +56,38 @@ function dealValueOf(lead: Lead): number {
   return v;
 }
 
+function toDateInputValue(value: string | null): string {
+  const date = parseLocalDate(value);
+  if (!date) return "";
+  return [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, "0"),
+    String(date.getDate()).padStart(2, "0"),
+  ].join("-");
+}
+
+function inputNumberValue(value: number | null): string {
+  return value == null || Number.isNaN(value) ? "" : String(value);
+}
+
+function parseMoneyInput(value: string): number | null {
+  if (value.trim() === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.max(parsed, 0);
+}
+
+function parseConfidenceInput(value: string): number | null {
+  if (value.trim() === "") return null;
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return null;
+  return Math.min(Math.max(Math.round(parsed), 0), 100);
+}
+
+function leadDisplayName(lead: Lead): string {
+  return `${lead.firstName} ${lead.lastName}`.trim();
+}
+
 function escapeCsvValue(value: unknown): string {
   if (value === null || value === undefined) return "";
   let str = String(value);
@@ -80,15 +116,15 @@ function KpiCard({
   color?: string;
 }) {
   return (
-    <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-[12px] p-5 border border-border">
       <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-400">
+        <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">{label}</p>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-page text-text-muted">
           <Icon size={16} />
         </div>
       </div>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+      <p className="text-3xl font-bold text-text-primary">{value}</p>
+      {sub && <p className="text-xs text-text-muted mt-1">{sub}</p>}
     </div>
   );
 }
@@ -114,6 +150,23 @@ interface AdviserRow {
   expected: number;
 }
 
+interface ForecastInputRow {
+  leadId: string;
+  name: string;
+  adviserName: string;
+  dealValueInput: string;
+  closeDateInput: string;
+  confidenceInput: string;
+  included: boolean;
+  weighted: number;
+}
+
+interface ForecastDraft {
+  dealValue?: string;
+  closeDate?: string;
+  confidence?: string;
+}
+
 // ─── Monthly forecast table ──────────────────────────────────────────────────
 
 function MonthlyForecastTable({
@@ -125,7 +178,7 @@ function MonthlyForecastTable({
 }) {
   if (rows.length === 0) {
     return (
-      <p className="text-sm text-gray-400 text-center py-8">
+      <p className="text-sm text-text-muted text-center py-8">
         No deals with an estimated close date yet. Add deal value, confidence and an
         estimated close date to a lead to see it forecast here.
       </p>
@@ -135,23 +188,23 @@ function MonthlyForecastTable({
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-gray-500 border-b border-gray-100">
-            <th className="text-left py-2.5 px-1 font-medium">Month</th>
-            <th className="text-right py-2.5 px-1 font-medium">Deals</th>
-            <th className="text-right py-2.5 px-1 font-medium">Total value</th>
-            <th className="text-right py-2.5 px-1 font-medium">Weighted</th>
-            <th className="text-right py-2.5 px-1 font-medium">Expected close</th>
-            <th className="text-left py-2.5 px-1 font-medium w-32">Weighted share</th>
+          <tr className="text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted border-b border-border">
+            <th className="text-left py-2.5 px-1">Month</th>
+            <th className="text-right py-2.5 px-1">Deals</th>
+            <th className="text-right py-2.5 px-1">Total value</th>
+            <th className="text-right py-2.5 px-1">Weighted</th>
+            <th className="text-right py-2.5 px-1">Expected close</th>
+            <th className="text-left py-2.5 px-1 w-32">Weighted share</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-border">
           {rows.map((row) => {
             const pct = maxWeighted > 0 ? (row.weighted / maxWeighted) * 100 : 0;
             return (
-              <tr key={row.key} className="group hover:bg-gray-50">
+              <tr key={row.key} className="group hover:bg-page">
                 <td className="py-3 px-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-medium text-gray-900">{row.label}</span>
+                    <span className="font-medium text-text-primary">{row.label}</span>
                     {row.isPast && (
                       <span
                         className="inline-flex items-center px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-semibold"
@@ -162,18 +215,18 @@ function MonthlyForecastTable({
                     )}
                   </div>
                 </td>
-                <td className="py-3 px-1 text-right text-gray-700">{row.dealCount}</td>
-                <td className="py-3 px-1 text-right text-gray-700">
+                <td className="py-3 px-1 text-right text-text-secondary">{row.dealCount}</td>
+                <td className="py-3 px-1 text-right text-text-secondary">
                   {formatCurrency(Math.round(row.total))}
                 </td>
-                <td className="py-3 px-1 text-right font-semibold text-gray-900">
+                <td className="py-3 px-1 text-right font-semibold text-text-primary">
                   {formatCurrency(Math.round(row.weighted))}
                 </td>
                 <td className="py-3 px-1 text-right text-success font-semibold">
                   {formatCurrency(Math.round(row.expected))}
                 </td>
                 <td className="py-3 px-1">
-                  <div className="bg-gray-100 rounded-full h-2 overflow-hidden">
+                  <div className="bg-page rounded-full h-2 overflow-hidden">
                     <div
                       className="h-full rounded-full bg-primary transition-all duration-500"
                       style={{ width: `${Math.max(pct, row.weighted > 0 ? 4 : 0)}%` }}
@@ -193,26 +246,26 @@ function MonthlyForecastTable({
 
 function AdviserForecastTable({ rows }: { rows: AdviserRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-4">No forecast data.</p>;
+    return <p className="text-sm text-text-muted text-center py-4">No forecast data.</p>;
   }
   return (
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-gray-500 border-b border-gray-100">
-            <th className="text-left py-2.5 px-1 font-medium">Advisor</th>
-            <th className="text-right py-2.5 px-1 font-medium">Deals</th>
-            <th className="text-right py-2.5 px-1 font-medium">Total value</th>
-            <th className="text-right py-2.5 px-1 font-medium">Weighted</th>
-            <th className="text-right py-2.5 px-1 font-medium">Expected close</th>
+          <tr className="text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted border-b border-border">
+            <th className="text-left py-2.5 px-1">Advisor</th>
+            <th className="text-right py-2.5 px-1">Deals</th>
+            <th className="text-right py-2.5 px-1">Total value</th>
+            <th className="text-right py-2.5 px-1">Weighted</th>
+            <th className="text-right py-2.5 px-1">Expected close</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-border">
           {rows.map((row, i) => (
-            <tr key={row.userId} className="group hover:bg-gray-50">
+            <tr key={row.userId} className="group hover:bg-page">
               <td className="py-3 px-1">
                 <div className="flex items-center gap-2.5">
-                  <span className="text-xs text-gray-400 w-4 flex-shrink-0">{i + 1}</span>
+                  <span className="text-xs text-text-muted w-4 flex-shrink-0">{i + 1}</span>
                   <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                     <span className="text-white text-xs font-bold">
                       {row.name
@@ -223,14 +276,14 @@ function AdviserForecastTable({ rows }: { rows: AdviserRow[] }) {
                         .slice(0, 2)}
                     </span>
                   </div>
-                  <span className="font-medium text-gray-900 text-sm">{row.name}</span>
+                  <span className="font-medium text-text-primary text-sm">{row.name}</span>
                 </div>
               </td>
-              <td className="py-3 px-1 text-right text-gray-700">{row.dealCount}</td>
-              <td className="py-3 px-1 text-right text-gray-700">
+              <td className="py-3 px-1 text-right text-text-secondary">{row.dealCount}</td>
+              <td className="py-3 px-1 text-right text-text-secondary">
                 {formatCurrency(Math.round(row.total))}
               </td>
-              <td className="py-3 px-1 text-right font-semibold text-gray-900">
+              <td className="py-3 px-1 text-right font-semibold text-text-primary">
                 {formatCurrency(Math.round(row.weighted))}
               </td>
               <td className="py-3 px-1 text-right text-success font-semibold">
@@ -244,14 +297,164 @@ function AdviserForecastTable({ rows }: { rows: AdviserRow[] }) {
   );
 }
 
+// ─── Forecast inputs table ──────────────────────────────────────────────────
+
+function ForecastInputsTable({
+  rows,
+  drafts,
+  canEdit,
+  savingLeadId,
+  saveError,
+  onDraftChange,
+  onSave,
+  onCancel,
+}: {
+  rows: ForecastInputRow[];
+  drafts: Record<string, ForecastDraft>;
+  canEdit: boolean;
+  savingLeadId: string | null;
+  saveError: string | null;
+  onDraftChange: (leadId: string, field: keyof ForecastDraft, value: string) => void;
+  onSave: (row: ForecastInputRow) => void;
+  onCancel: (leadId: string) => void;
+}) {
+  if (rows.length === 0) {
+    return <p className="text-sm text-text-muted text-center py-4">No open leads to forecast.</p>;
+  }
+
+  return (
+    <div className="space-y-3">
+      {saveError && (
+        <p className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          {saveError}
+        </p>
+      )}
+      <div className="overflow-x-auto -mx-1">
+        <table className="w-full text-sm min-w-[760px]">
+          <thead>
+            <tr className="text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted border-b border-border">
+              <th className="text-left py-2.5 px-1">Lead</th>
+              <th className="text-left py-2.5 px-1">Advisor</th>
+              <th className="text-left py-2.5 px-1">Forecast amount</th>
+              <th className="text-left py-2.5 px-1">Close date</th>
+              <th className="text-left py-2.5 px-1">Confidence</th>
+              <th className="text-right py-2.5 px-1">Weighted</th>
+              <th className="text-right py-2.5 px-1 w-24">Save</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            {rows.map((row) => {
+              const draft = drafts[row.leadId] ?? {};
+              const dealValue = draft.dealValue ?? row.dealValueInput;
+              const closeDate = draft.closeDate ?? row.closeDateInput;
+              const confidence = draft.confidence ?? row.confidenceInput;
+              const isDirty =
+                dealValue !== row.dealValueInput ||
+                closeDate !== row.closeDateInput ||
+                confidence !== row.confidenceInput;
+              const isSaving = savingLeadId === row.leadId;
+              return (
+                <tr key={row.leadId} className="group hover:bg-page">
+                  <td className="py-3 px-1">
+                    <Link
+                      href={`/leads/${row.leadId}`}
+                      className="font-medium text-text-primary hover:text-primary"
+                    >
+                      {row.name || "Unnamed lead"}
+                    </Link>
+                    {!row.included && (
+                      <p className="text-xs text-amber-600 mt-0.5">Needs close date</p>
+                    )}
+                  </td>
+                  <td className="py-3 px-1 text-text-secondary">{row.adviserName}</td>
+                  <td className="py-3 px-1">
+                    <input
+                      type="number"
+                      min={0}
+                      value={dealValue}
+                      disabled={!canEdit || isSaving}
+                      onChange={(e) => onDraftChange(row.leadId, "dealValue", e.target.value)}
+                      className="w-32 border border-border-strong rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-[3px] focus:ring-primary/10 focus:border-primary disabled:bg-page disabled:text-text-muted"
+                    />
+                  </td>
+                  <td className="py-3 px-1">
+                    <input
+                      type="date"
+                      value={closeDate}
+                      disabled={!canEdit || isSaving}
+                      onChange={(e) => onDraftChange(row.leadId, "closeDate", e.target.value)}
+                      className="w-36 border border-border-strong rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-[3px] focus:ring-primary/10 focus:border-primary disabled:bg-page disabled:text-text-muted"
+                    />
+                  </td>
+                  <td className="py-3 px-1">
+                    <input
+                      type="number"
+                      min={0}
+                      max={100}
+                      value={confidence}
+                      disabled={!canEdit || isSaving}
+                      onChange={(e) => onDraftChange(row.leadId, "confidence", e.target.value)}
+                      className="w-24 border border-border-strong rounded-lg px-2.5 py-1.5 text-sm focus:outline-none focus:ring-[3px] focus:ring-primary/10 focus:border-primary disabled:bg-page disabled:text-text-muted"
+                    />
+                  </td>
+                  <td className="py-3 px-1 text-right font-semibold text-text-primary">
+                    {row.included ? (
+                      formatCurrency(Math.round(row.weighted))
+                    ) : (
+                      <span className="text-xs font-medium text-text-muted">Not included</span>
+                    )}
+                  </td>
+                  <td className="py-3 px-1">
+                    <div className="flex justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onSave(row)}
+                        disabled={!canEdit || !isDirty || isSaving}
+                        className="p-1.5 rounded-lg text-primary hover:bg-primary/10 disabled:text-text-muted disabled:hover:bg-transparent"
+                        aria-label={`Save forecast inputs for ${row.name || "lead"}`}
+                        title="Save forecast inputs"
+                      >
+                        <Check size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onCancel(row.leadId)}
+                        disabled={!isDirty || isSaving}
+                        className="p-1.5 rounded-lg text-text-muted hover:bg-page disabled:text-text-muted disabled:hover:bg-transparent"
+                        aria-label={`Discard forecast input changes for ${row.name || "lead"}`}
+                        title="Discard changes"
+                      >
+                        <RotateCcw size={15} />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {!canEdit && (
+        <p className="text-xs text-text-muted">
+          Demo data is read-only. Open a real workspace to save forecast inputs.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function ForecastPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
+  const supabase = useSupabase();
 
-  const { leads, loading: leadsLoading } = useLeads();
+  const { leads, loading: leadsLoading, refetch: refetchLeads } = useLeads();
   const { users, loading: usersLoading } = useTenantUsers();
+  const [forecastDrafts, setForecastDrafts] = useState<Record<string, ForecastDraft>>({});
+  const [savingLeadId, setSavingLeadId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !user) router.push("/login");
@@ -269,6 +472,7 @@ export default function ForecastPage() {
       forecastDealCount: 0,
       monthRows: [] as MonthRow[],
       adviserRows: [] as AdviserRow[],
+      inputRows: [] as ForecastInputRow[],
     };
     if (!leads || leads.length === 0) return empty;
 
@@ -278,12 +482,18 @@ export default function ForecastPage() {
     const convertedLeads = leads.filter((l) => l.status === "converted").length;
     const conversionRate = totalLeads > 0 ? convertedLeads / totalLeads : 0;
 
+    const userNames = new Map<string, string>();
+    for (const u of (users ?? []) as (User & { id: string })[]) {
+      userNames.set(u.id, u.fullName);
+    }
+
+    const adviserNameOf = (lead: Lead) =>
+      lead.assignedTo ? userNames.get(lead.assignedTo) ?? "Unknown advisor" : "Unassigned";
+
     // Forecast pool: leads still in play (not converted, not lost) that have a
     // parseable estimated close date.
-    const forecastLeads = leads.filter((l) => {
-      if (l.status === "converted" || l.status === "lost") return false;
-      return parseLocalDate(l.estimatedCloseDate) !== null;
-    });
+    const openLeads = leads.filter((l) => l.status !== "converted" && l.status !== "lost");
+    const forecastLeads = openLeads.filter((l) => parseLocalDate(l.estimatedCloseDate) !== null);
 
     const now = new Date();
     const currentMonthKey = getMonthKey(now);
@@ -318,19 +528,13 @@ export default function ForecastPage() {
 
     // ── By adviser ── keyed off the lead's assignedTo so unknown / inactive /
     // unassigned advisers still surface their pipeline value.
-    const userNames = new Map<string, string>();
-    for (const u of (users ?? []) as (User & { id: string })[]) {
-      userNames.set(u.id, u.fullName);
-    }
     const adviserMap = new Map<
       string,
       { name: string; dealCount: number; total: number; weighted: number }
     >();
     for (const lead of forecastLeads) {
       const id = lead.assignedTo || "__unassigned__";
-      const name = lead.assignedTo
-        ? userNames.get(lead.assignedTo) ?? "Unknown advisor"
-        : "Unassigned";
+      const name = adviserNameOf(lead);
       const entry =
         adviserMap.get(id) ?? { name, dealCount: 0, total: 0, weighted: 0 };
       entry.dealCount += 1;
@@ -353,6 +557,26 @@ export default function ForecastPage() {
     const grandWeighted = monthRows.reduce((s, r) => s + r.weighted, 0);
     const grandExpected = monthRows.reduce((s, r) => s + r.expected, 0);
     const forecastDealCount = forecastLeads.length;
+    const inputRows: ForecastInputRow[] = openLeads
+      .map((lead) => {
+        const closeDate = parseLocalDate(lead.estimatedCloseDate);
+        const weighted = dealValueOf(lead) * confidenceWeight(lead.confidence);
+        return {
+          leadId: lead.id,
+          name: leadDisplayName(lead),
+          adviserName: adviserNameOf(lead),
+          dealValueInput: inputNumberValue(lead.dealValue),
+          closeDateInput: toDateInputValue(lead.estimatedCloseDate),
+          confidenceInput: inputNumberValue(lead.confidence),
+          included: closeDate !== null,
+          weighted,
+        };
+      })
+      .sort((a, b) => {
+        const aDate = a.closeDateInput || "9999-12-31";
+        const bDate = b.closeDateInput || "9999-12-31";
+        return aDate.localeCompare(bDate) || a.name.localeCompare(b.name);
+      });
 
     return {
       conversionRate,
@@ -364,8 +588,62 @@ export default function ForecastPage() {
       forecastDealCount,
       monthRows,
       adviserRows,
+      inputRows,
     };
   }, [leads, users]);
+
+  const canEditForecast =
+    Boolean(supabase && user?.tenantId && user?.id) && (user ? !isDemoUser(user.id) : false);
+
+  function updateForecastDraft(leadId: string, field: keyof ForecastDraft, value: string) {
+    setForecastDrafts((current) => ({
+      ...current,
+      [leadId]: {
+        ...current[leadId],
+        [field]: value,
+      },
+    }));
+  }
+
+  function cancelForecastDraft(leadId: string) {
+    setForecastDrafts((current) => {
+      const next = { ...current };
+      delete next[leadId];
+      return next;
+    });
+  }
+
+  async function saveForecastInputs(row: ForecastInputRow) {
+    if (!supabase || !user?.tenantId || isDemoUser(user.id)) return;
+
+    const draft = forecastDrafts[row.leadId] ?? {};
+    const dealValue = draft.dealValue ?? row.dealValueInput;
+    const closeDate = draft.closeDate ?? row.closeDateInput;
+    const confidence = draft.confidence ?? row.confidenceInput;
+
+    setSavingLeadId(row.leadId);
+    setSaveError(null);
+    try {
+      const { error } = await supabase
+        .from("leads")
+        .update({
+          deal_value: parseMoneyInput(dealValue),
+          estimated_close_date: closeDate || null,
+          confidence: parseConfidenceInput(confidence),
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", row.leadId)
+        .eq("tenant_id", user.tenantId);
+
+      if (error) throw error;
+      cancelForecastDraft(row.leadId);
+      refetchLeads();
+    } catch (err) {
+      setSaveError(err instanceof Error ? err.message : "Failed to save forecast inputs");
+    } finally {
+      setSavingLeadId(null);
+    }
+  }
 
   const handleExportCsv = useCallback(() => {
     const lines: string[] = [];
@@ -427,22 +705,29 @@ export default function ForecastPage() {
   return (
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <h1 className="text-lg font-bold text-gray-900">Pipeline Forecast</h1>
-          <p className="text-sm text-gray-500 mt-0.5">
-            Expected closings by month, weighted by deal confidence and your historical
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm text-text-secondary">
+            Expected closings by month, weighted by lead confidence and historical
             conversion rate.
           </p>
+          <button
+            onClick={handleExportCsv}
+            disabled={forecast.monthRows.length === 0 && forecast.adviserRows.length === 0}
+            className="inline-flex items-center gap-2 border border-border rounded-lg text-sm font-medium text-text-secondary hover:bg-page px-3 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Download size={15} />
+            Export CSV
+          </button>
         </div>
-        <button
-          onClick={handleExportCsv}
-          disabled={forecast.monthRows.length === 0 && forecast.adviserRows.length === 0}
-          className="inline-flex items-center gap-2 border border-gray-200 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 px-3 py-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          <Download size={15} />
-          Export CSV
-        </button>
+        <div className="bg-white rounded-[12px] p-4 border border-border">
+          <h2 className="text-sm font-semibold text-text-primary">Forecast math</h2>
+          <p className="mt-1 text-sm text-text-secondary">
+            Weighted pipeline is each lead&apos;s forecast amount multiplied by its
+            confidence. A lead at 100% contributes its full forecast amount; Expected
+            Closed then applies the historical conversion rate to the weighted total.
+          </p>
+        </div>
       </div>
 
       {isLoading ? (
@@ -463,7 +748,7 @@ export default function ForecastPage() {
             <KpiCard
               label="Weighted Pipeline"
               value={formatCurrency(Math.round(forecast.grandWeighted))}
-              sub="Deal value × confidence"
+              sub="Forecast amount × confidence"
               icon={Scale}
               color="bg-primary"
             />
@@ -484,19 +769,39 @@ export default function ForecastPage() {
           </div>
 
           {/* Forecast by month */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-[12px] p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700">Forecast by Month</h2>
-              <span className="text-xs text-gray-400">Grouped by estimated close date</span>
+              <h2 className="text-sm font-semibold text-text-secondary">Forecast by Month</h2>
+              <span className="text-xs text-text-muted">Grouped by estimated close date</span>
             </div>
             <MonthlyForecastTable rows={forecast.monthRows} maxWeighted={maxWeighted} />
           </div>
 
+          {/* Editable forecast source inputs */}
+          <div className="bg-white rounded-[12px] p-5 border border-border">
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-4">
+              <h2 className="text-sm font-semibold text-text-secondary">Forecast Inputs</h2>
+              <span className="text-xs text-text-muted">
+                Edits update the lead qualification deal fields
+              </span>
+            </div>
+            <ForecastInputsTable
+              rows={forecast.inputRows}
+              drafts={forecastDrafts}
+              canEdit={canEditForecast}
+              savingLeadId={savingLeadId}
+              saveError={saveError}
+              onDraftChange={updateForecastDraft}
+              onSave={saveForecastInputs}
+              onCancel={cancelForecastDraft}
+            />
+          </div>
+
           {/* Forecast by adviser */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-[12px] p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700">Forecast by Advisor</h2>
-              <span className="text-xs text-gray-400">Sorted by weighted value</span>
+              <h2 className="text-sm font-semibold text-text-secondary">Forecast by Advisor</h2>
+              <span className="text-xs text-text-muted">Sorted by weighted value</span>
             </div>
             <AdviserForecastTable rows={forecast.adviserRows} />
           </div>

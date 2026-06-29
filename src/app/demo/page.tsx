@@ -8,6 +8,7 @@ import { setDemoUser, setDemoTenant } from "@/hooks/useAuth";
 import { seedDemoTenantIfNeeded } from "@/lib/demo/seed";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { DemoTenantSlug } from "@/lib/mock-data";
+import { Button } from "@/components/ui/button";
 
 type DemoTenant = {
   slug: DemoTenantSlug;
@@ -69,16 +70,16 @@ export default function DemoPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200">
+    <div className="min-h-screen bg-page">
+      <header className="bg-white border-b border-border">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
               <span className="text-white text-xs font-bold">S</span>
             </div>
-            <span className="text-lg font-bold text-gray-900">Sequence</span>
+            <span className="text-lg font-bold text-text-primary">Sequence</span>
           </Link>
-          <Link href="/login" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+          <Link href="/login" className="text-sm font-medium text-text-secondary hover:text-text-primary">
             Log in
           </Link>
         </div>
@@ -87,7 +88,7 @@ export default function DemoPage() {
       <main className="max-w-6xl mx-auto px-6 py-12 sm:py-16">
         <div className="max-w-2xl">
           <p className="text-sm font-semibold text-primary mb-2">Live demo</p>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900">
+          <h1 className="text-3xl sm:text-4xl font-bold text-text-primary">
             Pick a firm to step into
           </h1>
         </div>
@@ -96,32 +97,33 @@ export default function DemoPage() {
           {TENANTS.map((t) => (
             <div
               key={t.slug}
-              className="bg-white border border-gray-200 rounded-[12px] p-6 flex flex-col hover:shadow-md transition-shadow"
+              className="bg-white border border-border rounded-[12px] p-6 flex flex-col hover:shadow-md transition-shadow"
             >
               <div className="flex items-center gap-3 mb-5">
                 <div className={`w-10 h-10 rounded-lg ${t.swatch} flex items-center justify-center`}>
                   <Building2 size={18} className="text-white" />
                 </div>
-                <h2 className="text-base font-bold text-gray-900 leading-tight">{t.name}</h2>
+                <h2 className="text-base font-bold text-text-primary leading-tight">{t.name}</h2>
               </div>
 
-              <div className="border-t border-gray-100 pt-4 mb-4 flex-1">
+              <div className="border-t border-border pt-4 mb-4 flex-1">
                 <div className="flex items-center gap-2.5">
                   <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                     <span className="text-xs font-bold text-primary">{t.ownerInitials}</span>
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{t.ownerName}</p>
-                    <p className="text-xs text-gray-500">{t.ownerRole}</p>
+                    <p className="text-sm font-medium text-text-primary truncate">{t.ownerName}</p>
+                    <p className="text-xs text-text-secondary">{t.ownerRole}</p>
                   </div>
                 </div>
               </div>
 
               <div className="flex flex-col gap-2">
-                <button
+                <Button
                   onClick={() => tryDemo(t, "demo-manager")}
+                  variant="primary"
                   disabled={!!seeding}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-60"
+                  className="w-full"
                 >
                   {seeding?.slug === t.slug && seeding.persona === "demo-manager" ? (
                     <>
@@ -134,14 +136,15 @@ export default function DemoPage() {
                       <ChevronRight size={14} />
                     </>
                   )}
-                </button>
-                <button
+                </Button>
+                <Button
                   onClick={() => tryDemo(t, "demo-sales")}
+                  variant="secondary"
                   disabled={!!seeding}
-                  className="w-full inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2.5 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-60"
+                  className="w-full"
                 >
                   {seeding?.slug === t.slug && seeding.persona === "demo-sales" ? "Preparing demo..." : "Try as adviser"}
-                </button>
+                </Button>
               </div>
             </div>
           ))}

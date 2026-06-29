@@ -14,34 +14,34 @@ import {
 
 function Header() {
   return (
-    <header className="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <header className="bg-white border-b border-border sticky top-0 z-50">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
             <span className="text-white text-xs font-bold">S</span>
           </div>
-          <span className="text-lg font-bold text-gray-900">Sequence</span>
+          <span className="text-lg font-bold text-text-primary">Sequence</span>
         </Link>
 
         <nav className="hidden sm:flex items-center gap-6 text-sm">
           <a
             href="#features"
             onClick={(e) => { e.preventDefault(); document.getElementById("features")?.scrollIntoView({ behavior: "smooth" }); }}
-            className="text-gray-600 hover:text-gray-900"
+            className="text-text-secondary hover:text-text-primary"
           >Features</a>
-          <Link href="/demo" className="text-gray-600 hover:text-gray-900">Demo</Link>
+          <Link href="/demo" className="text-text-secondary hover:text-text-primary">Demo</Link>
         </nav>
 
         <div className="flex items-center gap-2">
           <Link
             href="/login"
-            className="hidden sm:inline-flex text-sm font-medium text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-100"
+            className="hidden sm:inline-flex text-sm font-medium text-text-secondary px-3 py-2 rounded-lg hover:bg-page"
           >
             Log in
           </Link>
           <Link
             href="/demo"
-            className="bg-primary text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-primary-dark transition-colors"
+            className="bg-accent text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-accent-light transition-colors"
           >
             Try the demo
           </Link>
@@ -74,7 +74,7 @@ function HeroSection() {
           <div className="flex flex-wrap gap-4 mt-10">
             <Link
               href="/demo"
-              className="inline-flex items-center gap-2 bg-accent text-gray-900 font-semibold px-6 py-3 rounded-lg hover:bg-accent-light transition-colors text-sm"
+              className="inline-flex items-center gap-2 bg-accent text-text-primary font-semibold px-6 py-3 rounded-lg hover:bg-accent-light transition-colors text-sm"
             >
               Try the demo
               <ChevronRight size={16} />
@@ -150,8 +150,8 @@ function FeaturesSection() {
     <section id="features" className="py-16 sm:py-24 bg-white">
       <div className="max-w-6xl mx-auto px-4 sm:px-6">
         <div className="text-center mb-12">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900">Built for the way advisers actually work</h2>
-          <p className="mt-3 text-gray-500 text-lg max-w-2xl mx-auto">
+          <h2 className="text-3xl sm:text-4xl font-bold text-text-primary">Built for the way advisers actually work</h2>
+          <p className="mt-3 text-text-secondary text-lg max-w-2xl mx-auto">
             Tools that fit your existing back-office &mdash; not a bloated CRM you won&apos;t use.
           </p>
         </div>
@@ -162,13 +162,13 @@ function FeaturesSection() {
             return (
               <div
                 key={f.title}
-                className="rounded-[12px] border border-gray-100 p-6 hover:shadow-md hover:border-primary/20 transition-all"
+                className="rounded-[12px] border border-border p-6 hover:shadow-md hover:border-primary/20 transition-all"
               >
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-4">
                   <Icon size={20} className="text-primary" />
                 </div>
-                <h3 className="text-base font-semibold text-gray-900 mb-2">{f.title}</h3>
-                <p className="text-sm text-gray-500 leading-relaxed">{f.description}</p>
+                <h3 className="text-base font-semibold text-text-primary mb-2">{f.title}</h3>
+                <p className="text-sm text-text-secondary leading-relaxed">{f.description}</p>
               </div>
             );
           })}
@@ -180,11 +180,11 @@ function FeaturesSection() {
 
 function ProblemSection() {
   return (
-    <section className="py-16 sm:py-24 bg-card">
+    <section className="py-16 sm:py-24 bg-page">
       <div className="max-w-3xl mx-auto px-4 sm:px-6">
-        <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">The problem we solve</h2>
+        <h2 className="text-3xl sm:text-4xl font-bold text-text-primary mb-6">The problem we solve</h2>
 
-        <div className="space-y-6 text-gray-600 leading-relaxed">
+        <div className="space-y-6 text-text-secondary leading-relaxed">
           <p>
             Most UK mortgage firms have a back-office system that works fine for active cases &mdash;
             MAB Platform, FLG, Dashly. The problem is the prospects who aren&apos;t ready to proceed yet.
@@ -196,19 +196,19 @@ function ProblemSection() {
             follow-up actually happens.
           </p>
           <p>
-            <strong className="text-gray-900">Sequence is the nurture layer that fits between
+            <strong className="text-text-primary">Sequence is the nurture layer that fits between
             enquiry and active case.</strong> Cadences run on autopilot. Activity logging is one click.
             Owners see the whole pipeline. Nothing falls through the cracks &mdash; even when the
             buying window is twelve months away.
           </p>
         </div>
 
-        <div className="mt-10 p-6 rounded-[12px] bg-white border border-gray-200">
+        <div className="mt-10 p-6 rounded-[12px] bg-white border border-border">
           <div className="flex items-center gap-2 mb-3">
             <Smartphone size={16} className="text-primary" />
-            <p className="text-sm font-semibold text-gray-900">Laptop-first, mobile-aware</p>
+            <p className="text-sm font-semibold text-text-primary">Laptop-first, mobile-aware</p>
           </div>
-          <p className="text-sm text-gray-600 leading-relaxed">
+          <p className="text-sm text-text-secondary leading-relaxed">
             Sequence is built primarily for the laptop &mdash; the screen where advisers and owners
             actually do their day. Pipeline kanban, multi-column forms, manager dashboards, and table
             views are designed for &ge;1280px. Mobile views exist for what mobile is good at: quick
@@ -219,7 +219,7 @@ function ProblemSection() {
         <div className="mt-10 text-center">
           <Link
             href="/demo"
-            className="inline-flex items-center gap-2 bg-primary text-white font-semibold px-6 py-3 rounded-lg hover:bg-primary-dark transition-colors text-sm"
+            className="inline-flex items-center gap-2 bg-accent text-white font-semibold px-6 py-3 rounded-lg hover:bg-accent-light transition-colors text-sm"
           >
             Try the live demo
             <ChevronRight size={16} />

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getDemoUser, clearDemoUser } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
 
 const IDLE_LIMIT_MS = 4 * 60 * 1000; // 4 min before warning
 const COUNTDOWN_SECONDS = 60;
@@ -141,27 +142,21 @@ export function IdleTimeoutModal() {
               <path d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20Zm0 14a1 1 0 1 1 0-2 1 1 0 0 1 0 2Zm1-4a1 1 0 0 1-2 0V8a1 1 0 0 1 2 0v4Z" fill="currentColor" />
             </svg>
           </div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-1">Still there?</h2>
-          <p className="text-sm text-gray-500 mb-1">
+          <h2 className="text-lg font-semibold text-text-primary mb-1">Still there?</h2>
+          <p className="text-sm text-text-secondary mb-1">
             You will be logged out due to inactivity.
           </p>
-          <p className="text-2xl font-bold text-gray-900 tabular-nums py-3">
+          <p className="text-2xl font-bold text-text-primary tabular-nums py-3">
             {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
           </p>
         </div>
         <div className="px-6 pb-6 flex flex-col gap-2">
-          <button
-            onClick={handleStaySignedIn}
-            className="w-full py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 transition-colors"
-          >
+          <Button variant="primary" className="w-full" onClick={handleStaySignedIn}>
             Stay signed in
-          </button>
-          <button
-            onClick={signOut}
-            className="w-full py-2.5 rounded-lg text-sm font-medium text-gray-500 hover:text-gray-700 hover:bg-gray-100 transition-colors"
-          >
+          </Button>
+          <Button variant="ghost" className="w-full" onClick={signOut}>
             Log out now
-          </button>
+          </Button>
         </div>
       </div>
     </div>

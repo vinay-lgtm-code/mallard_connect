@@ -9,16 +9,17 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser } from "@/lib/mock-data";
 import { formatRelativeDate } from "@/lib/utils";
 import { hasCapability } from "@/lib/auth/roles";
+import { Button } from "@/components/ui/button";
 import type { LeadStatus, Readiness } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
-  new_enquiry: "bg-indigo-100 text-indigo-700",
+  new_enquiry: "bg-[#E6EDEC] text-[#1A5653]",
   initial_contact: "bg-blue-100 text-blue-700",
   not_ready_yet: "bg-amber-100 text-amber-700",
-  nurturing: "bg-green-100 text-green-700",
-  decision_in_principle_done: "bg-teal-100 text-teal-700",
-  ready_to_proceed: "bg-blue-100 text-blue-700",
-  referred_to_mab: "bg-purple-100 text-purple-700",
+  nurturing: "bg-purple-100 text-purple-700",
+  decision_in_principle_done: "bg-green-100 text-green-700",
+  ready_to_proceed: "bg-green-100 text-green-700",
+  referred_to_mab: "bg-slate-100 text-slate-700",
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -33,7 +34,7 @@ const STAGE_LABELS: Record<string, string> = {
 
 const STATUS_STYLES: Record<LeadStatus, string> = {
   active: "bg-green-100 text-green-700",
-  "on-hold": "bg-gray-100 text-gray-600",
+  "on-hold": "bg-page text-text-secondary",
   lost: "bg-red-100 text-red-700",
   converted: "bg-teal-100 text-teal-700",
 };
@@ -132,25 +133,24 @@ export default function LeadsPage() {
     <div className="p-4 md:p-6 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-end gap-3">
-        <Link
-          href="/leads/new"
-          className="flex items-center gap-1.5 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors"
-        >
-          <Plus size={15} />
-          New Lead
+        <Link href="/leads/new">
+          <Button variant="primary">
+            <Plus size={15} />
+            New Lead
+          </Button>
         </Link>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100 space-y-3">
+      <div className="bg-white rounded-[12px] p-4 border border-border space-y-3">
         <div className="relative">
-          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by name, phone or email…"
-            className="w-full pl-9 pr-3.5 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+            className="w-full pl-9 pr-3.5 py-2.5 border border-border-strong rounded-lg text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
           />
         </div>
 
@@ -158,7 +158,7 @@ export default function LeadsPage() {
           <select
             value={stageFilter}
             onChange={(e) => setStageFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+            className="border border-border-strong rounded-lg px-3 py-2 text-sm bg-white focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
           >
             {ALL_STAGES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -168,7 +168,7 @@ export default function LeadsPage() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
-            className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+            className="border border-border-strong rounded-lg px-3 py-2 text-sm bg-white focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
           >
             {ALL_STATUSES.map((s) => (
               <option key={s.value} value={s.value}>{s.label}</option>
@@ -179,7 +179,7 @@ export default function LeadsPage() {
             <select
               value={assignedFilter}
               onChange={(e) => setAssignedFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="border border-border-strong rounded-lg px-3 py-2 text-sm bg-white focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             >
               <option value="">All Advisors</option>
               {users.map((u) => (
@@ -196,8 +196,8 @@ export default function LeadsPage() {
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-[12px] p-10 shadow-sm border border-gray-100 text-center">
-          <p className="text-gray-400 text-sm">No leads found.</p>
+        <div className="bg-white rounded-[12px] p-10 border border-border text-center">
+          <p className="text-text-muted text-sm">No leads found.</p>
           {(search || stageFilter || statusFilter || assignedFilter) && (
             <button
               onClick={() => { setSearch(""); setStageFilter(""); setStatusFilter(""); setAssignedFilter(""); }}
@@ -210,53 +210,53 @@ export default function LeadsPage() {
       ) : (
         <>
           {/* Desktop table */}
-          <div className="hidden md:block bg-white rounded-[12px] shadow-sm border border-gray-100 overflow-hidden">
+          <div className="hidden md:block bg-white rounded-[12px] border border-border overflow-hidden">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100">
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Name</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Phone</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Stage</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Type</th>
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Readiness</th>
-                  {canViewAllPipeline && <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Assigned</th>}
-                  <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wide">Updated</th>
+                <tr className="border-b border-border">
+                  <th className="text-left px-5 py-3 text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider">Name</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider">Phone</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider">Stage</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider">Type</th>
+                  <th className="text-left px-5 py-3 text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider">Readiness</th>
+                  {canViewAllPipeline && <th className="text-left px-5 py-3 text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider">Assigned</th>}
+                  <th className="text-left px-5 py-3 text-[11px] font-mono font-medium text-text-muted uppercase tracking-wider">Updated</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-50">
+              <tbody className="divide-y divide-border">
                 {filtered.map((lead) => {
                   const slug = stageSlugOf(lead.currentStageId);
-                  const stageStyle = STAGE_STYLES[slug] ?? "bg-gray-100 text-gray-600";
+                  const stageStyle = STAGE_STYLES[slug] ?? "bg-page text-text-secondary";
                   const stageLabel = STAGE_LABELS[slug] ?? (slug || "—");
                   const updatedDate = lead.updatedAt ? new Date(lead.updatedAt) : undefined;
                   return (
-                    <tr key={lead.id} className="hover:bg-gray-50 transition-colors">
+                    <tr key={lead.id} className="hover:bg-page transition-colors">
                       <td className="px-5 py-3.5">
-                        <Link href={`/leads/${lead.id}`} className="font-semibold text-gray-900 hover:text-primary">
+                        <Link href={`/leads/${lead.id}`} className="font-semibold text-text-primary hover:text-primary">
                           {lead.firstName} {lead.lastName}
                         </Link>
                         {lead.email && (
-                          <p className="text-xs text-gray-400 mt-0.5">{lead.email}</p>
+                          <p className="text-xs text-text-muted mt-0.5">{lead.email}</p>
                         )}
                       </td>
-                      <td className="px-5 py-3.5 text-gray-700">{lead.phone}</td>
+                      <td className="px-5 py-3.5 font-mono text-primary">{lead.phone}</td>
                       <td className="px-5 py-3.5">
                         <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}>
                           {stageLabel}
                         </span>
                       </td>
-                      <td className="px-5 py-3.5 text-gray-600 capitalize">
+                      <td className="px-5 py-3.5 text-text-secondary capitalize">
                         {lead.mortgageType ? lead.mortgageType.replace(/-/g, " ") : "—"}
                       </td>
-                      <td className="px-5 py-3.5 text-gray-600">
+                      <td className="px-5 py-3.5 text-text-secondary">
                         {lead.readiness ? READINESS_LABELS[lead.readiness] : "—"}
                       </td>
                       {canViewAllPipeline && (
-                        <td className="px-5 py-3.5 text-gray-600">
+                        <td className="px-5 py-3.5 text-text-secondary">
                           {userMap[lead.assignedTo] ?? lead.assignedTo ?? "—"}
                         </td>
                       )}
-                      <td className="px-5 py-3.5 text-gray-400 text-xs">
+                      <td className="px-5 py-3.5 text-text-muted text-xs">
                         {updatedDate ? formatRelativeDate(updatedDate) : "—"}
                       </td>
                     </tr>
@@ -264,7 +264,7 @@ export default function LeadsPage() {
                 })}
               </tbody>
             </table>
-            <div className="px-5 py-3 border-t border-gray-100 text-xs text-gray-400">
+            <div className="px-5 py-3 border-t border-border text-xs text-text-muted">
               {filtered.length} lead{filtered.length !== 1 ? "s" : ""}
             </div>
           </div>
@@ -272,21 +272,21 @@ export default function LeadsPage() {
           {/* Mobile card list */}
           <div className="md:hidden space-y-3">
             {filtered.map((lead) => {
-              const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-gray-100 text-gray-600";
+              const stageStyle = STAGE_STYLES[lead.currentStageId] ?? "bg-page text-text-secondary";
               const stageLabel = STAGE_LABELS[lead.currentStageId] ?? lead.currentStageId;
-              const statusStyle = STATUS_STYLES[lead.status] ?? "bg-gray-100 text-gray-600";
+              const statusStyle = STATUS_STYLES[lead.status] ?? "bg-page text-text-secondary";
               const updatedDate = lead.updatedAt ? new Date(lead.updatedAt) : undefined;
               return (
                 <Link
                   key={lead.id}
                   href={`/leads/${lead.id}`}
-                  className="block bg-white rounded-[12px] p-4 shadow-sm border border-gray-100 active:bg-gray-50"
+                  className="block bg-white rounded-[12px] p-4 border border-border active:bg-page"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
-                      <p className="font-semibold text-gray-900">{lead.firstName} {lead.lastName}</p>
-                      <p className="text-sm text-primary mt-0.5">{lead.phone}</p>
-                      {lead.email && <p className="text-xs text-gray-400 mt-0.5 truncate">{lead.email}</p>}
+                      <p className="font-semibold text-text-primary">{lead.firstName} {lead.lastName}</p>
+                      <p className="text-sm font-mono text-primary mt-0.5">{lead.phone}</p>
+                      {lead.email && <p className="text-xs text-text-muted mt-0.5 truncate">{lead.email}</p>}
                     </div>
                     <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${stageStyle}`}>
@@ -297,14 +297,14 @@ export default function LeadsPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between mt-3 text-xs text-gray-400">
+                  <div className="flex items-center justify-between mt-3 text-xs text-text-muted">
                     <span>{lead.mortgageType ? lead.mortgageType.replace(/-/g, " ") : "No type"}</span>
                     <span>{updatedDate ? formatRelativeDate(updatedDate) : ""}</span>
                   </div>
                 </Link>
               );
             })}
-            <p className="text-center text-xs text-gray-400 py-2">
+            <p className="text-center text-xs text-text-muted py-2">
               {filtered.length} lead{filtered.length !== 1 ? "s" : ""}
             </p>
           </div>

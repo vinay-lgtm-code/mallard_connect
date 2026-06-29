@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Phone, Mail, Calendar, FileText, MessageSquare, MessageCircle, X } from "lucide-react";
 import type { ActivityType } from "@/types";
+import { Button } from "@/components/ui/button";
 
 const ACTIVITY_OPTIONS: {
   type: ActivityType;
@@ -13,7 +14,7 @@ const ACTIVITY_OPTIONS: {
   { type: "call", label: "Call", icon: Phone, color: "bg-blue-50 text-blue-700 border-blue-100" },
   { type: "email", label: "Email", icon: Mail, color: "bg-violet-50 text-violet-700 border-violet-100" },
   { type: "meeting", label: "Meeting", icon: Calendar, color: "bg-amber-50 text-amber-700 border-amber-100" },
-  { type: "note", label: "Note", icon: FileText, color: "bg-gray-50 text-gray-700 border-gray-200" },
+  { type: "note", label: "Note", icon: FileText, color: "bg-page text-text-secondary border-border" },
   { type: "sms", label: "SMS", icon: MessageSquare, color: "bg-purple-50 text-purple-700 border-purple-100" },
   { type: "whatsapp", label: "WhatsApp", icon: MessageCircle, color: "bg-emerald-50 text-emerald-700 border-emerald-100" },
 ];
@@ -85,14 +86,14 @@ export function LogActivityModal({
         className="bg-white rounded-[16px] w-full max-w-lg shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <div>
-            <h2 className="text-base font-bold text-gray-900">Log activity</h2>
-            <p className="text-xs text-gray-500 mt-0.5">For {prospectName}</p>
+            <h2 className="text-base font-bold text-text-primary">Log activity</h2>
+            <p className="text-xs text-text-secondary mt-0.5">For {prospectName}</p>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500"
+            className="p-1.5 rounded-lg hover:bg-page text-text-secondary"
             aria-label="Close"
           >
             <X size={16} />
@@ -101,7 +102,7 @@ export function LogActivityModal({
 
         <form onSubmit={handleSubmit} className="px-6 py-5 space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">
+            <label className="block text-xs font-semibold text-text-secondary mb-2 uppercase tracking-wide">
               Type
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -114,7 +115,7 @@ export function LogActivityModal({
                     type="button"
                     onClick={() => setType(opt.type)}
                     className={`flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border text-xs font-medium transition-colors ${
-                      active ? opt.color : "border-gray-200 text-gray-600 hover:border-gray-300"
+                      active ? opt.color : "border-border text-text-secondary hover:border-border-strong"
                     }`}
                   >
                     <Icon size={16} />
@@ -131,7 +132,7 @@ export function LogActivityModal({
                 <select
                   value={outcome}
                   onChange={(e) => setOutcome(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                 >
                   <option value="connected">Connected</option>
                   <option value="left-voicemail">Left voicemail</option>
@@ -145,7 +146,7 @@ export function LogActivityModal({
                   min={0}
                   value={duration}
                   onChange={(e) => setDuration(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                   placeholder="e.g. 12"
                 />
               </Field>
@@ -159,7 +160,7 @@ export function LogActivityModal({
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 required
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                 placeholder="What was the email about?"
               />
             </Field>
@@ -172,7 +173,7 @@ export function LogActivityModal({
                   type="datetime-local"
                   value={meetingDate}
                   onChange={(e) => setMeetingDate(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                 />
               </Field>
               <Field label="Location">
@@ -180,7 +181,7 @@ export function LogActivityModal({
                   type="text"
                   value={meetingLocation}
                   onChange={(e) => setMeetingLocation(e.target.value)}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                   placeholder="Office, video call, client's home..."
                 />
               </Field>
@@ -193,7 +194,7 @@ export function LogActivityModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                 placeholder={type === "note" ? "Short headline" : "What was sent?"}
               />
             </Field>
@@ -204,25 +205,18 @@ export function LogActivityModal({
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               rows={4}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm leading-relaxed"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm leading-relaxed focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
               placeholder="What happened? Anything to remember for next time?"
             />
           </Field>
 
-          <div className="flex items-center justify-end gap-2 pt-2 border-t border-gray-100 -mx-6 px-6">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-3 py-2 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100"
-            >
+          <div className="flex items-center justify-end gap-2 pt-2 border-t border-border -mx-6 px-6">
+            <Button type="button" variant="ghost" onClick={onClose}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              className="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary-dark"
-            >
+            </Button>
+            <Button type="submit" variant="primary">
               Log activity
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -233,7 +227,7 @@ export function LogActivityModal({
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <label className="block text-xs font-semibold text-gray-700 mb-1.5 uppercase tracking-wide">
+      <label className="block text-xs font-semibold text-text-secondary mb-1.5 uppercase tracking-wide">
         {label}
       </label>
       {children}

@@ -25,6 +25,7 @@ import {
   type StageRagConfigMap,
 } from "@/lib/stage-timing";
 import { Clock } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Lead } from "@/types";
 import { useToast } from "@/components/ui/toast";
 
@@ -38,13 +39,13 @@ interface StageConfig {
 }
 
 const STAGES: StageConfig[] = [
-  { id: "new_enquiry", name: "New Enquiry", color: "text-indigo-700", headerBg: "bg-indigo-50", badgeBg: "bg-indigo-100 text-indigo-700" },
+  { id: "new_enquiry", name: "New Enquiry", color: "text-[#1A5653]", headerBg: "bg-[#E6EDEC]", badgeBg: "bg-[#E6EDEC] text-[#1A5653]" },
   { id: "initial_contact", name: "Initial Contact", color: "text-blue-700", headerBg: "bg-blue-50", badgeBg: "bg-blue-100 text-blue-700" },
   { id: "not_ready_yet", name: "Not proceeded.", color: "text-amber-700", headerBg: "bg-amber-50", badgeBg: "bg-amber-100 text-amber-700" },
-  { id: "nurturing", name: "Nurturing", color: "text-green-700", headerBg: "bg-green-50", badgeBg: "bg-green-100 text-green-700" },
-  { id: "decision_in_principle_done", name: "Decision in Principle done", color: "text-teal-700", headerBg: "bg-teal-50", badgeBg: "bg-teal-100 text-teal-700" },
-  { id: "ready_to_proceed", name: "Ready to proceed", color: "text-blue-700", headerBg: "bg-blue-50", badgeBg: "bg-blue-100 text-blue-700" },
-  { id: "referred_to_mab", name: "Deal Done", color: "text-purple-700", headerBg: "bg-purple-50", badgeBg: "bg-purple-100 text-purple-700" },
+  { id: "nurturing", name: "Nurturing", color: "text-purple-700", headerBg: "bg-purple-50", badgeBg: "bg-purple-100 text-purple-700" },
+  { id: "decision_in_principle_done", name: "Decision in Principle done", color: "text-green-700", headerBg: "bg-green-50", badgeBg: "bg-green-100 text-green-700" },
+  { id: "ready_to_proceed", name: "Ready to proceed", color: "text-green-700", headerBg: "bg-green-50", badgeBg: "bg-green-100 text-green-700" },
+  { id: "referred_to_mab", name: "Deal Done", color: "text-slate-700", headerBg: "bg-slate-50", badgeBg: "bg-slate-100 text-slate-700" },
 ];
 
 const MORTGAGE_TYPE_LABELS: Record<string, string> = {
@@ -80,14 +81,14 @@ function LeadCard({ lead, index, isOverdue, ragConfig, adviserName }: LeadCardPr
           ref={provided.innerRef}
           {...provided.draggableProps}
           {...provided.dragHandleProps}
-          className={`bg-white rounded-[12px] p-3.5 shadow-sm border border-gray-100 cursor-grab select-none transition-shadow ${ragBorder} ${
+          className={`bg-white rounded-[12px] p-3.5 border border-border cursor-grab select-none transition-shadow ${ragBorder} ${
             snapshot.isDragging ? "shadow-lg rotate-1" : "hover:shadow-md"
           }`}
         >
           <div className="flex items-start justify-between gap-2">
             <Link
               href={`/leads/${lead.id}`}
-              className="font-semibold text-sm text-gray-900 hover:text-primary leading-tight"
+              className="font-semibold text-sm text-text-primary hover:text-primary leading-tight"
               onClick={(e) => snapshot.isDragging && e.preventDefault()}
             >
               {lead.firstName} {lead.lastName}
@@ -101,7 +102,7 @@ function LeadCard({ lead, index, isOverdue, ragConfig, adviserName }: LeadCardPr
 
           <div className="flex items-center justify-between mt-2.5">
             {mortgageLabel && (
-              <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full font-medium">
+              <span className="text-xs bg-page text-text-secondary px-2 py-0.5 rounded-full font-medium">
                 {mortgageLabel}
               </span>
             )}
@@ -115,11 +116,11 @@ function LeadCard({ lead, index, isOverdue, ragConfig, adviserName }: LeadCardPr
               </div>
             ) : (
               <div
-                className="w-6 h-6 rounded-full bg-gray-100 border border-dashed border-gray-300 flex items-center justify-center ml-auto flex-shrink-0"
+                className="w-6 h-6 rounded-full bg-page border border-dashed border-border-strong flex items-center justify-center ml-auto flex-shrink-0"
                 title="Unassigned"
                 aria-label="Unassigned"
               >
-                <span className="text-gray-400 text-[10px] font-bold">?</span>
+                <span className="text-text-muted text-[10px] font-bold">?</span>
               </div>
             )}
           </div>
@@ -129,14 +130,14 @@ function LeadCard({ lead, index, isOverdue, ragConfig, adviserName }: LeadCardPr
               <span className="text-green-700 font-semibold">{formatCurrency(lead.dealValue)}</span>
               {lead.confidence != null && (
                 <>
-                  <span className="text-gray-300">&middot;</span>
-                  <span className="text-gray-400">{lead.confidence}%</span>
+                  <span className="text-border-strong">&middot;</span>
+                  <span className="text-text-muted">{lead.confidence}%</span>
                 </>
               )}
               {lead.estimatedCloseDate && (
                 <>
-                  <span className="text-gray-300">&middot;</span>
-                  <span className="text-gray-400">
+                  <span className="text-border-strong">&middot;</span>
+                  <span className="text-text-muted">
                     {format(new Date(lead.estimatedCloseDate), "d MMM")}
                   </span>
                 </>
@@ -151,7 +152,7 @@ function LeadCard({ lead, index, isOverdue, ragConfig, adviserName }: LeadCardPr
                   ? "text-red-600 font-medium"
                   : rag === "amber"
                     ? "text-amber-600"
-                    : "text-gray-400"
+                    : "text-text-muted"
               }`}
               title={
                 ragConfig?.expectedDays != null
@@ -180,29 +181,23 @@ function StageChangeModal({ stageName, onConfirm, onCancel }: StageChangeModalPr
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-[12px] p-6 shadow-xl w-full max-w-sm mx-4">
-        <h2 className="text-base font-bold text-gray-900 mb-1">Stage changed to {stageName}</h2>
-        <p className="text-sm text-gray-500 mb-4">Add an optional note about this stage change.</p>
+        <h2 className="text-base font-bold text-text-primary mb-1">Stage changed to {stageName}</h2>
+        <p className="text-sm text-text-secondary mb-4">Add an optional note about this stage change.</p>
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={3}
           placeholder="Optional note…"
-          className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+          className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 resize-none"
           autoFocus
         />
         <div className="flex gap-2 mt-4 justify-end">
-          <button
-            onClick={onCancel}
-            className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100"
-          >
+          <Button variant="ghost" onClick={onCancel} size="sm">
             Cancel
-          </button>
-          <button
-            onClick={() => onConfirm(note)}
-            className="text-sm text-white bg-primary px-4 py-1.5 rounded-lg font-semibold hover:bg-primary-dark"
-          >
+          </Button>
+          <Button variant="primary" onClick={() => onConfirm(note)} size="sm">
             Confirm
-          </button>
+          </Button>
         </div>
       </div>
     </div>
@@ -483,7 +478,7 @@ export default function PipelinePage() {
 
       {/* Mobile fallback */}
       <div className="md:hidden p-6 text-center">
-        <p className="text-gray-600 text-sm">
+        <p className="text-text-secondary text-sm">
           The Kanban board is best viewed on a larger screen.
         </p>
         <Link
@@ -498,14 +493,14 @@ export default function PipelinePage() {
       <div className="hidden md:flex md:flex-col h-full">
         {canViewAllPipeline && (
           <div className="flex items-center justify-end gap-2 px-4 pt-4">
-            <label htmlFor="adviser-filter" className="text-sm font-medium text-gray-600">
+            <label htmlFor="adviser-filter" className="text-sm font-medium text-text-secondary">
               Adviser
             </label>
             <select
               id="adviser-filter"
               value={adviserFilter}
               onChange={(e) => setAdviserFilter(e.target.value)}
-              className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary"
+              className="border border-border-strong rounded-lg px-3 py-2 text-sm bg-white focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             >
               <option value="">All advisers</option>
               {users.map((u) => (
@@ -533,7 +528,7 @@ export default function PipelinePage() {
                 return (
                   <div
                     key={stage.id}
-                    className={`flex-none w-64 flex flex-col rounded-[12px] border border-gray-200 bg-gray-50 ${stage.borderAccent ?? ""}`}
+                    className={`flex-none w-64 flex flex-col rounded-[12px] border border-border bg-page ${stage.id === "not_ready_yet" ? "bg-amber-50/50" : ""} ${stage.borderAccent ?? ""}`}
                   >
                     <div className={`flex items-center justify-between px-3 py-2.5 ${stage.headerBg}`}>
                       <h3 className={`text-xs font-bold uppercase tracking-wide ${stage.color}`}>
@@ -544,10 +539,10 @@ export default function PipelinePage() {
                       </span>
                     </div>
                     <div className={`flex items-center justify-between px-3 pb-2.5 pt-0 text-xs ${stage.headerBg} rounded-b-[12px]`}>
-                      <span className="font-semibold text-gray-700">
+                      <span className="font-semibold text-text-secondary">
                         {formatCurrency(totalValue)}
                       </span>
-                      <span className="text-gray-500" title="Weighted by confidence">
+                      <span className="text-text-secondary" title="Weighted by confidence">
                         {formatCurrency(Math.round(weightedValue))} weighted
                       </span>
                     </div>
@@ -558,7 +553,7 @@ export default function PipelinePage() {
                           ref={provided.innerRef}
                           {...provided.droppableProps}
                           className={`flex-1 p-2 space-y-2 overflow-y-auto min-h-20 transition-colors ${
-                            snapshot.isDraggingOver ? "bg-gray-100" : ""
+                            snapshot.isDraggingOver ? "bg-page" : ""
                           }`}
                         >
                           {stageLeads.map((lead, index) => (

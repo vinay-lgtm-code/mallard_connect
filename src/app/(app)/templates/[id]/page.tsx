@@ -4,6 +4,7 @@ import { use, useState, useRef, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, FileText, Loader2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { useTemplates } from "@/hooks/use-templates";
@@ -173,7 +174,7 @@ export default function TemplateDetailPage({
   if (!user || templatesLoading) {
     return (
       <div className="px-6 py-8 max-w-5xl">
-        <div className="flex items-center gap-2 text-sm text-gray-400">
+        <div className="flex items-center gap-2 text-sm text-text-muted">
           <Loader2 size={16} className="animate-spin" />
           Loading...
         </div>
@@ -186,11 +187,11 @@ export default function TemplateDetailPage({
       <div className="px-6 py-8 max-w-5xl">
         <Link
           href="/templates"
-          className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+          className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4"
         >
           <ArrowLeft size={14} /> Back to templates
         </Link>
-        <p className="text-sm text-gray-500">Template not found.</p>
+        <p className="text-sm text-text-secondary">Template not found.</p>
       </div>
     );
   }
@@ -206,17 +207,17 @@ export default function TemplateDetailPage({
     <div className="px-6 py-8 max-w-5xl">
       <Link
         href="/templates"
-        className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-900 mb-4"
+        className="inline-flex items-center gap-1 text-sm text-text-secondary hover:text-text-primary mb-4"
       >
         <ArrowLeft size={14} /> Back to templates
       </Link>
 
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Edit template</h1>
+      <h1 className="text-2xl font-bold text-text-primary mb-6">Edit template</h1>
 
-      <div className="bg-white border border-gray-100 rounded-[12px] p-6 space-y-5">
+      <div className="bg-white border border-border rounded-[12px] p-6 space-y-5">
         {/* Name */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
             Name <span className="text-red-400">*</span>
           </label>
           <input
@@ -224,17 +225,17 @@ export default function TemplateDetailPage({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder="e.g. FTB welcome email"
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
           />
         </div>
 
         {/* Channel */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-text-secondary mb-2">
             Channel
           </label>
           <div className="flex items-center gap-4">
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <label className="inline-flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
               <input
                 type="radio"
                 name="channel"
@@ -245,7 +246,7 @@ export default function TemplateDetailPage({
               />
               Email
             </label>
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+            <label className="inline-flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
               <input
                 type="radio"
                 name="channel"
@@ -262,7 +263,7 @@ export default function TemplateDetailPage({
         {/* Subject (email only) */}
         {channel === "email" && (
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
+            <label className="block text-sm font-medium text-text-secondary mb-1">
               Subject
             </label>
             <input
@@ -270,14 +271,14 @@ export default function TemplateDetailPage({
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
               placeholder="e.g. {{firstName}}, here's your next step"
-              className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
         )}
 
         {/* Body */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
+          <label className="block text-sm font-medium text-text-secondary mb-1">
             Body <span className="text-red-400">*</span>
           </label>
           <textarea
@@ -286,13 +287,13 @@ export default function TemplateDetailPage({
             onChange={(e) => setBody(e.target.value)}
             rows={12}
             placeholder="Write your template body here..."
-            className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-y"
+            className="w-full px-3 py-2 rounded-lg border border-border text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 resize-y"
           />
         </div>
 
         {/* Variable insertion buttons */}
         <div>
-          <p className="text-xs font-medium text-gray-500 mb-2">
+          <p className="text-xs font-medium text-text-secondary mb-2">
             Insert variable
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -301,7 +302,7 @@ export default function TemplateDetailPage({
                 key={v}
                 type="button"
                 onClick={() => insertVariable(v)}
-                className="px-2 py-1 rounded border border-gray-200 text-xs font-mono text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                className="px-2 py-1 rounded border border-border text-xs font-mono text-text-secondary hover:bg-page hover:border-border-strong transition-colors"
               >
                 {v}
               </button>
@@ -312,14 +313,14 @@ export default function TemplateDetailPage({
         {/* Detected variables */}
         {detectedVariables.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-gray-500 mb-2">
+            <p className="text-xs font-medium text-text-secondary mb-2">
               Detected variables
             </p>
             <div className="flex flex-wrap gap-1.5">
               {detectedVariables.map((v) => (
                 <span
                   key={v}
-                  className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 font-mono"
+                  className="inline-block text-[10px] px-1.5 py-0.5 rounded bg-page text-text-secondary font-mono"
                 >
                   {`{{${v}}}`}
                 </span>
@@ -343,25 +344,25 @@ export default function TemplateDetailPage({
         <div className="flex items-center justify-between pt-2">
           <div>
             {isAdminOrManager && (
-              <button
+              <Button
                 type="button"
+                variant="destructive"
                 onClick={handleDelete}
                 disabled={isDemo || deleting}
-                className="px-3 py-2 rounded-lg border border-red-200 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {deleting ? "Deleting..." : "Delete template"}
-              </button>
+              </Button>
             )}
           </div>
-          <button
+          <Button
             type="button"
+            variant="primary"
             onClick={handleSave}
             disabled={isDemo || saving || !name.trim() || !body.trim()}
-            className="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {saving && <Loader2 size={14} className="animate-spin" />}
             {saving ? "Saving..." : "Save template"}
-          </button>
+          </Button>
         </div>
       </div>
     </div>

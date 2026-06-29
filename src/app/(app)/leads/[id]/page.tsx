@@ -18,17 +18,19 @@ import { useLeadDocuments } from "@/hooks/use-documents";
 import { UploadDocument } from "@/components/documents/upload-document";
 import { DocumentList } from "@/components/documents/document-list";
 import { RequestDocumentsModal } from "@/components/documents/request-documents-modal";
+import { Button } from "@/components/ui/button";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType, Task } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
-  new_enquiry: "bg-indigo-100 text-indigo-700",
+  new_enquiry: "bg-[#E6EDEC] text-[#1A5653]",
   initial_contact: "bg-blue-100 text-blue-700",
   not_ready_yet: "bg-amber-100 text-amber-700",
-  nurturing: "bg-green-100 text-green-700",
-  decision_in_principle_done: "bg-teal-100 text-teal-700",
-  ready_to_proceed: "bg-blue-100 text-blue-700",
-  referred_to_mab: "bg-purple-100 text-purple-700",
+  nurturing: "bg-purple-100 text-purple-700",
+  decision_in_principle_done: "bg-green-100 text-green-700",
+  ready_to_proceed: "bg-green-100 text-green-700",
+  referred_to_mab: "bg-slate-100 text-slate-700",
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -158,34 +160,34 @@ function FollowUpModal({ leadId, userId, tenantId, task, onClose }: FollowUpModa
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
       <div className="bg-white rounded-[12px] p-6 shadow-xl w-full max-w-sm mx-4">
-        <h2 className="text-base font-bold text-gray-900 mb-4">
+        <h2 className="text-base font-bold text-text-primary mb-4">
           {isEditing ? "Edit Follow-up" : "Schedule Follow-up"}
         </h2>
         <form onSubmit={handleSubmit} className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Title</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Title</label>
             <input
               type="text"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Follow up call…"
               required
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Due Date</label>
             <input
               type="date"
               value={dueDate}
               onChange={(e) => setDueDate(e.target.value)}
               required
               min={new Date().toISOString().split("T")[0]}
-              className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reminder Emails (optional)</label>
+            <label className="block text-sm font-medium text-text-secondary mb-1">Reminder Emails (optional)</label>
             <div className="space-y-2">
               {[
                 { val: email1, set: setEmail1, ph: "advisor@mallard.co.uk" },
@@ -198,27 +200,19 @@ function FollowUpModal({ leadId, userId, tenantId, task, onClose }: FollowUpModa
                   value={val}
                   onChange={(e) => setter(e.target.value)}
                   placeholder={ph}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                  className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                 />
               ))}
             </div>
           </div>
           {error && <p className="text-xs text-destructive">{error}</p>}
           <div className="flex gap-2 justify-end pt-1">
-            <button
-              type="button"
-              onClick={() => onClose(false)}
-              className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100"
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={() => onClose(false)}>
               Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={saving}
-              className="text-sm text-white bg-primary px-4 py-1.5 rounded-lg font-semibold hover:bg-primary-dark disabled:opacity-60"
-            >
+            </Button>
+            <Button type="submit" variant="primary" size="sm" disabled={saving}>
               {saving ? "Saving…" : isEditing ? "Save" : "Schedule"}
-            </button>
+            </Button>
           </div>
         </form>
       </div>
@@ -623,14 +617,14 @@ export default function LeadDetailPage() {
   if (!lead) {
     return (
       <div className="p-6 text-center">
-        <p className="text-gray-500">Lead not found.</p>
+        <p className="text-text-secondary">Lead not found.</p>
       </div>
     );
   }
 
   const assigneeName = tenantUsers.find(u => u.id === lead.assignedTo)?.fullName;
   const currentStage = stageOptions.find((stage) => stage.id === lead.currentStageId || stage.slug === lead.currentStageId);
-  const stageStyle = STAGE_STYLES[currentStage?.slug ?? ""] ?? "bg-gray-100 text-gray-700";
+  const stageStyle = STAGE_STYLES[currentStage?.slug ?? ""] ?? "bg-page text-text-secondary";
   const stageLabel = currentStage?.name ?? "";
   const otherStages = stageOptions.filter(
     (stage) => stage.id !== lead.currentStageId && stage.slug !== lead.currentStageId
@@ -689,7 +683,7 @@ export default function LeadDetailPage() {
 
       <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-5">
         {/* Header */}
-        <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-[12px] p-5 border border-border">
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
               <span className="text-white text-lg font-bold">
@@ -697,7 +691,7 @@ export default function LeadDetailPage() {
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <h1 className="text-xl font-bold text-gray-900">
+              <h1 className="text-xl font-bold text-text-primary">
                 {lead.firstName} {lead.lastName}
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-1.5">
@@ -711,15 +705,15 @@ export default function LeadDetailPage() {
                       <ChevronDown size={12} />
                     </button>
                     {stageDropdownOpen && (
-                      <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-20 min-w-[180px]">
+                      <div className="absolute top-full left-0 mt-1 bg-white rounded-lg shadow-lg border border-border py-1 z-20 min-w-[180px]">
                         {otherStages.map((stage) => (
                           <button
                             key={stage.id}
                             onClick={() => handleStageChange(stage)}
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 transition-colors flex items-center gap-2"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-page transition-colors flex items-center gap-2"
                           >
                             <span
-                              className={`w-2 h-2 rounded-full ${STAGE_STYLES[stage.slug]?.split(" ")[0] ?? "bg-gray-200"}`}
+                              className={`w-2 h-2 rounded-full ${STAGE_STYLES[stage.slug]?.split(" ")[0] ?? "bg-border"}`}
                               style={stage.color && !STAGE_STYLES[stage.slug] ? { backgroundColor: stage.color } : undefined}
                             />
                             {stage.name}
@@ -730,11 +724,11 @@ export default function LeadDetailPage() {
                   </div>
                 )}
                 {lead.mortgageType && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                  <span className="text-xs bg-page text-text-secondary px-2 py-0.5 rounded-full">
                     {lead.mortgageType.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())}
                   </span>
                 )}
-                <span className="text-xs text-gray-500">via {lead.source}</span>
+                <span className="text-xs text-text-secondary">via {lead.source}</span>
               </div>
             </div>
           </div>
@@ -742,41 +736,35 @@ export default function LeadDetailPage() {
           <div className="flex gap-2 mt-4">
             <a
               href={`tel:${lead.phone}`}
-              className="flex items-center gap-1.5 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors"
+              className="inline-flex items-center justify-center gap-1.5 font-semibold text-sm rounded-[var(--radius-button)] transition-colors bg-accent text-white hover:bg-accent-light px-4 py-2.5"
             >
               <Phone size={15} />
               Call
             </a>
             {lead.email && (
-              <a
-                href={`mailto:${lead.email}`}
-                className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+              <Button variant="secondary" onClick={() => window.location.href = `mailto:${lead.email}`}>
                 <Mail size={15} />
                 Email
-              </a>
+              </Button>
             )}
-            <button
+            <Button
+              variant="secondary"
               onClick={() => { setAddingNote(true); setActiveTab("activity"); }}
-              className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
             >
               <Plus size={15} />
               Log Activity
-            </button>
+            </Button>
             {isCadencesTemplatesEnabled() && (
-              <button
-                onClick={() => setShowCadenceModal(true)}
-                className="flex items-center gap-1.5 bg-white border border-gray-200 text-gray-700 text-sm font-semibold px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
-              >
+              <Button variant="secondary" onClick={() => setShowCadenceModal(true)}>
                 <Zap size={15} />
                 Cadence
-              </button>
+              </Button>
             )}
           </div>
         </div>
 
         {/* Tab bar */}
-        <div className="flex border-b border-gray-200 bg-white rounded-t-[12px] overflow-x-auto">
+        <div className="flex border-b border-border bg-white rounded-t-[12px] overflow-x-auto">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -784,7 +772,7 @@ export default function LeadDetailPage() {
               className={`px-4 py-3 text-sm font-medium whitespace-nowrap transition-colors border-b-2 -mb-px ${
                 activeTab === tab.id
                   ? "border-primary text-primary"
-                  : "border-transparent text-gray-500 hover:text-gray-700"
+                  : "border-transparent text-text-muted hover:text-text-secondary"
               }`}
             >
               {tab.label}
@@ -795,8 +783,8 @@ export default function LeadDetailPage() {
         {/* Tab content */}
         {activeTab === "overview" && (
           <div className="space-y-4">
-            <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100 space-y-3">
-              <h2 className="text-sm font-semibold text-gray-700">Contact Info</h2>
+            <div className="bg-white rounded-[12px] p-5 border border-border space-y-3">
+              <SectionLabel>Contact information</SectionLabel>
               <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <EditableField
                   label="Phone"
@@ -874,13 +862,13 @@ export default function LeadDetailPage() {
                   onSaved={refetchLead}
                 />
                 <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide font-medium">Assigned To</p>
+                  <p className="text-xs text-text-muted uppercase tracking-wide font-medium">Assigned To</p>
                   <button
                     onClick={() => setShowAssignModal(true)}
                     className="text-primary font-medium hover:underline text-sm flex items-center gap-1"
                   >
                     {assigneeName ?? "Unassigned"}
-                    <UserPlus size={12} className="text-gray-400" />
+                    <UserPlus size={12} className="text-text-muted" />
                   </button>
                 </div>
               </div>
@@ -908,7 +896,7 @@ export default function LeadDetailPage() {
                     onChange={(e) => setFollowUpDateValue(e.target.value)}
                     min={new Date().toISOString().split("T")[0]}
                     autoFocus
-                    className="border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white text-amber-900 focus:outline-none focus:ring-2 focus:ring-amber-400/50 focus:border-amber-400"
+                    className="border border-amber-300 rounded-lg px-3 py-1.5 text-sm bg-white text-amber-900 focus:border-amber-400 focus:outline-none focus:ring-[3px] focus:ring-amber-400/10"
                     onKeyDown={(e) => {
                       if (e.key === "Escape") setEditingFollowUp(false);
                       if (e.key === "Enter") handleSaveFollowUpDate();
@@ -962,29 +950,27 @@ export default function LeadDetailPage() {
           <div className="space-y-4">
             <QuickLogBar prospectName={`${lead.firstName} ${lead.lastName}`} onLogged={handleLogActivity} />
             {addingNote && (
-              <div className="bg-white rounded-[12px] p-4 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-[12px] p-4 border border-border">
                 <textarea
                   value={noteText}
                   onChange={(e) => setNoteText(e.target.value)}
                   placeholder="Add a note…"
                   rows={3}
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+                  className="w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10 resize-none"
                   autoFocus
                 />
                 <div className="flex gap-2 mt-2 justify-end">
-                  <button
-                    onClick={() => { setAddingNote(false); setNoteText(""); }}
-                    className="text-sm text-gray-500 px-3 py-1.5 rounded-lg hover:bg-gray-100"
-                  >
+                  <Button variant="ghost" size="sm" onClick={() => { setAddingNote(false); setNoteText(""); }}>
                     Cancel
-                  </button>
-                  <button
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
                     onClick={handleSaveNote}
                     disabled={savingNote || !noteText.trim()}
-                    className="text-sm text-white bg-primary px-3 py-1.5 rounded-lg font-semibold hover:bg-primary-dark disabled:opacity-60"
                   >
                     {savingNote ? "Saving…" : "Save Note"}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -1000,35 +986,35 @@ export default function LeadDetailPage() {
             )}
 
             {activities.length === 0 ? (
-              <div className="bg-white rounded-[12px] p-6 text-center text-sm text-gray-400 border border-gray-100">
+              <div className="bg-white rounded-[12px] p-6 text-center text-sm text-text-muted border border-border">
                 No activity recorded yet.
               </div>
             ) : (
               <div className="space-y-4">
                 {activities.map((activity) => {
-                  const dotColor = ACTIVITY_DOT[activity.activityType] ?? "bg-gray-400";
+                  const dotColor = ACTIVITY_DOT[activity.activityType] ?? "bg-text-muted";
                   const typeLabel = ACTIVITY_LABEL[activity.activityType] ?? activity.activityType;
                   const date = activity.createdAt ? new Date(activity.createdAt) : undefined;
                   return (
                     <div key={activity.id} className="flex gap-3">
                       <div className="flex flex-col items-center">
                         <div className={`w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0 ${dotColor}`} />
-                        <div className="w-px flex-1 bg-gray-200 mt-1" />
+                        <div className="w-px flex-1 bg-border mt-1" />
                       </div>
                       <div className="pb-4 flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">
+                          <span className="text-xs font-semibold bg-page text-text-secondary px-2 py-0.5 rounded-full">
                             {typeLabel}
                           </span>
                           {date && (
-                            <span className="text-xs text-gray-400">
+                            <span className="text-xs text-text-muted">
                               {format(date, "d MMM yyyy, HH:mm")}
                             </span>
                           )}
                         </div>
-                        <p className="text-sm font-medium text-gray-800 mt-1">{activity.title}</p>
+                        <p className="text-sm font-medium text-text-primary mt-1">{activity.title}</p>
                         {activity.description && (
-                          <p className="text-sm text-gray-500 mt-0.5">{activity.description}</p>
+                          <p className="text-sm text-text-secondary mt-0.5">{activity.description}</p>
                         )}
                       </div>
                     </div>
@@ -1040,18 +1026,18 @@ export default function LeadDetailPage() {
         )}
 
         {activeTab === "qualification" && (
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Qualification Details</h2>
-            <div className="space-y-4">
-              <fieldset className="border border-gray-200 rounded-lg p-4">
-                <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Employment</legend>
+          <div className="bg-white rounded-[12px] p-5 border border-border">
+            <SectionLabel>Qualification Details</SectionLabel>
+            <div className="space-y-4 mt-4">
+              <fieldset className="border border-border rounded-lg p-4">
+                <legend className="text-xs font-semibold text-text-secondary uppercase px-1">Employment</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Employment Status</label>
+                    <label className="text-xs font-medium text-text-secondary">Employment Status</label>
                     <select
                       value={qualEmployment}
                       onChange={(e) => setQualEmployment(e.target.value)}
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     >
                       <option value="">Select…</option>
                       <option>Employed</option>
@@ -1062,27 +1048,27 @@ export default function LeadDetailPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Annual Income (£)</label>
+                    <label className="text-xs font-medium text-text-secondary">Annual Income (£)</label>
                     <input
                       type="number"
                       value={qualIncome}
                       onChange={(e) => setQualIncome(e.target.value)}
                       placeholder="0"
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     />
                   </div>
                 </div>
               </fieldset>
 
-              <fieldset className="border border-gray-200 rounded-lg p-4">
-                <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Credit</legend>
+              <fieldset className="border border-border rounded-lg p-4">
+                <legend className="text-xs font-semibold text-text-secondary uppercase px-1">Credit</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Credit Score Band</label>
+                    <label className="text-xs font-medium text-text-secondary">Credit Score Band</label>
                     <select
                       value={qualCreditBand}
                       onChange={(e) => setQualCreditBand(e.target.value)}
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     >
                       <option value="">Select…</option>
                       <option>Excellent</option>
@@ -1093,7 +1079,7 @@ export default function LeadDetailPage() {
                     </select>
                   </div>
                   <div className="flex flex-col gap-2 mt-1">
-                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
                       <input
                         type="checkbox"
                         checked={qualHasCCJs}
@@ -1102,7 +1088,7 @@ export default function LeadDetailPage() {
                       />
                       Has CCJs
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
                       <input
                         type="checkbox"
                         checked={qualHasDefaults}
@@ -1111,7 +1097,7 @@ export default function LeadDetailPage() {
                       />
                       Has Defaults
                     </label>
-                    <label className="flex items-center gap-2 text-sm text-gray-700 cursor-pointer">
+                    <label className="flex items-center gap-2 text-sm text-text-secondary cursor-pointer">
                       <input
                         type="checkbox"
                         checked={qualHasIVA}
@@ -1124,56 +1110,56 @@ export default function LeadDetailPage() {
                 </div>
               </fieldset>
 
-              <fieldset className="border border-gray-200 rounded-lg p-4">
-                <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Property</legend>
+              <fieldset className="border border-border rounded-lg p-4">
+                <legend className="text-xs font-semibold text-text-secondary uppercase px-1">Property</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Property Value (£)</label>
+                    <label className="text-xs font-medium text-text-secondary">Property Value (£)</label>
                     <input
                       type="number"
                       value={qualPropertyValue}
                       onChange={(e) => setQualPropertyValue(e.target.value)}
                       placeholder="0"
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Deposit Amount (£)</label>
+                    <label className="text-xs font-medium text-text-secondary">Deposit Amount (£)</label>
                     <input
                       type="number"
                       value={qualDepositAmount}
                       onChange={(e) => setQualDepositAmount(e.target.value)}
                       placeholder="0"
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     />
                   </div>
                 </div>
               </fieldset>
 
-              <fieldset className="border border-gray-200 rounded-lg p-4">
-                <legend className="text-xs font-semibold text-gray-500 uppercase px-1">Deal</legend>
+              <fieldset className="border border-border rounded-lg p-4">
+                <legend className="text-xs font-semibold text-text-secondary uppercase px-1">Deal</legend>
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-2">
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Est. Commission (£)</label>
+                    <label className="text-xs font-medium text-text-secondary">Forecast Amount (£)</label>
                     <input
                       type="number"
                       value={qualDealValue}
                       onChange={(e) => setQualDealValue(e.target.value)}
                       placeholder="0"
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Est. Close Date</label>
+                    <label className="text-xs font-medium text-text-secondary">Est. Close Date</label>
                     <input
                       type="date"
                       value={qualEstimatedCloseDate}
                       onChange={(e) => setQualEstimatedCloseDate(e.target.value)}
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-medium text-gray-600">Confidence (%)</label>
+                    <label className="text-xs font-medium text-text-secondary">Confidence (%)</label>
                     <input
                       type="number"
                       value={qualConfidence}
@@ -1181,19 +1167,20 @@ export default function LeadDetailPage() {
                       placeholder="0"
                       min={0}
                       max={100}
-                      className="mt-1 w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                      className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     />
                   </div>
                 </div>
               </fieldset>
 
-              <button
+              <Button
+                variant="primary"
                 onClick={handleSaveQualification}
                 disabled={savingQual}
-                className="w-full bg-primary text-white font-semibold py-2.5 rounded-lg text-sm hover:bg-primary-dark transition-colors disabled:opacity-60"
+                className="w-full"
               >
                 {savingQual ? "Saving…" : qualSaved ? "Saved!" : "Save Qualification"}
-              </button>
+              </Button>
             </div>
           </div>
         )}
@@ -1201,20 +1188,14 @@ export default function LeadDetailPage() {
         {activeTab === "followups" && (
           <div className="space-y-4">
             <div className="flex justify-end">
-              <button
-                onClick={() => {
-                  setEditingTask(null);
-                  setShowFollowUpModal(true);
-                }}
-                className="flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors"
-              >
+              <Button variant="primary" onClick={() => { setEditingTask(null); setShowFollowUpModal(true); }}>
                 <Plus size={15} />
                 Schedule Follow-up
-              </button>
+              </Button>
             </div>
 
             {tasks.length === 0 ? (
-              <div className="bg-white rounded-[12px] p-6 text-center text-sm text-gray-400 border border-gray-100">
+              <div className="bg-white rounded-[12px] p-6 text-center text-sm text-text-muted border border-border">
                 No follow-ups scheduled.
               </div>
             ) : (
@@ -1223,7 +1204,7 @@ export default function LeadDetailPage() {
                   const due = task.dueDate ? new Date(task.dueDate) : undefined;
                   const isOverdue = due ? due < new Date() && task.status === "pending" : false;
                   return (
-                    <div key={task.id} className={`bg-white rounded-[12px] p-4 shadow-sm border ${isOverdue ? "border-red-200" : "border-gray-100"}`}>
+                    <div key={task.id} className={`bg-white rounded-[12px] p-4 border ${isOverdue ? "border-red-200" : "border-border"}`}>
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-start gap-3">
                           <button
@@ -1232,20 +1213,20 @@ export default function LeadDetailPage() {
                             className={`mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0 transition-colors ${
                               task.status === "completed"
                                 ? "border-green-500 bg-green-500"
-                                : "border-gray-300 hover:border-primary"
+                                : "border-border-strong hover:border-primary"
                             }`}
                           >
                             {task.status === "completed" && <Check size={12} className="text-white" />}
                           </button>
                           <div>
-                            <p className={`text-sm font-semibold ${task.status === "completed" ? "text-gray-400 line-through" : "text-gray-900"}`}>{task.title}</p>
+                            <p className={`text-sm font-semibold ${task.status === "completed" ? "text-text-muted line-through" : "text-text-primary"}`}>{task.title}</p>
                             {due && (
-                              <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-600 font-semibold" : "text-gray-500"}`}>
+                              <p className={`text-xs mt-0.5 ${isOverdue ? "text-red-600 font-semibold" : "text-text-secondary"}`}>
                                 Due {format(due, "d MMM yyyy")}
                               </p>
                             )}
                             {task.reminderEmails && (task.reminderEmails as string[]).filter(Boolean).length > 0 && (
-                              <p className="text-xs text-gray-400 mt-1">
+                              <p className="text-xs text-text-muted mt-1">
                                 Reminders: {(task.reminderEmails as string[]).filter(Boolean).join(", ")}
                               </p>
                             )}
@@ -1258,7 +1239,7 @@ export default function LeadDetailPage() {
                                 ? "bg-green-100 text-green-700"
                                 : isOverdue
                                 ? "bg-red-100 text-red-700"
-                                : "bg-gray-100 text-gray-600"
+                                : "bg-page text-text-secondary"
                             }`}
                           >
                             {isOverdue ? "Overdue" : task.status.charAt(0).toUpperCase() + task.status.slice(1)}
@@ -1270,7 +1251,7 @@ export default function LeadDetailPage() {
                                   setEditingTask(task);
                                   setShowFollowUpModal(true);
                                 }}
-                                className="p-1.5 text-gray-400 hover:text-primary hover:bg-gray-50 rounded"
+                                className="p-1.5 text-text-muted hover:text-primary hover:bg-page rounded"
                                 title="Edit follow-up"
                                 aria-label="Edit follow-up"
                               >
@@ -1278,7 +1259,7 @@ export default function LeadDetailPage() {
                               </button>
                               <button
                                 onClick={() => setDeletingTask(task)}
-                                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded"
+                                className="p-1.5 text-text-muted hover:text-red-600 hover:bg-red-50 rounded"
                                 title="Delete follow-up"
                                 aria-label="Delete follow-up"
                               >
@@ -1309,7 +1290,7 @@ export default function LeadDetailPage() {
                 {lead.email && (
                   <button
                     onClick={() => setShowRequestDocsModal(true)}
-                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 bg-primary text-white rounded-[12px] px-6 hover:bg-primary-dark transition-colors"
+                    className="flex-shrink-0 flex flex-col items-center justify-center gap-2 bg-accent text-white rounded-[12px] px-6 hover:bg-accent-light transition-colors"
                   >
                     <Send size={20} />
                     <span className="text-xs font-semibold">Request from client</span>

@@ -18,6 +18,7 @@ import {
   FileText,
   TrendingUp,
 } from "lucide-react";
+import Image from "next/image";
 import { useAuth, clearDemoUser, getDemoUser } from "@/hooks/useAuth";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import { hasCapability, roleLabel, type RoleCapability } from "@/lib/auth/roles";
@@ -89,7 +90,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="min-h-screen bg-page flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
       </div>
     );
@@ -120,13 +121,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="flex h-screen bg-page overflow-hidden">
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex flex-col w-64 bg-sidebar flex-shrink-0">
         <div className="flex items-center gap-3 px-6 py-5 border-b border-white/10">
-          <div className="w-8 h-8 rounded-full bg-accent flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-bold text-white">S</span>
-          </div>
+          <Image src="/sequence-owl-icon.png" alt="Sequence" width={32} height={32} />
           <span className="text-white font-bold text-base">Sequence</span>
         </div>
 
@@ -138,10 +137,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 text-sm font-medium transition-colors ${
                   active
-                    ? "bg-primary-light text-white"
-                    : "text-white/70 hover:text-white hover:bg-white/10"
+                    ? "border-l-2 border-accent bg-white/5 text-white rounded-r-lg"
+                    : "text-white/60 hover:text-white hover:bg-white/10 rounded-lg"
                 }`}
               >
                 <Icon className="w-4.5 h-4.5 flex-shrink-0" size={18} />
@@ -171,11 +170,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0">
         <DemoBanner visible={!!getDemoUser()} />
         {/* Top bar */}
-        <header className="bg-white border-b border-gray-200 flex items-center justify-between px-4 md:px-6 h-14 flex-shrink-0">
-          <h1 className="text-lg font-bold text-gray-900">{pageTitle}</h1>
+        <header className="bg-white border-b border-border flex items-center justify-between px-4 md:px-6 h-14 flex-shrink-0">
+          <h1 className="text-lg font-bold text-text-primary">{pageTitle}</h1>
 
           <div className="flex items-center gap-2">
-            <button className="p-2 rounded-lg hover:bg-gray-100 text-gray-500">
+            <button className="p-2 rounded-lg hover:bg-page text-text-secondary">
               <Search size={18} />
             </button>
             <NotificationDropdown />
@@ -183,23 +182,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen((v) => !v)}
-                className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg hover:bg-gray-100"
+                className="flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg hover:bg-page"
               >
                 <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center">
                   <span className="text-white text-xs font-bold">{getInitials(user.fullName)}</span>
                 </div>
-                <ChevronDown size={14} className="text-gray-500" />
+                <ChevronDown size={14} className="text-text-secondary" />
               </button>
 
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-50">
-                  <div className="px-3 py-2 border-b border-gray-100">
-                    <p className="text-sm font-medium text-gray-900 truncate">{user.fullName}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-lg shadow-lg border border-border py-1 z-50">
+                  <div className="px-3 py-2 border-b border-border">
+                    <p className="text-sm font-medium text-text-primary truncate">{user.fullName}</p>
+                    <p className="text-xs text-text-muted truncate">{user.email}</p>
                   </div>
                   <Link
                     href="/settings"
-                    className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    className="block px-3 py-2 text-sm text-text-secondary hover:bg-page"
                     onClick={() => setUserMenuOpen(false)}
                   >
                     Settings
@@ -207,7 +206,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   {showAdminTools && (
                     <Link
                       href="/admin/organizations"
-                      className="block px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      className="block px-3 py-2 text-sm text-text-secondary hover:bg-page"
                       onClick={() => setUserMenuOpen(false)}
                     >
                       Organization Provisioning
@@ -215,7 +214,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                   <button
                     onClick={handleSignOut}
-                    className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-gray-50"
+                    className="w-full text-left px-3 py-2 text-sm text-destructive hover:bg-page"
                   >
                     Sign out
                   </button>
@@ -240,7 +239,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </Link>
 
       {/* Mobile bottom tab bar */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 z-40 flex">
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-border z-40 flex">
         {visibleNavItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
           const active = activeHref === item.href;
@@ -249,7 +248,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               key={item.href}
               href={item.href}
               className={`flex-1 flex flex-col items-center gap-0.5 py-2 text-xs font-medium transition-colors ${
-                active ? "text-primary" : "text-gray-400"
+                active ? "text-primary" : "text-text-muted"
               }`}
             >
               <Icon size={20} />

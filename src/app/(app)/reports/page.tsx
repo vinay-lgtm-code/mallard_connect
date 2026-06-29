@@ -12,6 +12,7 @@ import { periodMonthFor, monthBoundsUTC } from "@/lib/analytics/compute";
 import { isDemoUser } from "@/lib/mock-data";
 import { hasCapability } from "@/lib/auth/roles";
 import { TrendingUp, Users, Clock, Target } from "lucide-react";
+import { SectionLabel } from "@/components/ui/section-label";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -36,13 +37,13 @@ const SOURCE_COLORS: Record<string, string> = {
 };
 
 const STAGE_COLORS: Record<string, string> = {
-  new_enquiry: "#6366f1",
-  initial_contact: "#3b82f6",
-  not_ready_yet: "#f59e0b",
-  nurturing: "#22c55e",
-  decision_in_principle_done: "#14b8a6",
-  ready_to_proceed: "#1d4ed8",
-  referred_to_mab: "#a855f7",
+  new_enquiry: "#1A5653",
+  initial_contact: "#3B82F6",
+  not_ready_yet: "#F59E0B",
+  nurturing: "#7C3AED",
+  decision_in_principle_done: "#22C55E",
+  ready_to_proceed: "#22C55E",
+  referred_to_mab: "#64748B",
 };
 
 function toDate(ts: unknown): Date | null {
@@ -93,15 +94,15 @@ function KpiCard({
   color?: string;
 }) {
   return (
-    <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-[12px] p-5 border border-border">
       <div className="flex items-start justify-between gap-2 mb-3">
-        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{label}</p>
-        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-gray-100 text-gray-400">
+        <p className="text-xs font-medium text-text-secondary uppercase tracking-wide">{label}</p>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-page text-text-muted">
           <Icon size={16} />
         </div>
       </div>
-      <p className="text-3xl font-bold text-gray-900">{value}</p>
-      {sub && <p className="text-xs text-gray-400 mt-1">{sub}</p>}
+      <p className="text-3xl font-bold text-text-primary">{value}</p>
+      {sub && <p className="text-xs text-text-muted mt-1">{sub}</p>}
     </div>
   );
 }
@@ -122,19 +123,19 @@ function HorizontalBar({
   const pct = total > 0 ? (count / total) * 100 : 0;
   return (
     <div className="flex items-center gap-3">
-      <span className="text-xs text-gray-600 w-24 flex-shrink-0 truncate" title={label}>
+      <span className="text-xs text-text-secondary w-24 flex-shrink-0 truncate" title={label}>
         {label}
       </span>
-      <div className="flex-1 bg-gray-100 rounded-full h-2.5 overflow-hidden">
+      <div className="flex-1 bg-page rounded-full h-2.5 overflow-hidden">
         <div
           className="h-full rounded-full transition-all duration-500"
           style={{ width: `${pct}%`, backgroundColor: color }}
         />
       </div>
-      <span className="text-xs font-semibold text-gray-700 w-8 text-right flex-shrink-0">
+      <span className="text-xs font-semibold text-text-secondary w-8 text-right flex-shrink-0">
         {count}
       </span>
-      <span className="text-xs text-gray-400 w-9 text-right flex-shrink-0">
+      <span className="text-xs text-text-muted w-9 text-right flex-shrink-0">
         {pct.toFixed(0)}%
       </span>
     </div>
@@ -176,7 +177,7 @@ function MonthlyTrend({ trend }: { trend: TrendPoint[] }) {
               : `${item.month}: ${item.count} (live estimate — no snapshot recorded for this month)`;
         return (
           <div key={item.month} className="flex-1 flex flex-col items-center gap-1.5">
-            <span className="text-xs font-semibold text-gray-600">{item.count > 0 ? item.count : ""}</span>
+            <span className="text-xs font-semibold text-text-secondary">{item.count > 0 ? item.count : ""}</span>
             <div className="w-full flex items-end" style={{ height: "80px" }}>
               <div
                 className={`w-full rounded-t-md transition-all duration-500 ${barClass}`}
@@ -193,7 +194,7 @@ function MonthlyTrend({ trend }: { trend: TrendPoint[] }) {
                 title={tooltip}
               />
             </div>
-            <span className="text-xs text-gray-400 text-center leading-tight">{item.month}</span>
+            <span className="text-xs text-text-muted text-center leading-tight">{item.month}</span>
           </div>
         );
       })}
@@ -213,7 +214,7 @@ interface StageCount {
 function PipelineFunnel({ stages }: { stages: StageCount[] }) {
   const total = stages.reduce((s, st) => s + st.count, 0);
   if (total === 0) {
-    return <p className="text-sm text-gray-400 text-center py-4">No active leads.</p>;
+    return <p className="text-sm text-text-muted text-center py-4">No active leads.</p>;
   }
   return (
     <div className="space-y-2">
@@ -240,8 +241,8 @@ function PipelineFunnel({ stages }: { stages: StageCount[] }) {
               className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: stage.color }}
             />
-            <span className="text-xs text-gray-600 w-36 flex-shrink-0 truncate">{stage.name}</span>
-            <div className="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+            <span className="text-xs text-text-secondary w-36 flex-shrink-0 truncate">{stage.name}</span>
+            <div className="flex-1 bg-page rounded-full h-1.5 overflow-hidden">
               <div
                 className="h-full rounded-full"
                 style={{
@@ -250,7 +251,7 @@ function PipelineFunnel({ stages }: { stages: StageCount[] }) {
                 }}
               />
             </div>
-            <span className="text-xs font-semibold text-gray-700 w-6 text-right">{stage.count}</span>
+            <span className="text-xs font-semibold text-text-secondary w-6 text-right">{stage.count}</span>
           </div>
         ))}
       </div>
@@ -270,30 +271,30 @@ interface TeamRow {
 
 function TeamLeaderboard({ rows }: { rows: TeamRow[] }) {
   if (rows.length === 0) {
-    return <p className="text-sm text-gray-400 text-center py-4">No team data.</p>;
+    return <p className="text-sm text-text-muted text-center py-4">No team data.</p>;
   }
   return (
     <div className="overflow-x-auto -mx-1">
       <table className="w-full text-sm">
         <thead>
-          <tr className="text-xs text-gray-500 border-b border-gray-100">
-            <th className="text-left py-2.5 px-1 font-medium">Advisor</th>
-            <th className="text-right py-2.5 px-1 font-medium">Leads</th>
-            <th className="text-right py-2.5 px-1 font-medium">Converted</th>
-            <th className="text-right py-2.5 px-1 font-medium">Overdue</th>
+          <tr className="text-[11px] font-mono font-medium uppercase tracking-wider text-text-muted border-b border-border">
+            <th className="text-left py-2.5 px-1">Advisor</th>
+            <th className="text-right py-2.5 px-1">Leads</th>
+            <th className="text-right py-2.5 px-1">Converted</th>
+            <th className="text-right py-2.5 px-1">Overdue</th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-gray-50">
+        <tbody className="divide-y divide-border">
           {rows.map((row, i) => {
             const convRate =
               row.leadCount > 0
                 ? Math.round((row.conversionCount / row.leadCount) * 100)
                 : 0;
             return (
-              <tr key={row.userId} className="group hover:bg-gray-50">
+              <tr key={row.userId} className="group hover:bg-page">
                 <td className="py-3 px-1">
                   <div className="flex items-center gap-2.5">
-                    <span className="text-xs text-gray-400 w-4 flex-shrink-0">{i + 1}</span>
+                    <span className="text-xs text-text-muted w-4 flex-shrink-0">{i + 1}</span>
                     <div className="w-7 h-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
                       <span className="text-white text-xs font-bold">
                         {row.name
@@ -304,13 +305,13 @@ function TeamLeaderboard({ rows }: { rows: TeamRow[] }) {
                           .slice(0, 2)}
                       </span>
                     </div>
-                    <span className="font-medium text-gray-900 text-sm">{row.name}</span>
+                    <span className="font-medium text-text-primary text-sm">{row.name}</span>
                   </div>
                 </td>
-                <td className="py-3 px-1 text-right text-gray-700">{row.leadCount}</td>
+                <td className="py-3 px-1 text-right text-text-secondary">{row.leadCount}</td>
                 <td className="py-3 px-1 text-right">
-                  <span className="text-gray-700">{row.conversionCount}</span>
-                  <span className="text-xs text-gray-400 ml-1">({convRate}%)</span>
+                  <span className="text-text-secondary">{row.conversionCount}</span>
+                  <span className="text-xs text-text-muted ml-1">({convRate}%)</span>
                 </td>
                 <td className="py-3 px-1 text-right">
                   {row.overdueCount > 0 ? (
@@ -318,7 +319,7 @@ function TeamLeaderboard({ rows }: { rows: TeamRow[] }) {
                       {row.overdueCount}
                     </span>
                   ) : (
-                    <span className="text-gray-400 text-xs">—</span>
+                    <span className="text-text-muted text-xs">—</span>
                   )}
                 </td>
               </tr>
@@ -582,7 +583,7 @@ export default function ReportsPage() {
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between gap-4">
-        <p className="text-sm text-gray-500">
+        <p className="text-sm text-text-secondary">
           KPI cards, the pipeline funnel and the leaderboard reflect current data. Only the
           historical lead-intake trend uses nightly snapshots.
         </p>
@@ -610,6 +611,7 @@ export default function ReportsPage() {
       ) : (
         <>
           {/* KPI Cards */}
+          <SectionLabel>Key Metrics</SectionLabel>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <KpiCard
               label="Total Leads"
@@ -642,20 +644,21 @@ export default function ReportsPage() {
           </div>
 
           {/* Pipeline Funnel + Monthly Trend */}
+          <SectionLabel>Pipeline & Trend</SectionLabel>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-            <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700 mb-4">Pipeline Funnel</h2>
+            <div className="bg-white rounded-[12px] p-5 border border-border">
+              <h2 className="text-sm font-semibold text-text-secondary mb-4">Pipeline Funnel</h2>
               <PipelineFunnel stages={stats.stageData} />
             </div>
 
-            <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-              <h2 className="text-sm font-semibold text-gray-700 mb-4">Monthly Lead Intake (last 6 months)</h2>
+            <div className="bg-white rounded-[12px] p-5 border border-border">
+              <h2 className="text-sm font-semibold text-text-secondary mb-4">Monthly Lead Intake (last 6 months)</h2>
               {stats.monthlyTrend.length > 0 ? (
                 <MonthlyTrend trend={stats.monthlyTrend} />
               ) : (
-                <p className="text-sm text-gray-400 text-center py-4">No data.</p>
+                <p className="text-sm text-text-muted text-center py-4">No data.</p>
               )}
-              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-gray-500 leading-snug">
+              <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[11px] text-text-secondary leading-snug">
                 <span className="inline-flex items-center gap-1.5">
                   <span className="inline-block w-3 h-3 rounded-sm bg-primary/60" />
                   Recorded snapshot
@@ -676,7 +679,7 @@ export default function ReportsPage() {
                   Current month (live)
                 </span>
               </div>
-              <p className="text-[11px] text-gray-400 mt-2 leading-snug">
+              <p className="text-[11px] text-text-muted mt-2 leading-snug">
                 Hatched bars are reconstructed from today&apos;s leads because no nightly snapshot was
                 recorded for that month yet — treat them as estimates, not recorded figures.
               </p>
@@ -684,10 +687,11 @@ export default function ReportsPage() {
           </div>
 
           {/* Leads by Source */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
-            <h2 className="text-sm font-semibold text-gray-700 mb-4">Leads by Source</h2>
+          <SectionLabel>Lead Sources</SectionLabel>
+          <div className="bg-white rounded-[12px] p-5 border border-border">
+            <h2 className="text-sm font-semibold text-text-secondary mb-4">Leads by Source</h2>
             {sourceEntries.length === 0 ? (
-              <p className="text-sm text-gray-400">No data.</p>
+              <p className="text-sm text-text-muted">No data.</p>
             ) : (
               <div className="space-y-3">
                 {sourceEntries.map(([source, count]) => (
@@ -704,10 +708,11 @@ export default function ReportsPage() {
           </div>
 
           {/* Team Leaderboard */}
-          <div className="bg-white rounded-[12px] p-5 shadow-sm border border-gray-100">
+          <SectionLabel>Team Performance</SectionLabel>
+          <div className="bg-white rounded-[12px] p-5 border border-border">
             <div className="flex items-center justify-between mb-4">
-              <h2 className="text-sm font-semibold text-gray-700">Team Leaderboard</h2>
-              <span className="text-xs text-gray-400">Sorted by conversions</span>
+              <h2 className="text-sm font-semibold text-text-secondary">Team Leaderboard</h2>
+              <span className="text-xs text-text-muted">Sorted by conversions</span>
             </div>
             <TeamLeaderboard rows={teamRows} />
           </div>
