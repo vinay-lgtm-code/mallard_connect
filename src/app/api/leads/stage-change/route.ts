@@ -90,6 +90,13 @@ export async function POST(request: NextRequest) {
     if (stage.is_terminal) {
       leadUpdate.status = "converted";
       leadUpdate.converted_at = nowIso;
+    } else {
+      leadUpdate.status = "active";
+      leadUpdate.converted_at = null;
+      leadUpdate.lost_at = null;
+      leadUpdate.lost_reason = null;
+      leadUpdate.confidence_at_close = null;
+      leadUpdate.closed_outcome = null;
     }
 
     const { error: leadError } = await supabase

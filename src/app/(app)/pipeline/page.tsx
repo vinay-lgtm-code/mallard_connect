@@ -54,6 +54,12 @@ const MORTGAGE_TYPE_LABELS: Record<string, string> = {
   other: "Other",
 };
 
+function forecastNumber(value: number | string | null | undefined): number {
+  if (value == null || value === "") return 0;
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
 interface LeadCardProps {
   lead: Lead;
   index: number;
@@ -310,7 +316,14 @@ export default function PipelinePage() {
               currentStageEnteredAt: nowIso,
               ...(isTerminal
                 ? { status: "converted" as Lead["status"], convertedAt: nowIso }
-                : {}),
+                : {
+                    status: "active" as Lead["status"],
+                    convertedAt: null,
+                    lostAt: null,
+                    lostReason: null,
+                    confidenceAtClose: null,
+                    closedOutcome: null,
+                  }),
             }
           : lead
       )
@@ -501,9 +514,9 @@ export default function PipelinePage() {
                 const stageLeads = leadsByStage(stage.id);
                 // Live totals derived from the same leads array the board renders,
                 // so optimistic drag moves and lead edits reflect instantly.
-                const totalValue = stageLeads.reduce((sum, l) => sum + (l.dealValue ?? 0), 0);
+                const totalValue = stageLeads.reduce((sum, l) => sum + forecastNumber(l.dealValue), 0);
                 const weightedValue = stageLeads.reduce(
-                  (sum, l) => sum + (l.dealValue ?? 0) * ((l.confidence ?? 0) / 100),
+                  (sum, l) => sum + forecastNumber(l.dealValue) * (forecastNumber(l.confidence) / 100),
                   0
                 );
                 return (
