@@ -33,8 +33,8 @@ export function DocumentList({ documents, users, onDeleted }: DocumentListProps)
   const [deleting, setDeleting] = useState<string | null>(null);
 
   async function getToken() {
-    const session = await supabase?.auth.getSession();
-    return session?.data?.session?.access_token;
+    const { data } = await supabase!.auth.refreshSession();
+    return data.session?.access_token;
   }
 
   async function handleDownload(docId: string) {
