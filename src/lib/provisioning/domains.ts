@@ -4,6 +4,7 @@ const DEFAULT_SEQUENCE_ADMIN_EMAILS = [
   "vinay@sequence-ai.com",
   "divya@sequence-ai.com",
   "divyashankar@storyboarddigital.co.uk",
+  "divya.shankar@storyboarddigital.co.uk",
 ];
 
 export function normalizeEmail(email: string): string {
