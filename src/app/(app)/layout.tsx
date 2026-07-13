@@ -27,6 +27,7 @@ import { NotificationDropdown } from "@/components/notifications";
 import { DemoBanner } from "@/components/tenant/tenant-switcher";
 import { IdleTimeoutModal } from "@/components/idle-timeout-modal";
 import { createClient } from "@/lib/supabase/client";
+import { ErrorBoundary } from "@/components/error-boundary";
 import { useState } from "react";
 
 const NAV_ITEMS = [
@@ -226,7 +227,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Page content */}
         <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
-          {children}
+          <ErrorBoundary>{children}</ErrorBoundary>
         </main>
       </div>
 

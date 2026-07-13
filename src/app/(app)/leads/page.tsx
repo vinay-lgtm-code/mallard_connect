@@ -10,6 +10,7 @@ import { isDemoUser } from "@/lib/mock-data";
 import { formatRelativeDate } from "@/lib/utils";
 import { hasCapability } from "@/lib/auth/roles";
 import { Button } from "@/components/ui/button";
+import { QueryError } from "@/components/ui/query-error";
 import type { LeadStatus, Readiness } from "@/types";
 
 const STAGE_STYLES: Record<string, string> = {
@@ -100,7 +101,7 @@ export default function LeadsPage() {
   const canViewAllPipeline = hasCapability(user?.role, "viewAllPipeline");
 
   const resolvedStageId = stageFilter ? slugToId[stageFilter] || stageFilter : undefined;
-  const { leads, loading } = useLeads({
+  const { leads, loading, error, refetch } = useLeads({
     stageId: resolvedStageId,
     status: statusFilter || undefined,
   });
@@ -195,6 +196,8 @@ export default function LeadsPage() {
         <div className="flex justify-center py-12">
           <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
         </div>
+      ) : error ? (
+        <QueryError error={error} onRetry={refetch} />
       ) : filtered.length === 0 ? (
         <div className="bg-white rounded-[12px] p-10 border border-border text-center">
           <p className="text-text-muted text-sm">No leads found.</p>
