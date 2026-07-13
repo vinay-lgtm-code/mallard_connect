@@ -28,5 +28,10 @@ export async function createClient() {
 }
 
 export function createServiceClient() {
+  if (!supabaseUrl || !supabaseServiceKey) {
+    throw new Error(
+      "Missing NEXT_PUBLIC_SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY"
+    );
+  }
   return createAdminClient(supabaseUrl, supabaseServiceKey);
 }
