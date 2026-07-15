@@ -133,7 +133,7 @@ curl -H "Authorization: Bearer $CRON_SECRET" \
 | `https://www.sequence-ai.com/pricing` | Pricing page — £50 base tier, Growth tier card         |
 | `https://www.sequence-ai.com/checkout` | Mock Stripe checkout, "Start free trial" button       |
 | `https://sequence-ai.com/demo` | Three-tenant demo switcher (Mallard / Friends Capital / Acme) |
-| `https://sequence-ai.com/login` | Sequence login page with two demo personas              |
+| `https://sequence-ai.com/login` | Sequence login page with credentials and OAuth          |
 | `https://mallard.sequence-ai.com/dashboard` | Lands on the demo dashboard with Mallard data    |
 | `https://sequence-ai.com/onboarding` | 5-step wizard, progress bar visible                |
 | `https://sequence-ai.com/cadences` | Three seeded cadences in a table                      |

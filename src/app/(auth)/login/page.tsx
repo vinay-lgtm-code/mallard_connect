@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { setDemoUser, clearDemoUser } from "@/hooks/useAuth";
+import { clearDemoUser } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
 
@@ -47,11 +47,6 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
-  }
-
-  function handleDemoLogin(mode: "demo-manager" | "demo-sales") {
-    setDemoUser(mode);
-    router.push("/dashboard");
   }
 
   return (
@@ -139,32 +134,6 @@ export default function LoginPage() {
         </div>
 
         <OAuthButtons />
-
-        <div className="mt-8 pt-6 border-t border-border">
-          <p className="text-xs text-text-secondary text-center mb-4">Try a demo account</p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => handleDemoLogin("demo-manager")}
-              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors group"
-            >
-              <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-                <span className="text-white text-xs font-bold">DM</span>
-              </div>
-              <span className="text-sm font-medium text-text-primary group-hover:text-primary">Della Mallard</span>
-              <span className="text-xs text-text-secondary">Owner / Manager</span>
-            </button>
-            <button
-              onClick={() => handleDemoLogin("demo-sales")}
-              className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-colors group"
-            >
-              <div className="w-9 h-9 rounded-full bg-accent flex items-center justify-center">
-                <span className="text-white text-xs font-bold">AR</span>
-              </div>
-              <span className="text-sm font-medium text-text-primary group-hover:text-primary">Alex Rivera</span>
-              <span className="text-xs text-text-secondary">Salesperson</span>
-            </button>
-          </div>
-        </div>
       </div>
     </div>
   );
