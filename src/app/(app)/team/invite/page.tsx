@@ -32,7 +32,7 @@ export default function InviteTeamMemberPage() {
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState(false);
+  const [success, setSuccess] = useState<"sent" | "pending" | null>(null);
   const selectedRole = ROLE_OPTIONS.find((r) => r.value === form.role) ?? ROLE_OPTIONS[0];
 
   if (!user || !hasCapability(user.role, "manageTeam")) return null;
@@ -70,12 +70,12 @@ export default function InviteTeamMemberPage() {
         }),
       });
 
+      const data = await res.json();
       if (!res.ok) {
-        const data = await res.json();
         throw new Error(data.error ?? "Failed to send invite");
       }
 
-      setSuccess(true);
+      setSuccess(data.alreadyPending ? "pending" : "sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");
     } finally {
@@ -89,16 +89,20 @@ export default function InviteTeamMemberPage() {
         <div className="flex justify-center">
           <CheckCircle size={56} className="text-green-500" />
         </div>
-        <h2 className="text-xl font-bold text-text-primary">Invitation Sent!</h2>
+        <h2 className="text-xl font-bold text-text-primary">
+          {success === "pending" ? "Invitation Already Pending" : "Invitation Sent!"}
+        </h2>
         <p className="text-sm text-text-secondary">
-          An invite email with setup instructions has been sent to{" "}
+          {success === "pending"
+            ? "An active invitation has already been sent to "
+            : "An invite email with setup instructions has been sent to "}
           <span className="font-semibold text-text-secondary">{form.email}</span>.
         </p>
         <div className="flex flex-col gap-2 pt-2">
           <Button
             variant="secondary"
             className="w-full"
-            onClick={() => { setSuccess(false); setForm({ email: "", fullName: "", role: "advisor" }); }}
+            onClick={() => { setSuccess(null); setForm({ email: "", fullName: "", role: "advisor" }); }}
           >
             Invite Another
           </Button>

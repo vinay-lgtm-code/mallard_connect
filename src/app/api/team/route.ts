@@ -4,8 +4,28 @@ import { sendTeamInviteEmail } from "@/lib/email/client";
 import { verifyToken, authError } from "@/lib/auth/verify-token";
 import { createInviteToken, inviteExpiry } from "@/lib/invitations";
 import { normalizeEmail } from "@/lib/provisioning/domains";
+import {
+  isPendingTeamInviteConflict,
+  pendingTeamInviteAction,
+  type PendingTeamInvitation,
+} from "@/lib/team-invitations";
 
 type UserRole = "admin" | "manager" | "advisor" | "case_manager";
+
+function pendingInviteResponse(
+  inviteId: string,
+  email: string,
+  fullName: string,
+  role: UserRole,
+) {
+  return NextResponse.json({
+    id: inviteId,
+    email,
+    fullName,
+    role,
+    alreadyPending: true,
+  });
+}
 
 export async function GET(request: NextRequest) {
   const result = await verifyToken(request, { requireRole: ["admin", "manager"] });
@@ -56,6 +76,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "That user is already on this team" }, { status: 409 });
   }
 
+  async function findPendingInvite(): Promise<{
+    invite: PendingTeamInvitation | null;
+    error: { message: string } | null;
+  }> {
+    const { data, error } = await supabase
+      .from("team_invitations")
+      .select("id, expires_at")
+      .eq("tenant_id", auth.tenantId)
+      .eq("normalized_email", normalizedEmail)
+      .eq("status", "pending")
+      .maybeSingle();
+
+    return { invite: data, error };
+  }
+
+  const pendingResult = await findPendingInvite();
+  if (pendingResult.error) {
+    return NextResponse.json({ error: "Unable to check existing invitations" }, { status: 422 });
+  }
+
+  const pendingAction = pendingTeamInviteAction(pendingResult.invite);
+  if (pendingAction === "reuse") {
+    return pendingInviteResponse(pendingResult.invite!.id, normalizedEmail, fullName, userRole);
+  }
+
+  if (pendingAction === "expire-and-create") {
+    const { error: expireErr } = await supabase
+      .from("team_invitations")
+      .update({ status: "expired" })
+      .eq("id", pendingResult.invite!.id)
+      .eq("tenant_id", auth.tenantId)
+      .eq("status", "pending");
+
+    if (expireErr) {
+      return NextResponse.json({ error: "Unable to renew the expired invitation" }, { status: 422 });
+    }
+  }
+
   const { token, tokenHash } = createInviteToken();
   const { data: invite, error: inviteErr } = await supabase.from("team_invitations").insert({
     tenant_id: auth.tenantId,
@@ -69,8 +127,23 @@ export async function POST(request: NextRequest) {
   }).select("id").single();
 
   if (inviteErr || !invite) {
-    const status = inviteErr?.code === "23505" ? 409 : 422;
-    return NextResponse.json({ error: inviteErr?.message ?? "Failed to create invite" }, { status });
+    if (isPendingTeamInviteConflict(inviteErr)) {
+      const concurrentPending = await findPendingInvite();
+      if (
+        !concurrentPending.error
+        && concurrentPending.invite
+        && pendingTeamInviteAction(concurrentPending.invite) === "reuse"
+      ) {
+        return pendingInviteResponse(
+          concurrentPending.invite.id,
+          normalizedEmail,
+          fullName,
+          userRole,
+        );
+      }
+    }
+
+    return NextResponse.json({ error: "Failed to create invitation" }, { status: 422 });
   }
 
   try {
