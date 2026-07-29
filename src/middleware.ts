@@ -46,12 +46,13 @@ export async function middleware(request: NextRequest) {
   const marketingHomeUrl = getMarketingHomeRedirectUrl(
     request.nextUrl,
     host,
+    request.method,
     APP_DOMAIN,
     MARKETING_DOMAIN,
   );
 
   if (marketingHomeUrl) {
-    return NextResponse.redirect(marketingHomeUrl, 308);
+    return NextResponse.redirect(marketingHomeUrl, 307);
   }
 
   const subdomain = parseSubdomain(host);
