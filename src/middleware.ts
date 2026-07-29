@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getMarketingHomeRedirectUrl } from "@/lib/domain-routing";
 import { parseSubdomain } from "@/lib/tenant";
 import { updateSession } from "@/lib/supabase/middleware";
+
+const APP_DOMAIN = process.env.NEXT_PUBLIC_APP_DOMAIN ?? "app.sequence-ai.com";
+const MARKETING_DOMAIN =
+  process.env.NEXT_PUBLIC_MARKETING_DOMAIN ?? "www.sequence-ai.com";
 
 const PUBLIC_PATHS = [
   "/login",
@@ -38,6 +43,18 @@ function applySubdomain(
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const host = request.headers.get("host");
+  const marketingHomeUrl = getMarketingHomeRedirectUrl(
+    request.nextUrl,
+    host,
+    request.method,
+    APP_DOMAIN,
+    MARKETING_DOMAIN,
+  );
+
+  if (marketingHomeUrl) {
+    return NextResponse.redirect(marketingHomeUrl, 307);
+  }
+
   const subdomain = parseSubdomain(host);
 
   // Public routes (marketing, login, signup, onboarding) must always render —
