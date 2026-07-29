@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/server";
 import { sendDailyDigestEmail } from "@/lib/email/client";
+import { getDailyDigestLoginUrl } from "@/lib/email/urls";
 import { requireCronAuth } from "@/lib/cron/auth";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://sequence-ai.com";
+const LOGIN_URL = getDailyDigestLoginUrl(APP_URL);
 
 type LeadSourceRelation = { name?: string | null; slug?: string | null } | { name?: string | null; slug?: string | null }[] | null;
 
@@ -189,7 +191,7 @@ export async function GET(request: NextRequest) {
         overdue: overdueCards,
         dueThisWeek: weekCards,
         recentlyUpdated: recentCards,
-        appUrl: APP_URL,
+        appUrl: LOGIN_URL,
       });
 
       sent++;
