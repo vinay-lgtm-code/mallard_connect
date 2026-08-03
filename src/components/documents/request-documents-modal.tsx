@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { DOCUMENT_CATEGORIES, CATEGORY_LABELS } from "@/schemas/document";
 import { Button } from "@/components/ui/button";
 import type { DocumentCategory } from "@/types";
+import posthog from "posthog-js";
 
 interface RequestDocumentsModalProps {
   leadId: string;
@@ -81,6 +82,10 @@ export function RequestDocumentsModal({
         throw new Error(body.error ?? `Failed (${res.status})`);
       }
 
+      posthog.capture("document_request_sent", {
+        document_count: selected.size,
+        has_personal_message: Boolean(message.trim()),
+      });
       onSent();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to send request");

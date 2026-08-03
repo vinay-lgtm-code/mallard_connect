@@ -22,6 +22,7 @@ import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
 import type { LogActivityPayload } from "@/components/leads/log-activity-modal";
 import type { ActivityType, Task } from "@/types";
+import posthog from "posthog-js";
 
 const STAGE_STYLES: Record<string, string> = {
   new_enquiry: "bg-[#E6EDEC] text-[#1A5653]",
@@ -342,6 +343,10 @@ export default function LeadDetailPage() {
       });
       setNoteText("");
       setAddingNote(false);
+      posthog.capture("lead_activity_logged", {
+        activity_type: "note",
+        has_metadata: false,
+      });
       refetchActivities();
     } catch (err) {
       console.error("Failed to save note:", err);
@@ -369,6 +374,9 @@ export default function LeadDetailPage() {
         description: null,
         metadata: null,
       });
+      posthog.capture("lead_stage_changed", {
+        stage: stage.slug,
+      });
       refetchLead();
       refetchActivities();
     } catch (err) {
@@ -389,6 +397,10 @@ export default function LeadDetailPage() {
         title: payload.title,
         description: payload.description || null,
         metadata: Object.keys(payload.metadata).length > 0 ? payload.metadata : null,
+      });
+      posthog.capture("lead_activity_logged", {
+        activity_type: payload.activityType,
+        has_metadata: Object.keys(payload.metadata).length > 0,
       });
       refetchActivities();
     } catch (err) {

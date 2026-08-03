@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { IMPORT_TARGET_FIELDS, autoMapColumns } from "@/lib/import/fields";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
+import posthog from "posthog-js";
 
 type Step = "upload" | "mapping" | "preview" | "importing" | "done";
 
@@ -332,6 +333,12 @@ export default function ImportPage() {
       }
 
       setProgress(100);
+      posthog.capture("lead_import_completed", {
+        created_count: result.created ?? 0,
+        updated_count: updateCount,
+        skipped_count: skipCount,
+        failed_count: result.failed ?? 0,
+      });
       setStep("done");
     } catch (err) {
       console.error("Import error:", err);

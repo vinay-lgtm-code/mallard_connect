@@ -8,6 +8,7 @@ import { useTenantUsers } from "@/hooks/use-leads";
 import { isDemoUser } from "@/lib/mock-data";
 import { createLeadSchema, type CreateLeadInput } from "@/schemas/lead";
 import { Button } from "@/components/ui/button";
+import posthog from "posthog-js";
 
 type FieldErrors = Partial<Record<keyof CreateLeadInput, string>>;
 
@@ -286,6 +287,12 @@ export default function NewLeadPage() {
         } catch { /* non-fatal */ }
       }
 
+      posthog.capture("lead_created", {
+        source: form.source || "unspecified",
+        mortgage_type: form.mortgageType || "unspecified",
+        has_follow_up: Boolean(form.followUpDate),
+        assigned_to_self: effectiveAssignee === user.id,
+      });
       router.push(`/leads/${newLead?.id}`);
     } catch (err: unknown) {
       console.error("Failed to create lead:", err);

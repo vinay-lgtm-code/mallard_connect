@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Database, Check, AlertCircle, Lock, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SectionLabel } from "@/components/ui/section-label";
+import posthog from "posthog-js";
 
 type ConnState = "disconnected" | "connecting" | "connected" | "error";
 
@@ -25,6 +26,7 @@ export default function BrevoIntegrationPage() {
     // Simulated for demo: a real call would POST /api/integrations/brevo/connect.
     await new Promise((r) => setTimeout(r, 900));
     setState("connected");
+    posthog.capture("brevo_connection_tested");
   }
 
   function disconnect() {

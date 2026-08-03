@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { DOCUMENT_CATEGORIES, CATEGORY_LABELS, ALLOWED_MIME_TYPES, MAX_FILE_SIZE } from "@/schemas/document";
 import { Button } from "@/components/ui/button";
 import type { DocumentCategory } from "@/types";
+import posthog from "posthog-js";
 
 interface UploadDocumentProps {
   leadId: string;
@@ -96,6 +97,10 @@ export function UploadDocument({ leadId, onUploaded }: UploadDocumentProps) {
       setCategory("other");
       setDescription("");
       if (fileInputRef.current) fileInputRef.current.value = "";
+      posthog.capture("document_uploaded", {
+        category,
+        file_type: file.type || "unknown",
+      });
       onUploaded();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed");

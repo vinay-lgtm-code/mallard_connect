@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { readOnboarding, writeOnboarding } from "@/lib/onboarding/state";
 import { clearDemoUser } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import posthog from "posthog-js";
 
 const COLORS = ["#1A5653", "#0F172A", "#7C3AED", "#0369A1", "#B45309", "#BE185D"];
 const LOGO_ACCEPT = ".svg,.png,.jpg,.jpeg,.webp";
@@ -278,6 +279,9 @@ export default function OnboardingPage() {
       }
 
       await supabase.auth.refreshSession();
+      posthog.capture("onboarding_completed", {
+        logo_uploaded: Boolean(logoFile),
+      });
       clearDemoUser();
       router.push("/onboarding/invite");
     } catch {

@@ -7,6 +7,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { useCadences, useCadenceEnrollments } from "@/hooks/use-cadences";
 import { isDemoUser } from "@/lib/mock-data";
 import { Button } from "@/components/ui/button";
+import posthog from "posthog-js";
 
 interface EnrollCadenceModalProps {
   leadId: string;
@@ -76,6 +77,9 @@ export function EnrollCadenceModal({
         metadata: { cadenceId: selectedCadenceId },
       });
 
+      posthog.capture("cadence_enrolled", {
+        step_count: activeCadences.find((cadence) => cadence.id === selectedCadenceId)?.steps.length ?? 0,
+      });
       onEnrolled();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to enrol. Please try again.");

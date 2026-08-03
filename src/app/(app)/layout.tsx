@@ -29,6 +29,7 @@ import { IdleTimeoutModal } from "@/components/idle-timeout-modal";
 import { createClient } from "@/lib/supabase/client";
 import { ErrorBoundary } from "@/components/error-boundary";
 import { useState } from "react";
+import posthog from "posthog-js";
 
 const NAV_ITEMS = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -112,6 +113,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const showAdminTools = isSequenceAdminEmail(user.email);
 
   async function handleSignOut() {
+    posthog.reset();
     if (getDemoUser()) {
       clearDemoUser();
     } else {

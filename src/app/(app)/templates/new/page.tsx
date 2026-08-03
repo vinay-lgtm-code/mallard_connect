@@ -10,6 +10,7 @@ import { useSupabase } from "@/hooks/use-supabase";
 import { isCadencesTemplatesEnabled } from "@/lib/feature-flags";
 import { ComingSoon } from "@/components/coming-soon";
 import { isDemoUser } from "@/lib/mock-data";
+import posthog from "posthog-js";
 
 const VARIABLES = ["{{firstName}}", "{{lastName}}", "{{adviser}}", "{{firmName}}"];
 
@@ -100,6 +101,10 @@ export default function NewTemplatePage() {
         throw new Error(data.error ?? "Failed to create template");
       }
 
+      posthog.capture("template_created", {
+        channel,
+        has_subject: Boolean(payload.subject),
+      });
       router.push("/templates");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

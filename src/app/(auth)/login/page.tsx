@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { clearDemoUser } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { OAuthButtons } from "@/components/auth/oauth-buttons";
+import posthog from "posthog-js";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -34,6 +35,13 @@ export default function LoginPage() {
       clearDemoUser();
 
       const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        posthog.identify(user.id, {
+          email: user.email,
+          name: (user.user_metadata?.full_name as string | undefined) ?? (user.user_metadata?.name as string | undefined),
+        });
+      }
+
       if (user?.app_metadata?.tenant_id) {
         const params = new URLSearchParams(window.location.search);
         const r = params.get("redirect");
