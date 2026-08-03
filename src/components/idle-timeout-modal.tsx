@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { getDemoUser, clearDemoUser } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
+import posthog from "posthog-js";
 
 const IDLE_LIMIT_MS = 4 * 60 * 1000; // 4 min before warning
 const COUNTDOWN_SECONDS = 60;
@@ -33,6 +34,7 @@ export function IdleTimeoutModal() {
 
   const signOut = useCallback(async () => {
     clearTimers();
+    posthog.reset();
     if (getDemoUser()) {
       clearDemoUser();
     } else {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { hasCapability } from "@/lib/auth/roles";
+import posthog from "posthog-js";
 
 const ROLE_OPTIONS = [
   { value: "advisor", label: "Advisor", description: "Works their own leads and pipeline." },
@@ -75,6 +76,11 @@ export default function InviteTeamMemberPage() {
         throw new Error(data.error ?? "Failed to send invite");
       }
 
+      if (!data.alreadyPending) {
+        posthog.capture("team_invitation_sent", {
+          role: form.role,
+        });
+      }
       setSuccess(data.alreadyPending ? "pending" : "sent");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong.");

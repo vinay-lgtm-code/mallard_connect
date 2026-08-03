@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useSupabase } from "@/hooks/use-supabase";
 import { isDemoUser } from "@/lib/mock-data";
 import type { CadenceTrigger, CadenceStep } from "@/types";
+import posthog from "posthog-js";
 
 export default function NewCadencePage() {
   const router = useRouter();
@@ -59,6 +60,11 @@ export default function NewCadencePage() {
         throw new Error(err.error ?? "Failed to create cadence");
       }
 
+      posthog.capture("cadence_created", {
+        trigger_type: data.trigger.type,
+        step_count: data.steps.length,
+        is_active: data.isActive,
+      });
       router.push("/cadences");
     } catch (err) {
       setError(
