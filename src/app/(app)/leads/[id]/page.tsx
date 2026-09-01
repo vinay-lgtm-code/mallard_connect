@@ -494,7 +494,7 @@ export default function LeadDetailPage() {
     setSavingQual(true);
     setQualSaved(false);
     try {
-      await supabase.from("leads").update({
+      const { error } = await supabase.from("leads").update({
         property_value: qualPropertyValue ? Number(qualPropertyValue) : null,
         deposit_amount: qualDepositAmount ? Number(qualDepositAmount) : null,
         deal_value: qualDealValue ? Number(qualDealValue) : null,
@@ -507,6 +507,7 @@ export default function LeadDetailPage() {
         has_defaults: qualHasDefaults,
         has_iva: qualHasIVA,
       }).eq("id", id);
+      if (error) throw error;
       refetchLead();
       setQualSaved(true);
       setTimeout(() => setQualSaved(false), 2000);
@@ -1053,11 +1054,11 @@ export default function LeadDetailPage() {
                       className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     >
                       <option value="">Select…</option>
-                      <option>Employed</option>
-                      <option>Self-employed</option>
-                      <option>Contractor</option>
-                      <option>Retired</option>
-                      <option>Other</option>
+                      <option value="employed">Employed</option>
+                      <option value="self-employed">Self-employed</option>
+                      <option value="contractor">Contractor</option>
+                      <option value="retired">Retired</option>
+                      <option value="other">Other</option>
                     </select>
                   </div>
                   <div>
@@ -1084,11 +1085,11 @@ export default function LeadDetailPage() {
                       className="mt-1 w-full border border-border-strong rounded-lg px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-[3px] focus:ring-primary/10"
                     >
                       <option value="">Select…</option>
-                      <option>Excellent</option>
-                      <option>Good</option>
-                      <option>Fair</option>
-                      <option>Poor</option>
-                      <option>Unknown</option>
+                      <option value="excellent">Excellent</option>
+                      <option value="good">Good</option>
+                      <option value="fair">Fair</option>
+                      <option value="poor">Poor</option>
+                      <option value="unknown">Unknown</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-2 mt-1">
