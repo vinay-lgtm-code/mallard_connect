@@ -85,6 +85,14 @@ export interface Lead {
   dealValue: number | null;
   estimatedCloseDate: string | null;
   confidence: number | null;
+  employmentType?: string | null;
+  selfEmployedYears?: number | null;
+  annualIncome?: number | null;
+  creditScoreBand?: string | null;
+  hasCcjs?: boolean;
+  hasDefaults?: boolean;
+  hasIva?: boolean;
+  isFirstTimeBuyer?: boolean | null;
   nextFollowUpDate: string | null;
   followUpReason: string | null;
   followUpNotes: string | null;
