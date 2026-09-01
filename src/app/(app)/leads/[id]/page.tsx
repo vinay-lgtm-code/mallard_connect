@@ -324,6 +324,12 @@ export default function LeadDetailPage() {
         : ""
     );
     setQualConfidence(lead.confidence != null ? String(lead.confidence) : "");
+    setQualEmployment(lead.employmentType ?? "");
+    setQualIncome(lead.annualIncome != null ? String(lead.annualIncome) : "");
+    setQualCreditBand(lead.creditScoreBand ?? "");
+    setQualHasCCJs(lead.hasCcjs ?? false);
+    setQualHasDefaults(lead.hasDefaults ?? false);
+    setQualHasIVA(lead.hasIva ?? false);
     setQualPopulated(true);
   }
 
@@ -494,7 +500,14 @@ export default function LeadDetailPage() {
         deal_value: qualDealValue ? Number(qualDealValue) : null,
         estimated_close_date: qualEstimatedCloseDate || null,
         confidence: qualConfidence ? Number(qualConfidence) : null,
+        employment_type: qualEmployment || null,
+        annual_income: qualIncome ? Number(qualIncome) : null,
+        credit_score_band: qualCreditBand || null,
+        has_ccjs: qualHasCCJs,
+        has_defaults: qualHasDefaults,
+        has_iva: qualHasIVA,
       }).eq("id", id);
+      refetchLead();
       setQualSaved(true);
       setTimeout(() => setQualSaved(false), 2000);
     } catch (err) {
